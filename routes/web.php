@@ -1,18 +1,34 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\LoginController;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
-*/
+Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout'); 
+Route::post('/main', [LoginController::class, 'main'])->name('main'); 
+
+Route::get('/main', function () {
+    return view('main');  
+})->middleware('auth');  
+
+Route::get('{controlador}/{metodo}', function ($controlador, $metodo) {
+    $controllerClass = 'App\\Http\\Controllers\\' . ucfirst($controlador);
+
+    if (class_exists($controllerClass) && method_exists($controllerClass, $metodo)) {
+        return app()->call("$controllerClass@$metodo");
+    } else {
+        abort(404); 
+    }
+})->middleware('auth');
+
+Route::post('{controlador}/{metodo}', function ($controlador, $metodo) {
+    $controllerClass = 'App\\Http\\Controllers\\' . ucfirst($controlador);
+
+    if (class_exists($controllerClass) && method_exists($controllerClass, $metodo)) {
+        return app()->call("$controllerClass@$metodo");
+    } else {
+        abort(404);
+    }
+})->middleware('auth');
