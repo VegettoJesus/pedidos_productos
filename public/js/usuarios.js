@@ -205,7 +205,7 @@ $(document).ready(function () {
     tablaUsuarios = $('#tablaUsuarios').DataTable({
         processing: true,
         serverSide: false,
-        dom: '<"d-flex justify-content-between align-items-center"lf>tip', 
+        dom: '<"row mb-2"<"col-lg-10 col-md-12 col-sm-12 col-xs-12 d-flex flex-wrap gap-2 align-items-center"lB><"col-lg-2 col-md-12 col-sm-12 col-xs-12"f>>tip',
         ajax: {
             url: 'usuarios',
             type: 'POST',
@@ -299,30 +299,30 @@ $(document).ready(function () {
             }
         ],
         initComplete: function () {
-            if (permisosVista.eliminar) {
-                $('.dataTables_length').append(`
-                    <button id="btnEliminarSeleccionados" class="btn btn-danger ms-2 d-none">
-                        <i class="bi bi-trash"></i> Eliminar seleccionados
-                    </button>
-                `);
+        if (permisosVista.eliminar) {
+            $('.dataTables_length').append(`
+                <button id="btnEliminarSeleccionados" class="btn btn-danger w-lg-100 w-md-100 w-sm-100 w-xs-100 mb-2 mb-md-0 d-none">
+                    <i class="bi bi-trash"></i> Eliminar seleccionados
+                </button>
+            `);
 
-                $('#btnEliminarSeleccionados').on('click', function () {
-                    eliminarSeleccionados();
-                });
-            }
-
-            if (permisosVista.roles) { 
-                $('.dataTables_length').append(`
-                    <button id="btnRoles" class="btn btn-primary ms-2">
-                        <i class="bi bi-person-badge"></i> Roles
-                    </button>
-                `);
-
-                $('#btnRoles').on('click', function () {
-                    $('#modalRoles').modal('show'); 
-                });
-            }
+            $('#btnEliminarSeleccionados').on('click', function () {
+                eliminarSeleccionados();
+            });
         }
+
+        if (permisosVista.roles) { 
+            $('.dataTables_length').append(`
+                <button id="btnRoles" class="btn btn-primary w-lg-100 w-md-100 w-sm-100 w-xs-100 mb-2 mb-md-0">
+                    <i class="bi bi-person-badge"></i> Roles
+                </button>
+            `);
+
+            $('#btnRoles').on('click', function () {
+                $('#modalRoles').modal('show'); 
+            });
+        }
+    }
     });
     $('#tablaUsuarios').on('change', '.check-usuario', function () {
         let seleccionados = $('.check-usuario:checked').length;

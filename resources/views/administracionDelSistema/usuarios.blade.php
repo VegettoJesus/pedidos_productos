@@ -5,7 +5,7 @@
     </div>
     <div class="card-body">
     <div class="row mb-3">
-        <div class="col-md-4 text-dark fw-bold">
+        <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12 text-dark fw-bold">
           <label for="filtro_padre">Estado:</label>
           <select class="form-select form-select-sm" id="filtro_estado" name="filtro_estado">
               <option value="">TODOS</option>
@@ -13,7 +13,7 @@
               <option value="0">INACTIVO</option>
           </select>
         </div>
-        <div class="col-md-4 text-dark fw-bold">
+        <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12 text-dark fw-bold">
           <label for="filtro_permiso">Roles:</label>
           <select class="form-select form-select-sm" id="filtro_roles" name="filtro_roles">
               <option value="">TODOS</option>
@@ -22,17 +22,17 @@
               @endforeach
           </select>
         </div>
-        <div class="col-md-2 d-flex align-items-end mt-md-2 mt-2">
+        <div class="col-lg-2 col-md-12 col-sm-12 col-xs-12 d-flex align-items-end mt-md-2 mt-2">
           <button id="btnBuscar" class="btn btn-success w-100">Buscar</button>
         </div>
-        <div class="col-md-2 d-flex align-items-end mt-md-2 mt-2">
+        <div class="col-lg-2 col-md-12 col-sm-12 col-xs-12 d-flex align-items-end mt-md-2 mt-2">
             @permiso('AdministracionDelSistema/usuarios', 'crear')
                 <button id="btnNuevo" class="btn btn-primary w-100">Nuevo</button>
             @endpermiso
         </div>
       </div>
         <div class="table-responsive mt-4">
-        <table id="tablaUsuarios" class="w-100 table table-striped">
+        <table id="tablaUsuarios" class="w-100 table table-striped mt-2">
           <thead>
               <tr>
                   <th class="text-center"></th>
@@ -75,21 +75,21 @@
           <div class="row g-3">
 
             <!-- Nombres y Apellidos -->
-            <div class="col-md-6">
+            <div class="col-lg-6 col-md-12 col-sm-12 col-xs-12">
               <label for="nombres" class="form-label fw-bold">Nombres</label>
               <input type="text" class="form-control" id="nombres" name="nombres" placeholder="Ingrese nombres" >
             </div>
-            <div class="col-md-6">
+            <div class="col-lg-6 col-md-12 col-sm-12 col-xs-12">
               <label for="apellidos" class="form-label fw-bold">Apellidos</label>
               <input type="text" class="form-control" id="apellidos" name="apellidos" placeholder="Ingrese apellidos" >
             </div>
 
             <!-- Email y Contraseña -->
-            <div class="col-md-6">
+            <div class="col-lg-6 col-md-12 col-sm-12 col-xs-12">
               <label for="email" class="form-label fw-bold">Correo Electrónico</label>
               <input type="email" class="form-control" id="email" name="email" placeholder="usuario@ejemplo.com" >
             </div>
-            <div class="col-md-6 position-relative">
+            <div class="col-lg-6 col-md-12 col-sm-12 col-xs-12 position-relative">
               <label for="password" class="form-label fw-bold">Contraseña</label>
               <div class="input-group">
                 <input type="password" class="form-control" id="password" name="password" placeholder="********" >
@@ -100,7 +100,7 @@
             </div>
 
             <!-- Rol y Estado -->
-            <div class="col-md-6">
+            <div class="col-lg-6 col-md-12 col-sm-12 col-xs-12">
               <label for="id_rol" class="form-label fw-bold">Rol</label>
               <select class="form-select" id="id_rol" name="id_rol" >
                 <option value="">Seleccione rol</option>
@@ -109,7 +109,7 @@
                 @endforeach
               </select>
             </div>
-            <div class="col-md-6">
+            <div class="col-lg-6 col-md-12 col-sm-12 col-xs-12">
               <label for="estado" class="form-label fw-bold">Estado</label>
               <select class="form-select" id="estado" name="estado">
                 <option value="1">Activo</option>
@@ -118,14 +118,14 @@
             </div>
 
             <!-- Foto (solo imagen) -->
-            <div class="col-md-6">
+            <div class="col-lg-6 col-md-12 col-sm-12 col-xs-12">
               <label for="imagen" class="form-label fw-bold">Foto de Perfil</label>
               <input type="file" class="form-control" id="imagen" name="imagen" accept="image/*">
               <small class="text-muted">Solo se permite subir una imagen (jpg, png).</small>
             </div>
 
             <!-- Tipo Doc y Número -->
-            <div class="col-md-3">
+            <div class="col-lg-3 col-md-12 col-sm-12 col-xs-12">
               <label for="tipoDoc" class="form-label fw-bold">Tipo Documento</label>
               <select class="form-select" id="tipoDoc" name="tipoDoc" >
                 <option value="">Seleccione</option>
@@ -133,21 +133,21 @@
                 <option value="CARNET DE EXTRANJERIA">CARNET DE EXTRANJERIA</option>
               </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-lg-3 col-md-12 col-sm-12 col-xs-12">
               <label for="numeroDoc" class="form-label fw-bold">Número Documento</label>
               <input type="text" class="form-control" id="numeroDoc" name="numeroDoc" placeholder="12345678" >
             </div>
 
             <!-- Celular y Fecha Nacimiento -->
-            <div class="col-md-4">
+            <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12">
               <label for="celular" class="form-label fw-bold">Celular</label>
               <input type="text" class="form-control" id="celular" name="celular" placeholder="999999999">
             </div>
-            <div class="col-md-4">
+            <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12">
               <label for="fecha_nacimiento" class="form-label fw-bold">Fecha Nacimiento</label>
               <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento">
             </div>
-            <div class="col-md-4">
+            <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12">
               <label for="nacionalidad" class="form-label fw-bold">Nacionalidad</label>
               <select class="form-select" id="nacionalidad" name="nacionalidad" required>
                   <option value="">Seleccione nacionalidad</option>
@@ -176,14 +176,14 @@
               </select>
           </div>
 
-            <div class="col-12 my-3">
+            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 my-3">
                 <h6 class="fw-bold border-bottom pt-2">
                     <i class="bi bi-geo-alt-fill"></i> DOMICILIO ACTUAL
                 </h6>
             </div>
 
             <!-- Ubicación: Departamento / Provincia / Distrito -->
-            <div class="col-md-4">
+            <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12">
               <label for="departamento_id" class="form-label fw-bold">Departamento</label>
               <select class="form-select" id="departamento_id" name="departamento_id" >
                   <option value="">Seleccione</option>
@@ -192,13 +192,13 @@
                   @endforeach
               </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12">
               <label for="provincia_id" class="form-label fw-bold">Provincia</label>
               <select class="form-select" id="provincia_id" name="provincia_id"  disabled>
                   <option value="">Seleccione</option>
               </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12">
               <label for="distrito_id" class="form-label fw-bold">Distrito</label>
               <select class="form-select" id="distrito_id" name="distrito_id"  disabled>
                   <option value="">Seleccione</option>
@@ -206,7 +206,7 @@
             </div>
 
             <!-- Dirección y Código Postal -->
-            <div class="col-md-4 position-relative">
+            <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12 position-relative">
               <label for="direccion" class="form-label fw-bold">Calle</label>
               <div class="input-group">
                 <input type="text" class="form-control" id="direccion" name="direccion" placeholder="Av. Ejemplo">
@@ -215,15 +215,15 @@
                 </button>
               </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-lg-2 col-md-12 col-sm-12 col-xs-12">
               <label for="cod_postal" class="form-label fw-bold">Nº Calle</label>
               <input type="text" class="form-control" id="num_calle" name="num_calle" placeholder="Nº Calle">
             </div>
-            <div class="col-md-4">
+            <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12">
               <label for="cod_postal" class="form-label fw-bold">Puerta/Piso/Dpto/Otros</label>
               <input type="text" class="form-control" id="dir_otros" name="dir_otros" placeholder="Piso 1, Puerta 3, Dpto 101">
             </div>
-            <div class="col-md-2">
+            <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12">
               <label for="cod_postal" class="form-label fw-bold">Código Postal</label>
               <input type="text" class="form-control" id="cod_postal" name="cod_postal" placeholder="1484">
             </div>
@@ -304,14 +304,14 @@
       <div class="modal-body">
         <div class="row">
           <!-- Foto -->
-          <div class="col-md-4 text-center">
+          <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12 text-center">
             <img id="detalleImagen" src="{{ asset('img/user.png') }}" class="img-fluid rounded-circle shadow" style="max-width:180px;">
             <h6 class="mt-3 fw-bold" id="detalleNombre"></h6>
             <span class="badge bg-primary" id="detalleRol"></span>
           </div>
 
           <!-- Datos -->
-          <div class="col-md-8">
+          <div class="col-lg-8 col-md-12 col-sm-12 col-xs-12">
             <ul class="list-group list-group-flush text-start">
               <li class="list-group-item"><i class="bi bi-envelope"></i> <strong>Email:</strong> <span id="detalleEmail"></span></li>
               <li class="list-group-item"><i class="bi bi-card-text"></i> <strong>Documento:</strong> <span id="detalleDocumento"></span></li>
@@ -328,7 +328,7 @@
             <div class="mt-4">
                 <h6 class="fw-bold"><i class="bi bi-clock-history"></i> Auditorías</h6>
                 <div class="table-responsive">
-                    <table class="w-100 table table-sm table-striped" id="tablaAuditorias">
+                    <table class="w-100 table table-sm table-striped mt-2" id="tablaAuditorias">
                         <thead>
                             <tr>
                                 <th class="text-center">Acción</th>

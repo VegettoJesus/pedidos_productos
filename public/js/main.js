@@ -5,6 +5,7 @@ const menuBtn = document.getElementById('menu-btn');
 const sidebarBtn = document.getElementById('sidebar-btn')
 const darkModeBtn = document.getElementById('dark-mode-btn');
 let mensajesGlobalLoader = "";
+window.iconosGlobales = [];
 
 darkModeBtn.addEventListener('click', () => {
     document.body.classList.toggle('dark-mode');
@@ -211,4 +212,54 @@ function hidePreloader(statusMessages) {
             Swal.close();
         }, 600);
     }
+}
+
+function cargarIconosGlobales(callback) {
+    $.ajax({
+        url: "/get-iconos",
+        dataType: "text",
+        success: function (data) {
+            window.iconosGlobales = data
+                .split(/[\n,]+/)
+                .map(icon => icon.trim())
+                .filter(icon => icon !== "");
+            if (callback) callback();
+        },
+        error: function (xhr, status, error) {
+            console.error("Error cargando iconos.csv:", error);
+        }
+    });
+}
+
+// Genera grilla de iconos con filtro
+function generarGridIconos(seleccionado = "", filtro = "") {
+    if (seleccionado.startsWith("bi bi-")) seleccionado = seleccionado.replace("bi bi-", "");
+
+    const filtrados = window.iconosGlobales
+        .filter(icon => icon.toLowerCase().includes(filtro.toLowerCase()));
+
+    if (filtrados.length === 0) {
+        return `<div style="width:100%; text-align:center; padding:20px; color:#888;">
+                    😕 No se encontraron iconos
+                </div>`;
+    }
+
+    return filtrados
+        .map(icon => `
+            <button class="icon-btn ${icon === seleccionado ? 'selected' : ''}" data-icon="${icon}">
+                <i class="bi bi-${icon}" style="font-size:20px;"></i>
+            </button>
+        `).join("");
+}
+
+// Asigna eventos a botones de iconos dentro de un modal
+function bindBotones(contenedor, inputHidden) {
+    const buttons = contenedor.querySelectorAll('.icon-btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            inputHidden.value = btn.dataset.icon;
+        });
+    });
 }

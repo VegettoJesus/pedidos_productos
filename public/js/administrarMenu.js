@@ -189,135 +189,190 @@ $('#tablaPermisos').on('change', '.chkPermiso', function () {
 $('#modalPermisos').on('hidden.bs.modal', function () {
     location.reload();
 });
-$('#btnNuevo').on('click', function () {
+
+function mostrarModalPadre({ titulo = "Nuevo Padre", nombre = "", url = "", icono = "" }, callback) {
+    const iconGrid = generarGridIconos(icono);
+
     Swal.fire({
-        title: 'Crear Menú',
-        text: '¿Qué deseas crear?',
-        showDenyButton: true,
-        showCancelButton: true,          
-        confirmButtonText: 'Padre',
-        denyButtonText: 'Hijo',
-        cancelButtonText: 'Cerrar'       
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Crear Padre
-            const icons = [
-                "alarm", "app", "arrow-down", "arrow-left", "arrow-right", "arrow-up",
-                "bag", "bell", "bookmark", "box", "calendar", "camera", "chat",
-                "check", "clipboard", "cloud", "compass", "cpu", "download",
-                "envelope", "eye", "file", "flag", "folder", "gear", "globe",
-                "grid", "heart", "house", "image", "inbox", "key", "link",
-                "list", "lock", "map", "mic", "music", "pencil", "person",
-                "phone", "play", "plus", "printer", "search", "shield", "star",
-                "trash", "unlock", "upload", "wallet", "wifi", "x-circle"
-            ];
+        title: titulo,
+        html: `
+            <input id="nombrePadre" class="swal2-input" value="${nombre}" placeholder="Nombre">
+            <input id="urlPadre" class="swal2-input" value="${url}" placeholder="URL">
+            <div style="margin-bottom:10px;">
+                <input id="buscadorIconos" class="swal2-input" placeholder="Buscar icono..."
+                       style="border:2px solid #007bff; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.15); padding:8px; transition: all 0.3s;">
+            </div>
+            <div id="iconPicker" style="display:flex; flex-wrap:wrap; gap:5px; max-height:200px; overflow-y:auto; border:1px solid #ddd; padding:5px;">
+                ${iconGrid}
+            </div>
+            <input type="hidden" id="iconoPadre" value="${icono}">
+            <style>
+                .icon-btn { cursor:pointer; border:1px solid #ccc; background:#fff; padding:5px; border-radius:5px; transition: all 0.2s; }
+                .icon-btn:hover { transform: scale(1.1); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+                .icon-btn.selected { border-color:#007bff; background:#e7f1ff; }
+            </style>
+        `,
+        showCancelButton: true,
+        cancelButtonText: 'Cerrar',
+        preConfirm: () => ({
+            nombre: document.getElementById('nombrePadre').value,
+            url: document.getElementById('urlPadre').value,
+            icono: 'bi bi-' + document.getElementById('iconoPadre').value
+        }),
+        didOpen: () => {
+            const modal = Swal.getHtmlContainer();
+            const buscador = modal.querySelector('#buscadorIconos');
+            const iconPicker = modal.querySelector('#iconPicker');
+            const inputHidden = modal.querySelector('#iconoPadre');
 
-            let iconGrid = icons.map(icon => 
-                `<button type="button" class="icon-btn" data-icon="bi bi-${icon}" style="font-size: 24px; margin: 4px;"> <i class="bi bi-${icon}"></i> </button>`
-            ).join("");
+            bindBotones(iconPicker, inputHidden);
 
-            Swal.fire({
-                title: 'Nuevo Padre',
-                html: `
-                    <input id="nombrePadre" class="swal2-input" placeholder="Nombre">
-                    <input id="urlPadre" class="swal2-input" placeholder="URL">
-                    <div id="iconPicker" style="display: flex; flex-wrap: wrap; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 5px;">
-                        ${iconGrid}
-                    </div>
-                    <input type="hidden" id="iconoPadre">
-                    <style>
-                        .icon-btn { cursor: pointer; border: 1px solid #ccc; background: #fff; }
-                        .icon-btn.selected { border-color: #007bff; background: #e7f1ff; }
-                    </style>
-                `,
-                showCancelButton: true,          
-                cancelButtonText: 'Cerrar',      
-                didOpen: () => {
-                    const buttons = document.querySelectorAll('#iconPicker .icon-btn');
-                    buttons.forEach(btn => {
-                        btn.addEventListener('click', () => {
-                            buttons.forEach(b => b.classList.remove('selected'));
-                            btn.classList.add('selected');
-                            document.getElementById('iconoPadre').value = btn.dataset.icon;
-                        });
-                    });
-                },
-                preConfirm: () => {
-                    return {
-                        tipo: 'padre',
-                        nombre: document.getElementById('nombrePadre').value,
-                        url: document.getElementById('urlPadre').value,
-                        icono: document.getElementById('iconoPadre').value
-                    }
-                }
-            }).then((res) => {
-                if (res.value) {
-                    $.post('administrarMenu', {
-                        opcion: 'Crear',
-                        ...res.value,
-                        _token: $('meta[name="csrf-token"]').attr('content')
-                    }, function (data) {
-                        if (data.respuesta === 'ok') {
-                            Swal.fire({
-                                title: 'Éxito',
-                                text: data.mensaje,
-                                icon: 'success',
-                                confirmButtonText: 'Aceptar'
-                            }).then(() => {
-                                window.location.reload();
-                            });
-                        } else {
-                            Swal.fire('Error', data.mensaje, 'error');
-                        }
-                    }, 'json');
-                }
-            });
-
-        } else if (result.isDenied) {
-            // Crear Hijo
-            let opcionesPadres = '';
-            window.padres.forEach(p => {
-                opcionesPadres += `<option value="${p.id}">${p.nombre}</option>`;
-            });
-
-            Swal.fire({
-                title: 'Nuevo Hijo',
-                html: `
-                    <select id="padreHijo" class="swal2-input">${opcionesPadres}</select>
-                    <input id="nombreHijo" class="swal2-input" placeholder="Nombre del hijo">
-                `,
-                showCancelButton: true,          
-                cancelButtonText: 'Cerrar',      
-                preConfirm: () => {
-                    return {
-                        tipo: 'hijo',
-                        padre_id: $('#padreHijo').val(),
-                        nombre: $('#nombreHijo').val()
-                    }
-                }
-            }).then((res) => {
-                if (res.value) {
-                    $.post('administrarMenu', {
-                        opcion: 'Crear',
-                        ...res.value,
-                        _token: $('meta[name="csrf-token"]').attr('content')
-                    }, function (data) {
-                        if (data.respuesta === 'ok') {
-                            Swal.fire({
-                                title: 'Éxito',
-                                text: data.mensaje,
-                                icon: 'success',
-                                confirmButtonText: 'Aceptar'
-                            }).then(() => {
-                                window.location.reload();
-                            });
-                        } else {
-                            Swal.fire('Error', data.mensaje, 'error');
-                        }
-                    }, 'json');
-                }
+            // Filtrado dinámico con mensaje si no hay resultados
+            buscador.addEventListener('input', () => {
+                iconPicker.innerHTML = generarGridIconos(inputHidden.value, buscador.value);
+                bindBotones(iconPicker, inputHidden);
             });
         }
+    }).then(res => {
+        if (res.isConfirmed && callback) callback(res.value);
+    });
+}
+cargarIconosGlobales(() => {
+    $('#btnNuevo').on('click', function () {
+        Swal.fire({
+            title: 'Crear Menú',
+            text: '¿Qué deseas crear?',
+            showDenyButton: true,
+            showCancelButton: true,          
+            confirmButtonText: 'Padre',
+            denyButtonText: 'Hijo',
+            cancelButtonText: 'Cerrar'       
+        }).then((result) => {
+            if (result.isConfirmed) {
+                mostrarModalPadre({}, (data) => {
+                    $.post('administrarMenu', { opcion: 'Crear', tipo: 'padre', ...data, _token: $('meta[name="csrf-token"]').attr('content') }, function (resp) {
+                        if (resp.respuesta === 'ok') {
+                            Swal.fire('Éxito', resp.mensaje, 'success').then(() => window.location.reload());
+                        } else Swal.fire('Error', resp.mensaje, 'error');
+                    }, 'json');
+                });
+
+            } else if (result.isDenied) {
+                // Crear Hijo
+                let opcionesPadres = '';
+                window.padres.forEach(p => {
+                    opcionesPadres += `<option value="${p.id}">${p.nombre}</option>`;
+                });
+
+                Swal.fire({
+                    title: 'Nuevo Hijo',
+                    html: `
+                        <select id="padreHijo" class="swal2-input">${opcionesPadres}</select>
+                        <input id="nombreHijo" class="swal2-input" placeholder="Nombre del hijo">
+                    `,
+                    showCancelButton: true,          
+                    cancelButtonText: 'Cerrar',      
+                    preConfirm: () => {
+                        return {
+                            tipo: 'hijo',
+                            padre_id: $('#padreHijo').val(),
+                            nombre: $('#nombreHijo').val()
+                        }
+                    }
+                }).then((res) => {
+                    if (res.value) {
+                        $.post('administrarMenu', {
+                            opcion: 'Crear',
+                            ...res.value,
+                            _token: $('meta[name="csrf-token"]').attr('content')
+                        }, function (data) {
+                            if (data.respuesta === 'ok') {
+                                Swal.fire({
+                                    title: 'Éxito',
+                                    text: data.mensaje,
+                                    icon: 'success',
+                                    confirmButtonText: 'Aceptar'
+                                }).then(() => {
+                                    window.location.reload();
+                                });
+                            } else {
+                                Swal.fire('Error', data.mensaje, 'error');
+                            }
+                        }, 'json');
+                    }
+                });
+            }
+        });
+    });
+    // Evento botón Editar
+    $('#tablaMenus tbody').on('click', '.btn-editar', function () {
+        let idMenu = $(this).data('id');
+
+        $.post('administrarMenu', {
+            opcion: 'Editar',
+            id_menu: idMenu,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        }, function (res) {
+            if (res.respuesta === 'ok') {
+                let menu = res.menu;
+
+                if (menu.tipo === 'padre') {
+                    mostrarModalPadre({
+                        titulo: 'Editar Padre',
+                        nombre: menu.nombre,
+                        url: menu.url,
+                        icono: menu.icono
+                    }, (data) => {
+                        // Actualizamos el padre
+                        $.post('administrarMenu', {
+                            opcion: 'Actualizar',
+                            id: menu.id,
+                            tipo: 'padre',
+                            ...data,
+                            _token: $('meta[name="csrf-token"]').attr('content')
+                        }, function (resp) {
+                            if (resp.respuesta === 'ok') {
+                                Swal.fire('Éxito', resp.mensaje, 'success').then(() => window.location.reload());
+                            } else Swal.fire('Error', resp.mensaje, 'error');
+                        }, 'json');
+                    });
+                } else {
+                    // Hijo
+                    let opcionesPadres = window.padres.map(p => 
+                        `<option value="${p.id}" ${menu.padre_id == p.id ? 'selected' : ''}>${p.nombre}</option>`
+                    ).join('');
+
+                    Swal.fire({
+                        title: 'Editar Hijo',
+                        html: `
+                            <select id="padreHijo" class="swal2-input">${opcionesPadres}</select>
+                            <input id="nombreHijo" class="swal2-input" value="${menu.nombre}" placeholder="Nombre del hijo">
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: 'Actualizar',
+                        cancelButtonText: 'Cancelar',
+                        preConfirm: () => ({
+                            id: menu.id,
+                            tipo: 'hijo',
+                            padre_id: $('#padreHijo').val(),
+                            nombre: $('#nombreHijo').val()
+                        })
+                    }).then((res) => {
+                        if (res.value) {
+                            $.post('administrarMenu', {
+                                opcion: 'Actualizar',
+                                ...res.value,
+                                _token: $('meta[name="csrf-token"]').attr('content')
+                            }, function (resp) {
+                                if (resp.respuesta === 'ok') {
+                                    Swal.fire('Éxito', resp.mensaje, 'success').then(() => window.location.reload());
+                                } else Swal.fire('Error', resp.mensaje, 'error');
+                            }, 'json');
+                        }
+                    });
+                }
+            }
+        }, 'json');
     });
 });
 
@@ -355,146 +410,6 @@ $('#tablaMenus tbody').on('click', '.btn-eliminar', function () {
             }, 'json');
         }
     });
-});
-$('#tablaMenus tbody').on('click', '.btn-editar', function () {
-    let idMenu = $(this).data('id');
-
-    $.post('administrarMenu', {
-        opcion: 'Editar',
-        id_menu: idMenu,
-        _token: $('meta[name="csrf-token"]').attr('content')
-    }, function (res) {
-        if (res.respuesta === 'ok') {
-            let menu = res.menu;
-
-            if (menu.tipo === 'padre') {
-                // padre
-                const icons = [
-                    "alarm", "app", "arrow-down", "arrow-left", "arrow-right", "arrow-up",
-                    "bag", "bell", "bookmark", "box", "calendar", "camera", "chat",
-                    "check", "clipboard", "cloud", "compass", "cpu", "download",
-                    "envelope", "eye", "file", "flag", "folder", "gear", "globe",
-                    "grid", "heart", "house", "image", "inbox", "key", "link",
-                    "list", "lock", "map", "mic", "music", "pencil", "person",
-                    "phone", "play", "plus", "printer", "search", "shield", "star",
-                    "trash", "unlock", "upload", "wallet", "wifi", "x-circle"
-                ];
-
-                let iconGrid = icons.map(icon => 
-                    `<button type="button" class="icon-btn ${menu.icono === 'bi bi-'+icon ? 'selected' : ''}" 
-                        data-icon="bi bi-${icon}" style="font-size: 24px; margin: 4px;">
-                        <i class="bi bi-${icon}"></i>
-                    </button>`
-                ).join("");
-
-                Swal.fire({
-                    title: 'Editar Padre',
-                    html: `
-                        <input id="nombrePadre" class="swal2-input" value="${menu.nombre}" placeholder="Nombre">
-                        <input id="urlPadre" class="swal2-input" value="${menu.url}" placeholder="URL">
-                        <div id="iconPicker" style="display: flex; flex-wrap: wrap; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 5px;">
-                            ${iconGrid}
-                        </div>
-                        <input type="hidden" id="iconoPadre" value="${menu.icono}">
-                        <style>
-                            .icon-btn { cursor: pointer; border: 1px solid #ccc; background: #fff; }
-                            .icon-btn.selected { border-color: #007bff; background: #e7f1ff; }
-                        </style>
-                    `,
-                    showCancelButton: true,
-                    confirmButtonText: 'Actualizar',
-                    cancelButtonText: 'Cancelar',
-                    didOpen: () => {
-                        const buttons = document.querySelectorAll('#iconPicker .icon-btn');
-                        buttons.forEach(btn => {
-                            btn.addEventListener('click', () => {
-                                buttons.forEach(b => b.classList.remove('selected'));
-                                btn.classList.add('selected');
-                                document.getElementById('iconoPadre').value = btn.dataset.icon;
-                            });
-                        });
-                    },
-                    preConfirm: () => {
-                        return {
-                            id: menu.id,
-                            tipo: 'padre',
-                            nombre: document.getElementById('nombrePadre').value,
-                            url: document.getElementById('urlPadre').value,
-                            icono: document.getElementById('iconoPadre').value
-                        }
-                    }
-                }).then((res) => {
-                    if (res.value) {
-                        $.post('administrarMenu', {
-                            opcion: 'Actualizar',
-                            ...res.value,
-                            _token: $('meta[name="csrf-token"]').attr('content')
-                        }, function (data) {
-                            if (data.respuesta === 'ok') {
-                                Swal.fire({
-                                    title: 'Éxito',
-                                    text: data.mensaje,
-                                    icon: 'success',
-                                    confirmButtonText: 'Aceptar'
-                                }).then(() => {
-                                    window.location.reload();
-                                });
-                            } else {
-                                Swal.fire('Error', data.mensaje, 'error');
-                            }
-                        }, 'json');
-                    }
-                });
-
-            } else {
-                // hijo
-                let opcionesPadres = '';
-                window.padres.forEach(p => {
-                    opcionesPadres += `<option value="${p.id}" ${menu.padre_id == p.id ? 'selected' : ''}>${p.nombre}</option>`;
-                });
-
-                Swal.fire({
-                    title: 'Editar Hijo',
-                    html: `
-                        <select id="padreHijo" class="swal2-input">${opcionesPadres}</select>
-                        <input id="nombreHijo" class="swal2-input" value="${menu.nombre}" placeholder="Nombre del hijo">
-                    `,
-                    showCancelButton: true,
-                    confirmButtonText: 'Actualizar',
-                    cancelButtonText: 'Cancelar',
-                    preConfirm: () => {
-                        return {
-                            id: menu.id,
-                            tipo: 'hijo',
-                            padre_id: $('#padreHijo').val(),
-                            nombre: $('#nombreHijo').val()
-                        }
-                    }
-                }).then((res) => {
-                    if (res.value) {
-                        $.post('administrarMenu', {
-                            opcion: 'Actualizar',
-                            ...res.value,
-                            _token: $('meta[name="csrf-token"]').attr('content')
-                        }, function (data) {
-                            if (data.respuesta === 'ok') {
-                                Swal.fire({
-                                    title: 'Éxito',
-                                    text: data.mensaje,
-                                    icon: 'success',
-                                    confirmButtonText: 'Aceptar'
-                                }).then(() => {
-                                    window.location.reload();
-                                });
-                            } else {
-                                Swal.fire('Error', data.mensaje, 'error');
-                            }
-                        }, 'json');
-                    }
-                });
-            }
-        }
-    }, 'json');
 });
 $('#tablaMenus tbody').on('click', '.btn-url', function () {
     let idMenu = $(this).data('id');

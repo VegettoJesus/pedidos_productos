@@ -578,4 +578,32 @@ body.dark-mode .table-striped tbody tr:nth-of-type(even) th {
     main{
         padding: 2rem;
     }
+    #btnBuscar{
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
+    .dataTables_length {
+        flex-direction: column; /* Elementos uno debajo de otro */
+        align-items: stretch;   /* Ocupa el ancho disponible */
+    }
+
+    .dataTables_length label {
+        width: 100%;             /* El selector ocupa todo el ancho */
+        margin-bottom: 0.5rem;   /* Espacio debajo del selector */
+    }
+
+    .dataTables_length button {
+        width: 100%;             /* Botones expanden 100% */
+    }
+    #tablaPermisos th, 
+    #tablaPermisos td {
+        font-size: 0.85rem;  /* texto más pequeño */
+        padding: 0.4rem;     /* menos padding */
+    }
+
+    /* Botones y checkboxes más compactos */
+    #tablaPermisos input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+    }
 }
