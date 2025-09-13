@@ -21,6 +21,8 @@ class User extends Authenticatable
         'password',
         'id_rol',
         'estado',
+        'conectado',
+        'dark_mode'
     ];
 
     protected $hidden = [
@@ -30,6 +32,8 @@ class User extends Authenticatable
 
     protected $casts = [
         'estado' => 'boolean',
+        'conectado' => 'boolean',
+        'dark_mode' => 'boolean', 
         'email_verified_at' => 'datetime',
     ];
 
@@ -47,4 +51,10 @@ class User extends Authenticatable
     {
         return $this->hasOne(UsuarioDato::class, 'id_usuario');
     }
+
+    public function auditorias()
+    {
+        return $this->hasMany(Auditoria::class, 'user_id'); 
+    }
+
 }

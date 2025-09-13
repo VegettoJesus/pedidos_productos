@@ -7,17 +7,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Permiso extends Model
 {
-    use HasFactory;
-
-    protected $table = 'permisos';
-
     protected $fillable = [
         'id_rol',
         'id_menus',
-        'ver',
-        'editar',
-        'crear',
-        'eliminar',
+        'permisos',
+    ];
+
+    protected $casts = [
+        'permisos' => 'array', 
     ];
 
     public function rol()

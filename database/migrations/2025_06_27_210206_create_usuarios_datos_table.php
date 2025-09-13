@@ -20,10 +20,11 @@ return new class extends Migration
             $table->date('fecha_nacimiento');
             $table->string('imagen', 255)->nullable();
             $table->foreignId('id_usuario')->constrained('users')->onDelete('cascade');
-            $table->string('distrito', 100);
-            $table->string('provincia', 100);
-            $table->string('departamento', 100);
-            $table->string('cod_postal', 6);
+            $table->string('nacionalidad', 100); //NACIONALIDAD
+            $table->string('distrito', 100); //DIRECCION ACTUAL
+            $table->string('provincia', 100); //DIRECCION ACTUAL
+            $table->string('departamento', 100); //DIRECCION ACTUAL
+            $table->string('cod_postal', 6); //DIRECCION ACTUAL
         });
     }
 

@@ -28,7 +28,9 @@
           <button id="btnBuscar" class="btn btn-success w-100">Buscar</button>
         </div>
         <div class="col-md-2 d-flex align-items-end">
-          <button id="btnNuevo" class="btn btn-primary w-100">Nuevo</button>
+            @permiso('AdministracionDelSistema/administrarMenu', 'crear')
+                <button id="btnNuevo" class="btn btn-primary w-100">Nuevo</button>
+            @endpermiso
         </div>
       </div>
         <div class="table-responsive mt-4">

@@ -21,6 +21,8 @@ return new class extends Migration
             $table->string('password');
             $table->foreignId('id_rol')->constrained('roles')->onDelete('cascade');
             $table->boolean('estado')->default(true);
+            $table->boolean('conectado')->default(false);
+            $table->boolean('dark_mode')->default(false);
             $table->rememberToken();
             $table->timestamps();
             $table->timestamp('deleted_at')->nullable();
@@ -33,6 +35,7 @@ return new class extends Migration
             'password' => Hash::make('admin123'),
             'id_rol' => DB::table('roles')->where('name', 'admin')->value('id'),
             'estado' => true,
+            'conectado' => false, 
             'created_at' => now(),
             'updated_at' => now(),
         ]);

@@ -20,6 +20,7 @@ class UsuarioDato extends Model
         'fecha_nacimiento',
         'imagen',
         'id_usuario',
+        'nacionalidad',
         'distrito',
         'provincia',
         'departamento',
@@ -31,4 +32,19 @@ class UsuarioDato extends Model
     {
         return $this->belongsTo(User::class, 'id_usuario');
     }
+    public function departamento()
+    {
+        return $this->belongsTo(Departamento::class, 'departamento');
+    }
+
+    public function provincia()
+    {
+        return $this->belongsTo(Provincia::class, 'provincia');
+    }
+
+    public function distrito()
+    {
+        return $this->belongsTo(Distrito::class, 'distrito');
+    }
+
 }

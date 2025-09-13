@@ -17,15 +17,22 @@ $(document).ready(function () {
                 data: null,
                 className: 'text-center',
                 render: data => `
+                    ${(data.permisosVista?.configurar) ? `
                     <button class="btn btn-sm btn-primary btn-permisos" data-id="${data.id}" title="Permisos">
                         <i class="bi bi-gear"></i>
-                    </button>
+                    </button>` : ''}
+                    ${(data.permisosVista?.editar) ? `
                     <button class="btn btn-sm btn-warning btn-editar" data-id="${data.id}" title="Editar">
                         <i class="bi bi-pencil"></i>
-                    </button>
+                    </button>` : ''}
+                    ${(data.permisosVista?.configurar) ? `
+                    <button class="btn btn-sm btn-info btn-url" data-id="${data.id}" title="Actualizar URL">
+                        <i class="bi bi-link"></i>
+                    </button>` : ''}
+                    ${(data.permisosVista?.eliminar) ? `
                     <button class="btn btn-sm btn-danger btn-eliminar" data-id="${data.id}" title="Eliminar">
                         <i class="bi bi-trash"></i>
-                    </button>
+                    </button>` : ''}
                 `
             }
         ]
@@ -41,7 +48,7 @@ $(document).ready(function () {
         tabla.clear().draw();
         let idPadre = $('#filtro_padre').val();
         let idRol   = $('#filtro_permiso').val();
-
+        mensajesGlobalLoader = showPreloader("Cargando menús...", "cargar");
         $.post('administrarMenu', {
             opcion: 'Listar',
             id_padre: idPadre,
@@ -49,7 +56,12 @@ $(document).ready(function () {
             _token: $('meta[name="csrf-token"]').attr('content')
         }, function (res) {
             if (res.respuesta === 'ok') {
-                tabla.rows.add(res.menus).draw();
+                let menusConPermisos = res.menus.map(menu => ({
+                    ...menu,
+                    permisosVista: res.permisosVista
+                }));
+                tabla.rows.add(menusConPermisos).draw();
+                hidePreloader(mensajesGlobalLoader);
             }
         }, 'json');
     }
@@ -67,7 +79,7 @@ $(document).ready(function () {
                 _token: $('meta[name="csrf-token"]').attr('content')
             }, function (res) {
                 if (res.respuesta === 'ok' && res.menus.length > 0) {
-
+                     console.log(res)
                     let filasHijos = res.menus.map(hijo => `
                         <tr class="table-secondary hijo-row hijo-row-${idPadre}">
                             <td></td>
@@ -78,17 +90,23 @@ $(document).ready(function () {
                             <td class="text-center">${hijo.created_at}</td>
                             <td class="text-center">${hijo.updated_at}</td>
                             <td class="text-center">
-                                <button class="btn btn-sm btn-primary btn-permisos" data-id="${hijo.id}" title="Permisos">
-                                    <i class="bi bi-gear"></i>
-                                </button>
-                                <button class="btn btn-sm btn-warning btn-editar" data-id="${hijo.id}" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-danger btn-eliminar" data-id="${hijo.id}" title="Eliminar">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                ${(res.permisosVista?.configurar) ? `
+                                    <button class="btn btn-sm btn-primary btn-permisos" data-id="${hijo.id}" title="Permisos">
+                                        <i class="bi bi-gear"></i>
+                                    </button>` : ''}
+                                ${(res.permisosVista?.editar) ? `
+                                    <button class="btn btn-sm btn-warning btn-editar" data-id="${hijo.id}" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>` : ''}
+                                ${(res.permisosVista?.configurar) ? `
+                                    <button class="btn btn-sm btn-info btn-url" data-id="${hijo.id}" title="Actualizar URL">
+                                        <i class="bi bi-link"></i>
+                                    </button>` : ''}
+                                ${(res.permisosVista?.eliminar) ? `
+                                    <button class="btn btn-sm btn-danger btn-eliminar" data-id="${hijo.id}" title="Eliminar">
+                                        <i class="bi bi-trash"></i>
+                                    </button>` : ''}
                             </td>
-                        </tr>
                     `).join('');
 
                     $(filaPadre.node()).after(filasHijos);
@@ -111,17 +129,30 @@ $('#tablaMenus').on('click', '.btn-permisos', function () {
         _token: $('meta[name="csrf-token"]').attr('content')
     }, function (res) {
         if (res.respuesta === 'ok') {
+
+            // Lista de todos los permisos posibles
+            let permisosDisponibles = ['ver','crear','editar','eliminar','configurar', 'roles'];
+
+            // Generar cabeceras
+            let ths = '<th>Rol</th>';
+            permisosDisponibles.forEach(p => {
+                ths += `<th class="text-center">${p.charAt(0).toUpperCase() + p.slice(1)}</th>`;
+            });
+            $('#tablaPermisos thead tr').html(ths);
+
+            // Generar filas
             let filas = res.roles.map(rol => {
-                let permiso = res.permisos[rol.id] || {};
-                return `
-                    <tr>
-                        <td>${rol.name.toUpperCase()}</td>
-                        <td class="text-center"><input type="checkbox" class="chkPermiso" data-campo="ver" data-rol="${rol.id}" ${permiso.ver ? 'checked' : ''}></td>
-                        <td class="text-center"><input type="checkbox" class="chkPermiso" data-campo="crear" data-rol="${rol.id}" ${permiso.crear ? 'checked' : ''}></td>
-                        <td class="text-center"><input type="checkbox" class="chkPermiso" data-campo="editar" data-rol="${rol.id}" ${permiso.editar ? 'checked' : ''}></td>
-                        <td class="text-center"><input type="checkbox" class="chkPermiso" data-campo="eliminar" data-rol="${rol.id}" ${permiso.eliminar ? 'checked' : ''}></td>
-                    </tr>
-                `;
+                let permiso = res.permisos[rol.id] || {}; // puede venir vacío
+                let celdas = permisosDisponibles.map(p => `
+                    <td class="text-center">
+                        <input type="checkbox" class="chkPermiso" data-campo="${p}" data-rol="${rol.id}" ${permiso[p] ? 'checked' : ''}>
+                    </td>
+                `).join('');
+
+                return `<tr>
+                    <td>${rol.name.toUpperCase()}</td>
+                    ${celdas}
+                </tr>`;
             }).join('');
 
             $('#tablaPermisos tbody').html(filas);
@@ -154,6 +185,9 @@ $('#tablaPermisos').on('change', '.chkPermiso', function () {
             });
         }
     }, 'json');
+});
+$('#modalPermisos').on('hidden.bs.modal', function () {
+    location.reload();
 });
 $('#btnNuevo').on('click', function () {
     Swal.fire({
@@ -461,4 +495,39 @@ $('#tablaMenus tbody').on('click', '.btn-editar', function () {
             }
         }
     }, 'json');
+});
+$('#tablaMenus tbody').on('click', '.btn-url', function () {
+    let idMenu = $(this).data('id');
+
+    Swal.fire({
+        title: 'Actualizar URL',
+        input: 'text',
+        inputLabel: 'Nueva URL',
+        inputPlaceholder: 'Ej: dashboard/reportes',
+        showCancelButton: true,
+        confirmButtonText: 'Actualizar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: (url) => {
+            if (!url) {
+                Swal.showValidationMessage('La URL no puede estar vacía');
+            }
+            return url;
+        }
+    }).then((res) => {
+        if (res.value) {
+            $.post('administrarMenu', {
+                opcion: 'ActualizarURL',
+                id_menu: idMenu,
+                url: res.value,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            }, function (data) {
+                if (data.respuesta === 'ok') {
+                    Swal.fire('Éxito', data.mensaje, 'success')
+                        .then(() => window.location.reload());
+                } else {
+                    Swal.fire('Error', data.mensaje, 'error');
+                }
+            }, 'json');
+        }
+    });
 });

@@ -4,9 +4,21 @@ const sidebar = document.getElementById('sidebar');
 const menuBtn = document.getElementById('menu-btn');
 const sidebarBtn = document.getElementById('sidebar-btn')
 const darkModeBtn = document.getElementById('dark-mode-btn');
+let mensajesGlobalLoader = "";
 
 darkModeBtn.addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode')
+    document.body.classList.toggle('dark-mode');
+
+    fetch('/toggle-dark-mode', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({})
+    })
+    .then(res => res.json())
+    .catch(err => console.error(err));
 });
 
 sidebarBtn.addEventListener('click', () => {
@@ -65,3 +77,138 @@ function checkWindowsSize(){
 }
 checkWindowsSize();
 window.addEventListener('resize',checkWindowsSize);
+
+let statusInterval; 
+
+function showPreloader(title = 'Procesando...', action = 'default') {
+    const statusMessagesMap = {
+        cargar: [
+            "Conectando con el servidor...",
+            "Obteniendo registros...",
+            "Procesando información...",
+            "Generando tabla...",
+            "Aplicando filtros...",
+            "¡Datos cargados correctamente!"
+        ],
+        eliminar: [
+            "Preparando eliminación...",
+            "Validando permisos...",
+            "Eliminando registros...",
+            "Liberando espacio...",
+            "Actualizando vista...",
+            "¡Registros eliminados!"
+        ],
+        editar: [
+            "Verificando cambios...",
+            "Validando datos...",
+            "Guardando información...",
+            "Aplicando modificaciones...",
+            "Sincronizando...",
+            "¡Edición completada!"
+        ],
+        default: [
+            "Iniciando proceso...",
+            "Verificando información...",
+            "Procesando datos...",
+            "Realizando cambios...",
+            "Finalizando...",
+            "¡Proceso completado!"
+        ],
+        registrar: [
+            "Verificando cambios...",
+            "Validando datos...",
+            "Guardando información...",
+            "Aplicando registro...",
+            "Sincronizando...",
+            "Registro completado!"
+        ],
+    };
+
+    const statusMessages = statusMessagesMap[action] || statusMessagesMap.default;
+
+    Swal.fire({
+        title: title,
+        html: `
+            <div class="preloader-container">
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <div class="status-text" id="status-text">${statusMessages[0]}</div>
+            </div>
+        `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            let currentStatus = 0;
+            const statusElement = document.getElementById('status-text');
+            const progressBar = document.getElementById('progress-bar');
+
+            const totalSteps = statusMessages.length - 1;
+            const intervalTime = 1000;
+            const stepPercent = 100 / totalSteps;
+
+            statusInterval = setInterval(() => {
+                if (currentStatus < totalSteps) {
+                    currentStatus++;
+                    statusElement.textContent = statusMessages[currentStatus];
+                    progressBar.style.width = (currentStatus * stepPercent) + "%";
+                } else {
+                    clearInterval(statusInterval);
+                }
+            }, intervalTime);
+
+            Swal.getPopup().addEventListener('hidden', () => {
+                clearInterval(statusInterval);
+            });
+
+            // Estilos
+            if (!document.querySelector("#preloader-style")) {
+                const style = document.createElement("style");
+                style.id = "preloader-style";
+                style.innerHTML = `
+                :root {
+                    --primary-color: #f35b08;
+                    --secondary-color: #fd7e14;
+                }
+                .preloader-container { padding: 2rem; text-align: center; }
+                .progress-container {
+                    height: 14px; background-color: #f0f0f0;
+                    border-radius: 10px; overflow: hidden; margin: 1.5rem 0;
+                }
+                .progress-bar {
+                    height: 100%; width: 0%;
+                    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+                    border-radius: 10px; transition: width 1s ease;
+                }
+                .status-text {
+                    font-size: 0.95rem; color: #333;
+                    margin-top: 1rem; font-weight: 500; min-height: 1.5rem;
+                }
+                .swal2-popup { border-radius: 15px; padding: 2rem; }
+                .swal2-title { margin-bottom: 1rem !important; }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+    });
+
+    return statusMessages;
+}
+
+function hidePreloader(statusMessages) {
+    if (Swal.isVisible()) {
+        const statusElement = document.getElementById('status-text');
+        const progressBar = document.getElementById('progress-bar');
+
+        clearInterval(statusInterval);
+
+        // Forzar último estado
+        statusElement.textContent = statusMessages[statusMessages.length - 1];
+        progressBar.style.width = "100%";
+
+        // Dar tiempo a que el usuario lo vea
+        setTimeout(() => {
+            Swal.close();
+        }, 600);
+    }
+}

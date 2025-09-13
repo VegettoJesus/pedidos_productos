@@ -16,10 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('id_rol')->constrained('roles')->onDelete('cascade');
             $table->foreignId('id_menus')->constrained('menus')->onDelete('cascade');
-            $table->boolean('ver')->default(false);
-            $table->boolean('editar')->default(false);
-            $table->boolean('crear')->default(false);
-            $table->boolean('eliminar')->default(false);
+            $table->json('permisos')->nullable();
             $table->timestamps();
         });
 
@@ -27,20 +24,25 @@ return new class extends Migration
             [
                 'id_rol'    => 1,
                 'id_menus'  => 1,
-                'ver'       => true,
-                'editar'    => true,
-                'crear'     => true,
-                'eliminar'  => true,
+                'permisos'  => json_encode([
+                    'ver'     => true,
+                    'editar'  => true,
+                    'crear'   => true,
+                    'eliminar'=> true,
+                    'permisos'=> true
+                ]),
                 'created_at'=> now(),
                 'updated_at'=> now(),
             ],
             [
                 'id_rol'    => 1,
                 'id_menus'  => 2,
-                'ver'       => true,
-                'editar'    => true,
-                'crear'     => true,
-                'eliminar'  => true,
+                'permisos'  => json_encode([
+                    'ver'     => true,
+                    'editar'  => true,
+                    'crear'   => true,
+                    'eliminar'=> true
+                ]),
                 'created_at'=> now(),
                 'updated_at'=> now(),
             ],

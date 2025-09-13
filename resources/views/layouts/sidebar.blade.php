@@ -87,8 +87,8 @@
                     @endphp
 
                     @if ($imagen)
-                        <img class="brand-light" src="{{ asset('img/' . $imagen) }}" alt="user">
-                        <img class="brand-dark" src="{{ asset('img/' . $imagen) }}" alt="user">
+                        <img class="brand-light" src="{{ asset('perfil_usuario/' . $imagen) }}" alt="user">
+                        <img class="brand-dark" src="{{ asset('perfil_usuario/' . $imagen) }}" alt="user">
                     @else
                         <img class="brand-light" src="{{ asset('img/user.png') }}" alt="user">
                         <img class="brand-dark" src="{{ asset('img/user2.png') }}" alt="user">

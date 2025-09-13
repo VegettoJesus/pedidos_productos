@@ -3,7 +3,7 @@
 <head>
     @include('layouts.head')
 </head>
-<body>
+<body class="{{ $darkMode ? 'dark-mode' : '' }}">
     @include('layouts.header')
     @include('layouts.sidebar')
 
