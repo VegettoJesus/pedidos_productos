@@ -347,6 +347,8 @@ $(document).ready(function () {
             text: "El usuario será desactivado",
             icon: "warning",
             showCancelButton: true,
+            allowOutsideClick: false, 
+            allowEscapeKey: false,
             confirmButtonText: "Sí, desactivar",
             cancelButtonText: "Cancelar"
         }).then(result => {
@@ -393,6 +395,8 @@ $(document).ready(function () {
             text: "Los usuarios seleccionados serán desactivados",
             icon: "warning",
             showCancelButton: true,
+            allowOutsideClick: false, 
+            allowEscapeKey: false,
             confirmButtonText: "Sí, desactivar",
             cancelButtonText: "Cancelar"
         }).then(result => {
@@ -736,6 +740,8 @@ $('#tablaRoles').on('click', '.btn-editar-rol', function(){
                 inputLabel: 'Nombre del rol',
                 inputValue: resp.rol.name,
                 showCancelButton: true,
+                allowOutsideClick: false, 
+                allowEscapeKey: false,
                 confirmButtonText: 'Actualizar',
                 preConfirm: (nombre) => {
                     if(!nombre || nombre.trim() === '') Swal.showValidationMessage('Debe ingresar un nombre');
@@ -782,6 +788,8 @@ $('#tablaRoles').on('click', '.btn-eliminar-rol', function(){
         title: '¿Seguro de eliminar este rol?',
         icon: 'warning',
         showCancelButton: true,
+        allowOutsideClick: false, 
+        allowEscapeKey: false,
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
     }).then((result)=>{

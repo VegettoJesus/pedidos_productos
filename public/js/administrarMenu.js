@@ -1,42 +1,73 @@
 $(document).ready(function () {
-    let tabla = $('#tablaMenus').DataTable({
-        columns: [
-            {
-                data: null,
-                className: "text-center",
-                orderable: false,
-                render: data => `<button class="btn btn-sm btn-info btn-expandir" data-id="${data.id}">+</button>`
-            },
-            { data: 'id', className: 'text-center' },
-            { data: 'nombre' },
-            { data: 'url' },
-            { data: 'orden', className: 'text-center' },
-            { data: 'created_at', className: 'text-center' },
-            { data: 'updated_at', className: 'text-center' },
-            {
-                data: null,
-                className: 'text-center',
-                render: data => `
-                    ${(data.permisosVista?.configurar) ? `
-                    <button class="btn btn-sm btn-primary btn-permisos" data-id="${data.id}" title="Permisos">
-                        <i class="bi bi-gear"></i>
-                    </button>` : ''}
-                    ${(data.permisosVista?.editar) ? `
-                    <button class="btn btn-sm btn-warning btn-editar" data-id="${data.id}" title="Editar">
-                        <i class="bi bi-pencil"></i>
-                    </button>` : ''}
-                    ${(data.permisosVista?.configurar) ? `
-                    <button class="btn btn-sm btn-info btn-url" data-id="${data.id}" title="Actualizar URL">
-                        <i class="bi bi-link"></i>
-                    </button>` : ''}
-                    ${(data.permisosVista?.eliminar) ? `
-                    <button class="btn btn-sm btn-danger btn-eliminar" data-id="${data.id}" title="Eliminar">
-                        <i class="bi bi-trash"></i>
-                    </button>` : ''}
-                `
-            }
-        ]
-    });
+    let tablaMenus = $('#tablaMenus').DataTable({
+    processing: true,
+    serverSide: false,
+    columns: [
+        {
+            className: 'col-expandir text-center',
+            orderable: false,
+            data: null,
+            render: () => `
+                <button class="btn btn-sm btn-success btn-expandir">
+                    <i class="bi bi-plus-circle"></i>
+                </button>
+            `
+        },
+        { data: 'id', className: 'text-center' },
+        { data: 'nombre' },
+        { data: 'url' },
+        { data: 'orden', className: 'text-center' },
+        { 
+            data: 'created_at', 
+            className: 'text-center',
+            render: data => data ? new Date(data).toLocaleDateString() : ''
+        },
+        { 
+            data: 'updated_at', 
+            className: 'text-center',
+            render: data => data ? new Date(data).toLocaleDateString() : ''
+        },
+        {
+            data: null,
+            className: 'text-center',
+            render: data => `
+                ${(data.permisosVista?.configurar) ? `
+                <button class="btn btn-sm btn-primary btn-permisos" data-id="${data.id}" title="Permisos">
+                    <i class="bi bi-gear"></i>
+                </button>` : ''}
+                ${(data.permisosVista?.editar) ? `
+                <button class="btn btn-sm btn-warning btn-editar" data-id="${data.id}" title="Editar">
+                    <i class="bi bi-pencil"></i>
+                </button>` : ''}
+                ${(data.permisosVista?.configurar) ? `
+                <button class="btn btn-sm btn-info btn-url" data-id="${data.id}" title="Actualizar URL">
+                    <i class="bi bi-link"></i>
+                </button>` : ''}
+                ${(data.permisosVista?.eliminar) ? `
+                <button class="btn btn-sm btn-danger btn-eliminar" data-id="${data.id}" title="Eliminar">
+                    <i class="bi bi-trash"></i>
+                </button>` : ''}
+            `
+        }
+    ],
+    language: {
+        "processing": "Procesando...",
+        "lengthMenu": "Mostrar _MENU_ registros",
+        "zeroRecords": "No se encontraron resultados",
+        "emptyTable": "No se encontraron registros",
+        "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
+        "infoFiltered": "(filtrado de un total de _MAX_ registros)",
+        "search": "Buscar:",
+        "loadingRecords": "Cargando...",
+        "paginate": {
+            "first": "Primero",
+            "last": "Último",
+            "next": "Siguiente",
+            "previous": "Anterior"
+        },
+        "info": "Mostrando _START_ a _END_ de _TOTAL_ registros"
+    }
+});
 
     cargarTabla();
 
@@ -44,8 +75,9 @@ $(document).ready(function () {
         cargarTabla();
     });
 
+
     function cargarTabla() {
-        tabla.clear().draw();
+        tablaMenus.clear().draw();
         let idPadre = $('#filtro_padre').val();
         let idRol   = $('#filtro_permiso').val();
         mensajesGlobalLoader = showPreloader("Cargando menús...", "cargar");
@@ -60,64 +92,89 @@ $(document).ready(function () {
                     ...menu,
                     permisosVista: res.permisosVista
                 }));
-                tabla.rows.add(menusConPermisos).draw();
+                tablaMenus.rows.add(menusConPermisos).draw();
                 hidePreloader(mensajesGlobalLoader);
             }
         }, 'json');
     }
 
+// Generar filas de hijos
+function formatHijos(menus, parentId, permisosVista) {
+    if (!menus || menus.length === 0) {
+        return `
+            <tr class="hijo-row" data-parent="${parentId}">
+                <td></td>
+                <td colspan="7" class="text-center text-white">
+                    No tiene submenús
+                </td>
+            </tr>
+        `;
+    }
 
-    $('#tablaMenus tbody').on('click', '.btn-expandir', function () {
-        let btn = $(this);
-        let idPadre = btn.data('id');
-        let filaPadre = tabla.row(btn.parents('tr'));
-
-        if (btn.hasClass('btn-info')) {
-            $.post('administrarMenu', {
-                opcion: 'Listar',
-                id_padre: idPadre,
-                _token: $('meta[name="csrf-token"]').attr('content')
-            }, function (res) {
-                if (res.respuesta === 'ok' && res.menus.length > 0) {
-                     console.log(res)
-                    let filasHijos = res.menus.map(hijo => `
-                        <tr class="table-secondary hijo-row hijo-row-${idPadre}">
-                            <td></td>
-                            <td class="text-center">${hijo.id}</td>
-                            <td>${hijo.nombre}</td>
-                            <td>${hijo.url ?? ''}</td>
-                            <td class="text-center">${hijo.orden}</td>
-                            <td class="text-center">${hijo.created_at}</td>
-                            <td class="text-center">${hijo.updated_at}</td>
-                            <td class="text-center">
-                                ${(res.permisosVista?.configurar) ? `
-                                    <button class="btn btn-sm btn-primary btn-permisos" data-id="${hijo.id}" title="Permisos">
-                                        <i class="bi bi-gear"></i>
-                                    </button>` : ''}
-                                ${(res.permisosVista?.editar) ? `
-                                    <button class="btn btn-sm btn-warning btn-editar" data-id="${hijo.id}" title="Editar">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>` : ''}
-                                ${(res.permisosVista?.configurar) ? `
-                                    <button class="btn btn-sm btn-info btn-url" data-id="${hijo.id}" title="Actualizar URL">
-                                        <i class="bi bi-link"></i>
-                                    </button>` : ''}
-                                ${(res.permisosVista?.eliminar) ? `
-                                    <button class="btn btn-sm btn-danger btn-eliminar" data-id="${hijo.id}" title="Eliminar">
-                                        <i class="bi bi-trash"></i>
-                                    </button>` : ''}
-                            </td>
-                    `).join('');
-
-                    $(filaPadre.node()).after(filasHijos);
-                    btn.removeClass('btn-info').addClass('btn-danger').text('-');
-                }
-            }, 'json');
-        } else {
-            $(`.hijo-row-${idPadre}`).remove();
-            btn.removeClass('btn-danger').addClass('btn-info').text('+');
-        }
+    let html = '';
+    menus.forEach(m => {
+        html += `
+            <tr class="hijo-row" data-parent="${parentId}">
+                <td></td>
+                <td class="text-center">${m.id}</td>
+                <td>${m.nombre}</td>
+                <td>${m.url ?? ''}</td>
+                <td class="text-center">${m.orden}</td>
+                <td class="text-center">${m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}</td>
+                <td class="text-center">${m.updated_at ? new Date(m.updated_at).toLocaleDateString() : ''}</td>
+                <td class="text-center">
+                    ${(permisosVista?.configurar) ? `
+                    <button class="btn btn-sm btn-primary btn-permisos" data-id="${m.id}" title="Permisos">
+                        <i class="bi bi-gear"></i>
+                    </button>` : ''}
+                    ${(permisosVista?.editar) ? `
+                    <button class="btn btn-sm btn-warning btn-editar" data-id="${m.id}" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </button>` : ''}
+                    ${(permisosVista?.configurar) ? `
+                    <button class="btn btn-sm btn-info btn-url" data-id="${m.id}" title="Actualizar URL">
+                        <i class="bi bi-link"></i>
+                    </button>` : ''}
+                    ${(permisosVista?.eliminar) ? `
+                    <button class="btn btn-sm btn-danger btn-eliminar" data-id="${m.id}" title="Eliminar">
+                        <i class="bi bi-trash"></i>
+                    </button>` : ''}
+                </td>
+            </tr>
+        `;
     });
+    return html;
+}
+
+// Expandir / contraer
+$('#tablaMenus tbody').on('click', 'button.btn-expandir', function () {
+    let tr = $(this).closest('tr');
+    let row = tablaMenus.row(tr);
+    let icono = $(this).find('i');
+    let boton = $(this);
+
+    if (tr.hasClass('expanded')) {
+        // Contraer
+        tr.removeClass('expanded');
+        icono.removeClass('bi-dash-circle').addClass('bi-plus-circle');
+        boton.removeClass('btn-danger').addClass('btn-success');
+        $('#tablaMenus tbody tr.hijo-row[data-parent="' + row.data().id + '"]').remove();
+    } else {
+        $.post('administrarMenu', {
+            opcion: 'Listar',
+            id_padre: row.data().id,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        }, function (res) {
+            if (res.respuesta === 'ok') {
+                tr.addClass('expanded');
+                icono.removeClass('bi-plus-circle').addClass('bi-dash-circle');
+                boton.removeClass('btn-success').addClass('btn-danger');
+                tr.after(formatHijos(res.menus, row.data().id, res.permisosVista));
+            }
+        }, 'json');
+    }
+});
+
 });
 
 $('#tablaMenus').on('click', '.btn-permisos', function () {
@@ -131,7 +188,7 @@ $('#tablaMenus').on('click', '.btn-permisos', function () {
         if (res.respuesta === 'ok') {
 
             // Lista de todos los permisos posibles
-            let permisosDisponibles = ['ver','crear','editar','eliminar','configurar', 'roles'];
+            let permisosDisponibles = ['ver','crear','editar','eliminar','configurar', 'roles','subcategoria'];
 
             // Generar cabeceras
             let ths = '<th>Rol</th>';
@@ -243,7 +300,9 @@ cargarIconosGlobales(() => {
             title: 'Crear Menú',
             text: '¿Qué deseas crear?',
             showDenyButton: true,
-            showCancelButton: true,          
+            showCancelButton: true, 
+            allowOutsideClick: false, 
+            allowEscapeKey: false,         
             confirmButtonText: 'Padre',
             denyButtonText: 'Hijo',
             cancelButtonText: 'Cerrar'       
@@ -270,7 +329,9 @@ cargarIconosGlobales(() => {
                         <select id="padreHijo" class="swal2-input">${opcionesPadres}</select>
                         <input id="nombreHijo" class="swal2-input" placeholder="Nombre del hijo">
                     `,
-                    showCancelButton: true,          
+                    showCancelButton: true, 
+                    allowOutsideClick: false, 
+                    allowEscapeKey: false,         
                     cancelButtonText: 'Cerrar',      
                     preConfirm: () => {
                         return {
@@ -349,6 +410,8 @@ cargarIconosGlobales(() => {
                             <input id="nombreHijo" class="swal2-input" value="${menu.nombre}" placeholder="Nombre del hijo">
                         `,
                         showCancelButton: true,
+                        allowOutsideClick: false, 
+                        allowEscapeKey: false,
                         confirmButtonText: 'Actualizar',
                         cancelButtonText: 'Cancelar',
                         preConfirm: () => ({
@@ -384,6 +447,8 @@ $('#tablaMenus tbody').on('click', '.btn-eliminar', function () {
         text: "Este menú será eliminado.",
         icon: 'warning',
         showCancelButton: true,
+        allowOutsideClick: false, 
+        allowEscapeKey: false,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Sí, eliminar',
@@ -420,6 +485,8 @@ $('#tablaMenus tbody').on('click', '.btn-url', function () {
         inputLabel: 'Nueva URL',
         inputPlaceholder: 'Ej: dashboard/reportes',
         showCancelButton: true,
+        allowOutsideClick: false, 
+        allowEscapeKey: false,
         confirmButtonText: 'Actualizar',
         cancelButtonText: 'Cancelar',
         preConfirm: (url) => {

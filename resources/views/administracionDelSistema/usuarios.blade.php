@@ -32,7 +32,7 @@
         </div>
       </div>
         <div class="table-responsive mt-4">
-        <table id="tablaUsuarios" class="w-100 table table-striped mt-2">
+        <table id="tablaUsuarios" class="w-100 table mt-2">
           <thead>
               <tr>
                   <th class="text-center"></th>
@@ -58,7 +58,7 @@
  </div>
 </div>
 <!-- Modal Nuevo Usuario -->
-<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-labelledby="modalNuevoUsuarioLabel" aria-hidden="true">
+<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-labelledby="modalNuevoUsuarioLabel" data-bs-backdrop="static"  data-bs-keyboard="false" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
       <!-- Header -->
@@ -274,7 +274,7 @@
                 <button id="btnNuevoRol" class="btn btn-success mb-3"><i class="bi bi-plus-circle"></i> Crear Rol</button>
         @endpermiso
         <div class="table-responsive">
-          <table id="tablaRoles" class="table table-striped table-bordered w-100" style="min-width: 600px;">
+          <table id="tablaRoles" class="table w-100" style="min-width: 600px;">
             <thead>
               <tr>
                 <th>ID</th>
@@ -291,7 +291,7 @@
 </div>
 
 <!-- Modal Detalle Usuario -->
-<div class="modal fade" id="modalDetalleUsuario" tabindex="-1" aria-labelledby="modalDetalleUsuarioLabel" aria-hidden="true">
+<div class="modal fade" id="modalDetalleUsuario" tabindex="-1" aria-labelledby="modalDetalleUsuarioLabel" data-bs-backdrop="static"  data-bs-keyboard="false" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
       <!-- Header -->
@@ -328,7 +328,7 @@
             <div class="mt-4">
                 <h6 class="fw-bold"><i class="bi bi-clock-history"></i> Auditorías</h6>
                 <div class="table-responsive">
-                    <table class="w-100 table table-sm table-striped mt-2" id="tablaAuditorias">
+                    <table class="w-100 table table-sm  mt-2" id="tablaAuditorias">
                         <thead>
                             <tr>
                                 <th class="text-center">Acción</th>

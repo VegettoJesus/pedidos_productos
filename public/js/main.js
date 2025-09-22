@@ -7,8 +7,29 @@ const darkModeBtn = document.getElementById('dark-mode-btn');
 let mensajesGlobalLoader = "";
 window.iconosGlobales = [];
 
+function aplicarEstilosTablas() {
+    document.querySelectorAll('table').forEach(tabla => {
+        if (document.body.classList.contains('dark-mode')) {
+            tabla.classList.remove('table-orange-personality');
+            tabla.classList.add('table-dark');
+        } else {
+            tabla.classList.remove('table-dark');
+            tabla.classList.add('table-orange-personality');
+        }
+    });
+}
+
+// ✅ Ejecutar cuando carga la página
+document.addEventListener('DOMContentLoaded', () => {
+    aplicarEstilosTablas();
+});
+
+// ✅ También cuando haces clic en el botón
 darkModeBtn.addEventListener('click', () => {
     document.body.classList.toggle('dark-mode');
+    document.body.classList.toggle('light-mode');
+
+    aplicarEstilosTablas(); // vuelve a aplicar los estilos
 
     fetch('/toggle-dark-mode', {
         method: 'POST',
@@ -21,6 +42,7 @@ darkModeBtn.addEventListener('click', () => {
     .then(res => res.json())
     .catch(err => console.error(err));
 });
+
 
 sidebarBtn.addEventListener('click', () => {
     document.body.classList.toggle('sidebar-hidden')
@@ -240,7 +262,7 @@ function generarGridIconos(seleccionado = "", filtro = "") {
 
     if (filtrados.length === 0) {
         return `<div style="width:100%; text-align:center; padding:20px; color:#888;">
-                    😕 No se encontraron iconos
+                    No se encontraron iconos
                 </div>`;
     }
 

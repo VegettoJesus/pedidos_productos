@@ -34,7 +34,7 @@
         </div>
       </div>
         <div class="table-responsive mt-4">
-        <table id="tablaMenus" class="w-100 table table-striped mt-2">
+        <table id="tablaMenus" class="w-100 table mt-2">
           <thead>
               <tr>
                   <th class="text-center"></th>
@@ -56,7 +56,7 @@
  </div>
 </div>
 
-<div class="modal fade" id="modalPermisos" tabindex="-1">
+<div class="modal fade" id="modalPermisos" tabindex="-1" data-bs-backdrop="static"  data-bs-keyboard="false" aria-hidden="true">
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header bg-dark text-white">
@@ -65,7 +65,7 @@
       </div>
       <div class="modal-body">
         <div class="table-responsive">
-          <table class="table table-bordered table-striped table-hover align-middle" id="tablaPermisos">
+          <table class="table align-middle" id="tablaPermisos">
             <thead class="table-dark">
               <tr>
                 <th>Rol</th>

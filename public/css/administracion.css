@@ -456,58 +456,17 @@ body.dark-mode .card-body {
     color: white;
 }
 
-/* Filas impares con table-striped (modo claro) */
-.table-striped tbody tr:nth-of-type(odd) {
-    background-color: #f4ab28;
-}
-
-.table-striped tbody tr:nth-of-type(even) {
-    background-color:rgb(201, 151, 59);
-}
-.hijo-row td {
-  color: black !important;
-}
-
-.hijo-row:hover td {
-  color: white !important;
-}
-
-body.dark-mode .hijo-row td {
-  color: black !important;
-}
-
-body.dark-mode .hijo-row:hover td {
-  color: black !important;
-}
-body.dark-mode .tablepersonality {
-  color: black !important;
-}
-.btn-close{
-    background-color: white !important;
-}
-
 /* ===== MODO OSCURO ===== */
 body.dark-mode .table {
     border: 2px solid #ffffffaa;
     color: white;
 }
 
-/* Encabezado en modo oscuro */
 body.dark-mode .table thead {
-    background-color: #444;
+    background-color: #000000;
     color: white;
 }
 
-/* Filas striped en modo oscuro */
-body.dark-mode .table-striped tbody tr:nth-of-type(odd) {
-    background-color: #2d2f36;
-}
-
-body.dark-mode .table-striped tbody tr:nth-of-type(even) {
-    background-color: #3a3d4d;
-}
-
-/* Hover en modo claro */
 .table tbody tr:hover td,
 .table tbody tr:hover th {
     background-color: black !important;
@@ -515,20 +474,36 @@ body.dark-mode .table-striped tbody tr:nth-of-type(even) {
     cursor: pointer;
 }
 
-/* Hover en modo oscuro */
 body.dark-mode .table tbody tr:hover td,
 body.dark-mode .table tbody tr:hover th {
     background-color: white !important;
     color: black !important;
 }
-
-body.dark-mode .table-striped tbody tr:nth-of-type(odd) td,
-body.dark-mode .table-striped tbody tr:nth-of-type(even) td,
-body.dark-mode .table-striped tbody tr:nth-of-type(odd) th,
-body.dark-mode .table-striped tbody tr:nth-of-type(even) th {
-    color: white;
+.table-orange-personality {
+    background-color: #f4ab28;
+    color: black;
+    border: 2px solid #333;
 }
 
+.table-orange-personality thead {
+    background-color: #f35b08;
+    color: white;
+}
+.table-orange-personality thead tr td{
+    background-color: #b87d10 !important;
+    color: black;
+}
+.table-orange-personality tbody tr.hijo-row {
+    background-color: #c55418;
+    color: white;
+}
+.table-orange-personality tbody tr:hover td {
+    background-color: black !important;
+    color: white !important;
+}
+.btn-close{
+    background-color: white !important;
+}
 @media (max-height: 683px){
     .footer{
         box-shadow: none;
