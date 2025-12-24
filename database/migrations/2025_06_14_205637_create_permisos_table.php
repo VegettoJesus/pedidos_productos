@@ -29,7 +29,7 @@ return new class extends Migration
                     'editar'  => true,
                     'crear'   => true,
                     'eliminar'=> true,
-                    'permisos'=> true
+                    'configurar'=> true
                 ]),
                 'created_at'=> now(),
                 'updated_at'=> now(),
@@ -41,7 +41,8 @@ return new class extends Migration
                     'ver'     => true,
                     'editar'  => true,
                     'crear'   => true,
-                    'eliminar'=> true
+                    'eliminar'=> true,
+                    'configurar' => true,
                 ]),
                 'created_at'=> now(),
                 'updated_at'=> now(),

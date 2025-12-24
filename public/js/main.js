@@ -219,20 +219,20 @@ function showPreloader(title = 'Procesando...', action = 'default') {
 }
 
 function hidePreloader(statusMessages) {
-    if (Swal.isVisible()) {
-        const statusElement = document.getElementById('status-text');
-        const progressBar = document.getElementById('progress-bar');
+    const statusElement = document.getElementById('status-text');
+    const progressBar = document.getElementById('progress-bar');
 
-        clearInterval(statusInterval);
+    clearInterval(statusInterval);
 
-        // Forzar último estado
+    if (statusElement) {
         statusElement.textContent = statusMessages[statusMessages.length - 1];
+    }
+    if (progressBar) {
         progressBar.style.width = "100%";
+    }
 
-        // Dar tiempo a que el usuario lo vea
-        setTimeout(() => {
-            Swal.close();
-        }, 600);
+    if (Swal.isVisible()) {
+        setTimeout(() => Swal.close(), 600);
     }
 }
 

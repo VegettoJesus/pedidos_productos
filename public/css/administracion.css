@@ -504,6 +504,40 @@ body.dark-mode .table tbody tr:hover th {
 .btn-close{
     background-color: white !important;
 }
+/* Precio normal */
+.precio-normal {
+  font-size: 14px;
+  color: #555;
+}
+
+/* Precio tachado cuando hay rebaja */
+.precio-tachado {
+  text-decoration: line-through;
+  color: #888;
+  margin-right: 5px;
+}
+
+/* Precio rebajado (descuento activo) */
+.precio-rebajado {
+  font-size: 15px;
+  font-weight: bold;
+  color: #e63946; /* rojo elegante */
+}
+
+/* Rango de precios (para variables y agrupados) */
+.precio-rango {
+  font-size: 14px;
+  font-weight: bold;
+  color: #1d3557; /* azul oscuro */
+}
+
+/* Precio único (cuando min = max en variables/agrupados) */
+.precio-unico {
+  font-size: 15px;
+  font-weight: bold;
+  color: #2a9d8f; /* verde */
+}
+
 @media (max-height: 683px){
     .footer{
         box-shadow: none;
