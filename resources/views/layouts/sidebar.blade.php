@@ -1,11 +1,15 @@
-<div class="menu-btn sidebar-btn" id="sidebar-btn">
-        <i class="bi bi-list"></i>
-        <i class="bi bi-x"></i>
-    </div>
-    <div class="dark-mode-btn" id="dark-mode-btn">
-        <i class="bi bi-moon"></i>
-        <i class="bi bi-sun"></i>
-    </div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- Botón para móvil (hamburguesa) - AHORA A LA DERECHA -->
+<div class="sidebar-btn" id="sidebar-btn">
+    <i class="bi bi-list"></i>
+    <i class="bi bi-x"></i>
+</div>
+
+<div class="dark-mode-btn" id="dark-mode-btn">
+    <i class="bi bi-moon"></i>
+    <i class="bi bi-sun"></i>
+</div>
     <div class="sidebar" id="sidebar">
         <div class="header">
             <div class="menu-btn" id="menu-btn">

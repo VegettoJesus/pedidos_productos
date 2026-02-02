@@ -5,7 +5,7 @@
     </div>
     <div class="card-body">
     <div class="row mb-3">
-        <div class="col-lg-2 col-md-6 col-sm-12 d-flex align-items-end mt-2">
+        <div class="col-lg-6 col-md-6 col-sm-12 d-flex align-items-end mt-2">
             @permiso('Catalogo/categorias', 'crear')
                 <button id="btnNuevo" class="btn btn-primary w-100 d-flex align-items-center justify-content-center">
                     <i class="bi bi-plus-circle me-2"></i> Nuevo
@@ -13,7 +13,7 @@
             @endpermiso
         </div>
 
-        <div class="col-lg-2 col-md-6 col-sm-12 d-flex align-items-end mt-2">
+        <div class="col-lg-6 col-md-6 col-sm-12 d-flex align-items-end mt-2">
             @permiso('Catalogo/categorias', 'subcategoria')
                 <button id="btnNuevoSub" class="btn btn-primary w-100 d-flex align-items-center justify-content-center">
                     <i class="bi bi-diagram-2 me-2"></i> Nueva Subcategoría
