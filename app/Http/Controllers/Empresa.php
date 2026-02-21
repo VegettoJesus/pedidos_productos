@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Mail\Message;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\ConfiguracionHelper;
+use App\Services\MenuService;
+use Illuminate\Support\Facades\Cache;
 
 class Empresa extends Controller
 {
@@ -174,13 +177,20 @@ class Empresa extends Controller
                         $accion = 'crear';
                     }
 
+                    ConfiguracionHelper::clearCache();
+                    MenuService::limpiarTodaLaCache();
+
                     // Registrar auditoría detallada
                     $descripcion = "Configuración del sitio actualizada. Cambios: ";
                     $cambios = [];
                     
                     foreach ($request->all() as $key => $value) {
                         if (isset($valoresAnteriores[$key]) && $valoresAnteriores[$key] != $value) {
-                            $cambios[] = "$key: '{$valoresAnteriores[$key]}' → '$value'";
+                            if ($key === 'icono_site') {
+                                $cambios[] = "$key: '" . basename($valoresAnteriores[$key]) . "' → '" . basename($value) . "'";
+                            } else {
+                                $cambios[] = "$key: '{$valoresAnteriores[$key]}' → '$value'";
+                            }
                         }
                     }
                     
@@ -195,6 +205,7 @@ class Empresa extends Controller
                     $data->respuesta = 'success';
                     $data->success = true;
                     $data->message = 'Configuración actualizada correctamente';
+                    $data->cache_cleared = true;
                     $data->data = $configuracion;
                     break;
 

@@ -195,6 +195,7 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
         App\Providers\TemaServiceProvider::class,
+        App\Providers\CacheServiceProvider::class,
     ],
 
     /*
@@ -210,6 +211,7 @@ return [
 
     'aliases' => Facade::defaultAliases()->merge([
         // 'ExampleClass' => App\Example\ExampleClass::class,
+        'ConfiguracionHelper' => App\Helpers\ConfiguracionHelper::class,
     ])->toArray(),
 
 ];

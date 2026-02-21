@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Services\MenuService;
 
 class LoginController extends Controller
 {
@@ -45,6 +46,7 @@ class LoginController extends Controller
     public function logout(Request $request)
     {
         if (Auth::check()) {
+            MenuService::limpiarCache(Auth::id());
             Auth::user()->update(['conectado' => false]);
         }
 

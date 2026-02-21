@@ -18,6 +18,7 @@ use App\Models\ProductoImagen;
 use App\Models\ProductoVariacion;
 use App\Models\VariacionImagen;
 use App\Services\MenuService;
+use App\Data\Icons;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
@@ -38,7 +39,7 @@ class Catalogo extends Controller
         ]);
     }
 
-    public function categorias(Request $request)
+    public function gestionCatalogo(Request $request)
     {
         if ($request->isMethod('post')) {
             $opcion = $request->input('opcion');
@@ -92,6 +93,17 @@ class Catalogo extends Controller
                         $data->respuesta = 'error';
                         $data->mensaje = 'Categoría no encontrada';
                     }
+                    break;
+                case 'ListarSubcategorias':
+                    $query = Subcategoria::with('categoria');
+                    
+                    if ($request->filled('categoria_id')) {
+                        $query->where('id_categoria', $request->categoria_id);
+                    }
+                    
+                    $subcategorias = $query->get();
+                    $data->respuesta = 'ok';
+                    $data->subcategorias = $subcategorias;
                     break;
 
                 case 'Eliminar':
@@ -164,9 +176,10 @@ class Catalogo extends Controller
             return response()->json($data);
         } else {
             $data = new \stdClass();
-            $data->script = 'js/categorias.js';
+            $data->iconos = Icons::all();
+            $data->script = 'js/gestionCatalogo.js';
             $data->css = 'css/administracion.css';
-            $data->contenido = 'catalogo.categorias';
+            $data->contenido = 'catalogo.gestionCatalogo';
             return view('layouts.contenido', (array) $data);
         }
     }

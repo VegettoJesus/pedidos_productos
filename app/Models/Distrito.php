@@ -11,7 +11,7 @@ class Distrito extends Model
 
     protected $table = 'distritos';
 
-    protected $fillable = ['nombre', 'costo_envio', 'provincia_id'];
+    protected $fillable = ['nombre', 'costo_envio', 'provincia_id', 'activo'];
 
     public function provincia()
     {

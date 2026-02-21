@@ -53,8 +53,6 @@
   .form-select {
     border-radius: 6px;
   }
-
-  /* Mejor diseño de chips de atributos/valores si aparecen luego */
   .chip {
     background-color: #f1f3f5;
     padding: 4px 8px;
@@ -62,7 +60,7 @@
     font-size: 0.85rem;
   }
 </style>
-<div class="container-fluid px-2">
+<div class="container-fluid px-2" style="display: inline-grid">
   <div class="card text-center text-white bg-dark">
     <div class="card-header">Lista de Productos</div>
     <div class="card-body">

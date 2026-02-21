@@ -1,115 +1,137 @@
-<div class="sidebar-overlay" id="sidebar-overlay"></div>
+@php
+    use App\Services\MenuService;
+    $menus = MenuService::obtenerMenusPorUsuarioConVersion();
+@endphp
 
-<!-- Botón para móvil (hamburguesa) - AHORA A LA DERECHA -->
-<div class="sidebar-btn" id="sidebar-btn">
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Botón menú hamburguesa para móvil -->
+<button class="mobile-menu-btn" id="mobileMenuBtn">
     <i class="bi bi-list"></i>
-    <i class="bi bi-x"></i>
-</div>
+</button>
 
-<div class="dark-mode-btn" id="dark-mode-btn">
-    <i class="bi bi-moon"></i>
-    <i class="bi bi-sun"></i>
-</div>
-    <div class="sidebar" id="sidebar">
-        <div class="header">
-            <div class="menu-btn" id="menu-btn">
-                <i class="bi bi-chevron-left"></i>
-            </div>
-            <div class="brand">
-                <img class="brand-light" src="{{ asset('img/brand-light.webp') }}" alt="logo">
-                <img class="brand-dark" src="{{ asset('img/brand-dark.webp') }}" alt="logo">
-                <span>H.T.I</span>
-            </div>
-        </div>
-        
-        <div class="menu-container">
-            <div class="search">
-                <i class="bi bi-search"></i>
-                <input type="search" placeholder="Search">
-            </div>
-            <ul class="menu">
-                <li class="menu-item menu-item-static {{ request()->is('main') ? 'active' : '' }}">
-                    <a href="{{ route('main') }}" class="menu-link">
-                        <i class="bi bi-house"></i>
-                        <span>Inicio</span>
-                    </a>
-                </li>
-                @foreach ($menusDinamicos as $menu)
-                    @php
-                        $hasActiveSub = collect($menu['submenu'])->contains(fn($sub) => request()->is($sub['url']));
-                    @endphp
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <!-- Botón toggle (solo visible en desktop y tablet) -->
+    <div class="toggle-btn" id="toggleSidebar">
+        <i class="bi bi-chevron-right"></i>
+    </div>
 
-                    @if (count($menu['submenu']) > 0)
-                        <li class="menu-item menu-item-dropdown {{ $hasActiveSub ? 'sub-menu-toggle active' : '' }}">
-                            <a href="javascript:void(0)" class="menu-link" role="button">
-                                <i class="{{ $menu['icono'] }}"></i>
-                                <span>{{ $menu['nombre'] }}</span>
-                                <i class="bi bi-chevron-down"></i>
-                            </a>
-                            <ul class="sub-menu" style="{{ $hasActiveSub ? 'height:auto; padding:0.2rem 0;' : '' }}">
-                                @foreach ($menu['submenu'] as $sub)
-                                    <li>
-                                        <a href="{{ url($sub['url']) }}" 
-                                        class="sub-menu-link {{ request()->is($sub['url']) ? 'active' : '' }}">
-                                            {{ $sub['nombre'] }}
-                                        </a>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </li>
-                    @else
-                        <li class="menu-item menu-item-static {{ request()->is($menu['url']) ? 'active' : '' }}">
-                            <a href="{{ url($menu['url']) }}" class="menu-link">
-                                <i class="{{ $menu['icono'] }}"></i>
-                                <span>{{ $menu['nombre'] }}</span>
-                            </a>
-                        </li>
-                    @endif
-                @endforeach
-
-            </ul>
-        </div>
-        <div class="footer">
-            <ul class="menu">
-                <li class="menu-item menu-item-static {{ request()->is('notificaciones') ? 'active' : '' }}">
-                    <a href="{{ url('notificaciones') }}" class="menu-link">
-                        <i class="bi bi-bell"></i>
-                        <span>Notificaciones</span>
-                    </a>
-                </li>
-                <li class="menu-item menu-item-static {{ request()->is('configuracion') ? 'active' : '' }}">
-                    <a href="{{ url('configuracion') }}" class="menu-link">
-                        <i class="bi bi-gear"></i>
-                        <span>Configuración</span>
-                    </a>
-                </li>
-            </ul>
-            <div class="user">
-                <div class="user-img">
-                    @php
-                        $imagen = Auth::user()->datos->imagen ?? null;
-                    @endphp
-
-                    @if ($imagen)
-                        <img class="brand-light" src="{{ asset('perfil_usuario/' . $imagen) }}" alt="user">
-                        <img class="brand-dark" src="{{ asset('perfil_usuario/' . $imagen) }}" alt="user">
-                    @else
-                        <img class="brand-light" src="{{ asset('img/user.png') }}" alt="user">
-                        <img class="brand-dark" src="{{ asset('img/user2.png') }}" alt="user">
-                    @endif
+    <!-- Header con logo y empresa -->
+    <div class="sidebar-header">
+        <div class="logo-container">
+            @php
+                use App\Helpers\ConfiguracionHelper;
+            @endphp
+            
+            <img src="{{ ConfiguracionHelper::getFavicon() }}" 
+                alt="Logo"
+                onerror="this.src='{{ asset('img/img-empresa-default.png') }}'">
+            
+            <div class="company-info">
+                <div class="company-name">
+                    <span class="abbreviation">{{ ConfiguracionHelper::getAbbreviation() }}</span>
                 </div>
-                <div class="user-data">
-                    <span class="name">{{ Auth::user()->nombres }} {{ Auth::user()->apellidos }}</span>
-                    <span class="email">{{ Auth::user()->email }}</span>
-                </div>
-                <div class="user-icon">
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" title="Cerrar Sesión" style="all: unset; cursor: pointer;">
-                            <i class="bi bi-box-arrow-right"></i>
-                        </button>
-                    </form>
-                </div>
+                <div class="company-role">{{ Auth::user()->rol->name ?? 'Usuario' }}</div>
             </div>
         </div>
     </div>
+
+    <nav>
+        <ul>
+            <!-- Elemento estático Inicio (siempre visible) -->
+            <li class="menu-item">
+                <a href="{{ route('main') }}" class="d-flex align-items-center" data-tooltip="Inicio">
+                    <i class="bi bi-house-door"></i>
+                    <span>Inicio</span>
+                </a>
+            </li>
+
+            <!-- Menús dinámicos -->
+            @foreach($menus as $menu)
+                @if(empty($menu['submenu']))
+                    <!-- Menú sin submenú (redirección directa) -->
+                    <li class="menu-item">
+                        <a href="{{ url($menu['url']) }}" class="d-flex align-items-center" data-tooltip="{{ $menu['nombre'] }}">
+                            <i class="{{ $menu['icono'] }}"></i>
+                            <span>{{ $menu['nombre'] }}</span>
+                        </a>
+                    </li>
+                @else
+                    <!-- Menú con submenú -->
+                    <li class="menu-item">
+                        <button type="button" class="parent-menu" data-menu="menu-{{ $menu['id'] }}">
+                            <div class="menu-content">
+                                <i class="{{ $menu['icono'] }}"></i>
+                                <span>{{ $menu['nombre'] }}</span>
+                            </div>
+                            <i class="bi bi-chevron-down arrow-icon"></i>
+                        </button>
+                        <ul class="submenu" id="submenu-menu-{{ $menu['id'] }}">
+                            @foreach($menu['submenu'] as $submenu)
+                                <li>
+                                    <a href="{{ url($submenu['url']) }}" data-tooltip="{{ $submenu['nombre'] }}">
+                                        <i class="bi bi-caret-right-fill"></i>
+                                        <span>{{ $submenu['nombre'] }}</span>
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </li>
+                @endif
+            @endforeach
+
+            <!-- Elementos estáticos adicionales (siempre visibles) -->
+            <li class="menu-item">
+                <a href="{{ url('/notificaciones') }}" data-tooltip="Notificaciones">
+                    <i class="bi bi-bell"></i>
+                    <span>Notificaciones</span>
+                </a>
+            </li>
+            
+            <li class="menu-item">
+                <a href="{{ route('perfil.configuracion') }}" data-tooltip="Configuración">
+                    <i class="bi bi-gear"></i>
+                    <span>Configuración</span>
+                </a>
+            </li>
+
+            <!-- Logout -->
+            <li class="logout">
+                <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" data-tooltip="Cerrar Sesión">
+                    <i class="bi bi-box-arrow-left"></i>
+                    <span>Cerrar Sesión</span>
+                </a>
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                    @csrf
+                </form>
+            </li>
+        </ul>
+    </nav>
+</div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Marcar el menú activo basado en la URL actual
+    const currentUrl = window.location.pathname;
+    
+    document.querySelectorAll('.sidebar nav a').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && currentUrl.startsWith(href) && href !== '#') {
+            link.classList.add('active');
+            
+            // Expandir el menú padre si existe
+            const parentLi = link.closest('li');
+            if (parentLi && parentLi.closest('.submenu')) {
+                const parentButton = parentLi.closest('.menu-item')?.querySelector('.parent-menu');
+                if (parentButton) {
+                    parentButton.classList.add('active');
+                    parentLi.closest('.submenu').classList.add('show');
+                }
+            }
+        }
+    });
+});
+</script>
+@endpush

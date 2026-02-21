@@ -1,5 +1,4 @@
-<div class="container-fluid pb-4">
-    <!-- Encabezado -->
+<div class="container-fluid pb-4" style="display: inline-grid">
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0">
