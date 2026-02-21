@@ -9,6 +9,7 @@ use App\Models\Provincia;
 use App\Services\MenuService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class Ubicaciones extends Controller
 {
@@ -25,226 +26,335 @@ class Ubicaciones extends Controller
         ]);
     }
 
-    public function departamentos(Request $request)
+    public function sitio(Request $request)
     {
         if ($request->isMethod('post')) {
-            $opcion = $request->input('opcion');
+            return $this->procesarSolicitud($request);
+        } else {
             $data = new \stdClass();
+            $data->departamentos = Departamento::where('activo', true)->get();
+            $data->script = 'js/sitio.js';
+            $data->css = 'css/administracion.css';
+            $data->contenido = 'ubicaciones.sitio';
+            return view('layouts.contenido', (array) $data);
+        }
+    }
 
+    private function procesarSolicitud(Request $request)
+    {
+        $opcion = $request->input('opcion');
+        $tipo = $request->input('tipo'); // 'departamento', 'provincia', 'distrito'
+        $data = new \stdClass();
+
+        try {
             switch ($opcion) {
                 case 'Listar':
-                    $departamentos = Departamento::all();
-                    $currentUrl = $request->path();
-                    $data->respuesta = 'ok';
-                    $data->permisosVista = [
-                        'editar'   => MenuService::tienePermiso($currentUrl, 'editar'),
-                        'eliminar' => MenuService::tienePermiso($currentUrl, 'eliminar'),
-                    ];
-                    $data->data = $departamentos;
-                    break;
+                    return $this->listarDatos($request, $tipo);
+
+                case 'ListarFiltros':
+                    return $this->listarFiltros($request);
 
                 case 'Crear':
-                    $departamento = Departamento::create([
-                        'nombre' => $request->nombre
-                    ]);
-                    $this->registrarAuditoria('crear', 'departamentos', $departamento->id, "Departamento creado");
-                    return response()->json([
-                        'respuesta' => 'success',
-                        'mensaje'   => 'Departamento creado correctamente'
-                    ]);
+                    return $this->crearRegistro($request, $tipo);
 
                 case 'Editar':
-                    $departamento = Departamento::find($request->id);
-                    $departamento->update([
-                        'nombre' => $request->nombre
-                    ]);
-                    $this->registrarAuditoria('editar', 'departamentos', $departamento->id, "Departamento editado");
-                    return response()->json([
-                        'respuesta' => 'success',
-                        'mensaje'   => 'Departamento actualizado correctamente'
-                    ]);
+                    return $this->editarRegistro($request, $tipo);
 
                 case 'Eliminar':
-                    $departamento = Departamento::find($request->id);
-                    $departamento->delete();
-                    $this->registrarAuditoria('eliminar', 'departamentos', $request->id, "Departamento eliminado");
-                    return response()->json([
-                        'respuesta' => 'success',
-                        'mensaje'   => 'Departamento eliminado correctamente'
-                    ]);
+                    return $this->eliminarRegistro($request, $tipo);
+
+                case 'CambiarEstado':
+                    return $this->cambiarEstado($request, $tipo);
 
                 default:
                     $data->respuesta = 'error';
                     $data->mensaje = 'Opción inválida';
-                    break;
             }
-
-            return response()->json($data);
-        } else {
-            $data = new \stdClass();
-            $data->script = 'js/departamentos.js';
-            $data->css = 'css/administracion.css';
-            $data->contenido = 'ubicaciones.departamentos';
-            return view('layouts.contenido', (array) $data);
+        } catch (\Exception $e) {
+            $data->respuesta = 'error';
+            $data->mensaje = 'Error: ' . $e->getMessage();
         }
+
+        return response()->json($data);
     }
 
-    public function provincias(Request $request)
+    private function listarDatos(Request $request, $tipo)
     {
-        if ($request->isMethod('post')) {
-            $opcion = $request->input('opcion');
-            $data = new \stdClass();
+        $currentUrl = $request->path();
+        $permisosVista = [
+            'crear' => MenuService::tienePermiso($currentUrl, 'crear'),
+            'editar'   => MenuService::tienePermiso($currentUrl, 'editar'),
+            'eliminar' => MenuService::tienePermiso($currentUrl, 'eliminar'),
+            'configurar' => MenuService::tienePermiso($currentUrl, 'configurar'),
+        ];
 
-            switch ($opcion) {
-                case 'Listar':
-                    $provincias = Provincia::with('departamento')->get();
-                    $currentUrl = $request->path();
-                    $data->permisosVista = [
-                        'editar'   => MenuService::tienePermiso($currentUrl, 'editar'),
-                        'eliminar' => MenuService::tienePermiso($currentUrl, 'eliminar'),
-                    ];
-                    $data->respuesta = 'ok';
-                    $data->data = $provincias;
+        $query = null;
+        
+        switch ($tipo) {
+            case 'departamento':
+                $query = Departamento::query()
+                ->withCount('provincias');
+                break;
+                
+            case 'provincia':
+                $query = Provincia::with('departamento')
+                    ->withCount('distritos') 
+                    ->when($request->has('departamento_id') && $request->departamento_id, function($q) use ($request) {
+                        $q->where('departamento_id', $request->departamento_id);
+                    });
+                break;
+                
+            case 'distrito':
+                $query = Distrito::with(['provincia', 'provincia.departamento'])
+                    ->when($request->has('provincia_id') && $request->provincia_id, function($q) use ($request) {
+                        $q->where('provincia_id', $request->provincia_id);
+                    })
+                    ->when($request->has('departamento_id') && $request->departamento_id && !$request->provincia_id, function($q) use ($request) {
+                        $q->whereHas('provincia', function($subq) use ($request) {
+                            $subq->where('departamento_id', $request->departamento_id);
+                        });
+                    });
+                break;
+        }
+
+        $datos = $query->get();
+
+        return response()->json([
+            'respuesta' => 'ok',
+            'permisosVista' => $permisosVista,
+            'data' => $datos
+        ]);
+    }
+
+    private function listarFiltros(Request $request)
+    {
+        $filtro = $request->input('filtro');
+        $data = new \stdClass();
+
+        switch ($filtro) {
+            case 'departamentos':
+                $data->respuesta = 'ok';
+                $data->departamentos = Departamento::orderBy('nombre')
+                    ->get();
+                break;
+
+            case 'provincias_por_departamento':
+                $departamentoId = $request->input('departamento_id');
+                $data->respuesta = 'ok';
+                $data->provincias = Provincia::where('departamento_id', $departamentoId)
+                    ->orderBy('nombre')
+                    ->get();
+                break;
+
+            default:
+                $data->respuesta = 'error';
+                $data->mensaje = 'Filtro no válido';
+        }
+
+        return response()->json($data);
+    }
+
+    private function crearRegistro(Request $request, $tipo)
+    {
+        DB::beginTransaction();
+        try {
+            $registro = null;
+            $tabla = '';
+
+            switch ($tipo) {
+                case 'departamento':
+                    $registro = Departamento::create([
+                        'nombre' => $request->nombre,
+                        'activo' => $request->activo ?? true
+                    ]);
+                    $tabla = 'departamentos';
                     break;
 
-                case 'Crear':
-                    $provincia = Provincia::create([
+                case 'provincia':
+                    $registro = Provincia::create([
                         'nombre' => $request->nombre,
                         'departamento_id' => $request->departamento_id,
+                        'activo' => $request->activo ?? true
                     ]);
-
-                    $this->registrarAuditoria('crear', 'provincias', $provincia->id, "Creación de provincia {$provincia->nombre}");
-
-                    $data->respuesta = 'success';
-                    $data->mensaje = 'Provincia registrada correctamente';
+                    $tabla = 'provincias';
                     break;
 
-                case 'Editar':
-                    $provincia = Provincia::findOrFail($request->id);
-                    $provincia->update([
+                case 'distrito':
+                    $registro = Distrito::create([
+                        'nombre' => $request->nombre,
+                        'costo_envio' => $request->costo_envio,
+                        'provincia_id' => $request->provincia_id,
+                        'activo' => $request->activo ?? true
+                    ]);
+                    $tabla = 'distritos';
+                    break;
+            }
+
+            $this->registrarAuditoria('crear', $tabla, $registro->id, 
+                ucfirst($tipo) . " creado: " . $request->nombre);
+
+            DB::commit();
+
+            return response()->json([
+                'respuesta' => 'success',
+                'mensaje' => ucfirst($tipo) . ' creado correctamente',
+                'id' => $registro->id
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'respuesta' => 'error',
+                'mensaje' => 'Error al crear: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function editarRegistro(Request $request, $tipo)
+    {
+        DB::beginTransaction();
+        try {
+            $registro = null;
+            $tabla = '';
+
+            switch ($tipo) {
+                case 'departamento':
+                    $registro = Departamento::findOrFail($request->id);
+                    $registro->update([
+                        'nombre' => $request->nombre,
+                        'activo' => $request->activo
+                    ]);
+                    $tabla = 'departamentos';
+                    break;
+
+                case 'provincia':
+                    $registro = Provincia::findOrFail($request->id);
+                    $registro->update([
                         'nombre' => $request->nombre,
                         'departamento_id' => $request->departamento_id,
+                        'activo' => $request->activo
                     ]);
-
-                    $this->registrarAuditoria('editar', 'provincias', $provincia->id, "Edición de provincia {$provincia->nombre}");
-
-                    $data->respuesta = 'success';
-                    $data->mensaje = 'Provincia actualizada correctamente';
+                    $tabla = 'provincias';
                     break;
 
-                case 'Eliminar':
-                    $provincia = Provincia::findOrFail($request->id);
-                    $provincia->delete();
-
-                    $this->registrarAuditoria('eliminar', 'provincias', $request->id, "Eliminación de provincia {$provincia->nombre}");
-
-                    $data->respuesta = 'success';
-                    $data->mensaje = 'Provincia eliminada correctamente';
-                    break;
-
-                default:
-                    $data->respuesta = 'error';
-                    $data->mensaje = 'Opción inválida';
+                case 'distrito':
+                    $registro = Distrito::findOrFail($request->id);
+                    $registro->update([
+                        'nombre' => $request->nombre,
+                        'costo_envio' => $request->costo_envio,
+                        'provincia_id' => $request->provincia_id,
+                        'activo' => $request->activo
+                    ]);
+                    $tabla = 'distritos';
                     break;
             }
 
-            return response()->json($data);
-        } else {
-            $data = new \stdClass();
-            $data->departamentos = Departamento::all();
-            $data->script = 'js/provincias.js';
-            $data->css = 'css/administracion.css';
-            $data->contenido = 'ubicaciones.provincias';
-            return view('layouts.contenido', (array) $data);
+            $this->registrarAuditoria('editar', $tabla, $registro->id, 
+                ucfirst($tipo) . " editado: " . $request->nombre);
+
+            DB::commit();
+
+            return response()->json([
+                'respuesta' => 'success',
+                'mensaje' => ucfirst($tipo) . ' actualizado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'respuesta' => 'error',
+                'mensaje' => 'Error al editar: ' . $e->getMessage()
+            ], 500);
         }
     }
 
-    public function distritos(Request $request)
+    private function eliminarRegistro(Request $request, $tipo)
     {
-        if ($request->isMethod('post')) {
-            $opcion = $request->input('opcion');
-            $data = new \stdClass();
+        DB::beginTransaction();
+        try {
+            $registro = null;
+            $tabla = '';
+            $nombre = '';
 
-            switch ($opcion) {
-                case 'Listar':
-                    $distritos = Distrito::with('provincia.departamento')->get();
-
-                    $data->permisosVista = [
-                        'editar'   => MenuService::tienePermiso($request->path(), 'editar'),
-                        'eliminar' => MenuService::tienePermiso($request->path(), 'eliminar')
-                    ];
-                    $data->respuesta = 'ok';
-                    $data->data = $distritos;
+            switch ($tipo) {
+                case 'departamento':
+                    $registro = Departamento::findOrFail($request->id);
+                    $nombre = $registro->nombre;
+                    $registro->delete(); 
+                    $tabla = 'departamentos';
                     break;
 
-                case 'Crear':
-                    try {
-                        $distrito = Distrito::create([
-                            'nombre'       => $request->input('nombre'),
-                            'costo_envio'  => $request->input('costo_envio'),
-                            'provincia_id' => $request->input('provincia_id')
-                        ]);
-
-                        $this->registrarAuditoria("crear", "distritos", $distrito->id, "Creación del distrito {$distrito->nombre}");
-
-                        $data->respuesta = 'success';
-                        $data->mensaje   = 'Distrito registrado correctamente.';
-                    } catch (\Exception $e) {
-                        $data->respuesta = 'error';
-                        $data->mensaje   = 'Error al crear el distrito.';
-                    }
+                case 'provincia':
+                    $registro = Provincia::findOrFail($request->id);
+                    $nombre = $registro->nombre;
+                    $registro->delete();
+                    $tabla = 'provincias';
                     break;
 
-                case 'Editar':
-                    try {
-                        $distrito = Distrito::findOrFail($request->input('id'));
-                        $distrito->update([
-                            'nombre'       => $request->input('nombre'),
-                            'costo_envio'  => $request->input('costo_envio'),
-                            'provincia_id' => $request->input('provincia_id')
-                        ]);
-
-                        $this->registrarAuditoria("editar", "distritos", $distrito->id, "Edición del distrito {$distrito->nombre}");
-
-                        $data->respuesta = 'success';
-                        $data->mensaje   = 'Distrito actualizado correctamente.';
-                    } catch (\Exception $e) {
-                        $data->respuesta = 'error';
-                        $data->mensaje   = 'Error al editar el distrito.';
-                    }
-                    break;
-
-                case 'Eliminar':
-                    try {
-                        $distrito = Distrito::findOrFail($request->input('id'));
-                        $nombre   = $distrito->nombre;
-                        $distrito->delete();
-
-                        $this->registrarAuditoria("eliminar", "distritos", $request->input('id'), "Eliminación del distrito {$nombre}");
-
-                        $data->respuesta = 'success';
-                        $data->mensaje   = 'Distrito eliminado correctamente.';
-                    } catch (\Exception $e) {
-                        $data->respuesta = 'error';
-                        $data->mensaje   = 'Error al eliminar el distrito.';
-                    }
-                    break;
-
-                default:
-                    $data->respuesta = 'error';
-                    $data->mensaje   = 'Opción inválida';
+                case 'distrito':
+                    $registro = Distrito::findOrFail($request->id);
+                    $nombre = $registro->nombre;
+                    $registro->delete();
+                    $tabla = 'distritos';
                     break;
             }
 
-            return response()->json($data);
-        } else {
-            $data = new \stdClass();
-            $data->departamentos = Departamento::with('provincias')->get();
-            $data->script = 'js/distritos.js';
-            $data->css = 'css/administracion.css';
-            $data->contenido = 'ubicaciones.distritos';
-            return view('layouts.contenido', (array) $data);
+            $this->registrarAuditoria('eliminar', $tabla, $request->id, 
+                ucfirst($tipo) . " eliminado: " . $nombre);
+
+            DB::commit();
+
+            return response()->json([
+                'respuesta' => 'success',
+                'mensaje' => ucfirst($tipo) . ' eliminado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'respuesta' => 'error',
+                'mensaje' => $e->getMessage()
+            ], 500);
         }
     }
 
+    private function cambiarEstado(Request $request, $tipo)
+    {
+        try {
+            $registro = null;
+            $tabla = '';
+
+            switch ($tipo) {
+                case 'departamento':
+                    $registro = Departamento::findOrFail($request->id);
+                    $tabla = 'departamentos';
+                    break;
+
+                case 'provincia':
+                    $registro = Provincia::findOrFail($request->id);
+                    $tabla = 'provincias';
+                    break;
+
+                case 'distrito':
+                    $registro = Distrito::findOrFail($request->id);
+                    $tabla = 'distritos';
+                    break;
+            }
+
+            $nuevoEstado = !$registro->activo;
+            $registro->update(['activo' => $nuevoEstado]);
+
+            $estadoTexto = $nuevoEstado ? 'activado' : 'desactivado';
+            $this->registrarAuditoria('cambiar_estado', $tabla, $registro->id, 
+                ucfirst($tipo) . " {$estadoTexto}: " . $registro->nombre);
+
+            return response()->json([
+                'respuesta' => 'success',
+                'mensaje' => ucfirst($tipo) . ' ' . $estadoTexto . ' correctamente',
+                'nuevo_estado' => $nuevoEstado
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'respuesta' => 'error',
+                'mensaje' => 'Error al cambiar estado: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

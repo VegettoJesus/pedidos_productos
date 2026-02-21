@@ -8,12 +8,14 @@ use App\Models\Distrito;
 use Illuminate\Http\Request;
 use App\Models\Rol;
 use App\Models\Menu;
+use App\Data\Icons;
 use App\Models\Permiso;
 use App\Models\Provincia;
 use App\Models\User;
 use App\Models\UsuarioDato;
 use App\Services\MenuService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AdministracionDelSistema extends Controller
 {
@@ -46,7 +48,6 @@ class AdministracionDelSistema extends Controller
                     $puedeEliminar = MenuService::tienePermiso($currentUrl, 'eliminar');
                     $puedeConfigurar = MenuService::tienePermiso($currentUrl, 'configurar');
 
-                    // Si quieres, los empaquetas en un array
                     $data->permisosVista = [
                         'editar'     => $puedeEditar,
                         'eliminar'   => $puedeEliminar,
@@ -63,9 +64,14 @@ class AdministracionDelSistema extends Controller
 
                     $menus = $query->get();
 
-                    if ($idRol) { $menus = $menus->filter(function ($menu) use ($idRol) { 
-                        return Permiso::where('id_menus', $menu->id) ->where('id_rol', $idRol) ->exists(); 
-                    })->values(); }
+                    if ($idRol) { 
+                        $menus = $menus->filter(function ($menu) use ($idRol) { 
+                            return Permiso::where('id_menus', $menu->id)
+                                ->where('id_rol', $idRol)
+                                ->whereJsonContains('permisos->ver', true) // Solo menús con permiso "ver"
+                                ->exists(); 
+                        })->values(); 
+                    }
 
                     $data->respuesta = 'ok';
                     $data->menus = $menus;
@@ -102,6 +108,8 @@ class AdministracionDelSistema extends Controller
                     $permisosArray[$campo] = $valor;           
                     $permiso->permisos = $permisosArray;
                     $permiso->save();
+
+                    MenuService::limpiarTodaLaCache();
 
                     $this->registrarAuditoria(
                         'Actualizar',
@@ -180,7 +188,7 @@ class AdministracionDelSistema extends Controller
                         $menu->id,
                         "Se creó el menú '{$menu->nombre}'"
                     );
-
+                    MenuService::limpiarTodaLaCache();
                     $data->respuesta = 'ok';
                     $data->mensaje = "Menú creado correctamente";
                     $data->menu = $menu;
@@ -222,7 +230,7 @@ class AdministracionDelSistema extends Controller
                         $menu->id,
                         "Se eliminó el menú '{$menu->nombre}'"
                     );
-
+                    MenuService::limpiarTodaLaCache();
                     $data->respuesta = 'ok';
                     $data->mensaje = 'Menú eliminado correctamente';
                     break;
@@ -304,7 +312,7 @@ class AdministracionDelSistema extends Controller
                         $menu->id,
                         "Se actualizó el menú '{$menu->nombre}'"
                     );
-
+                    MenuService::limpiarTodaLaCache();
                     $data->respuesta = 'ok';
                     $data->mensaje = 'Menú actualizado correctamente';
                     $data->menu = $menu;
@@ -335,6 +343,39 @@ class AdministracionDelSistema extends Controller
                     $data->mensaje = 'URL actualizada correctamente';
                     $data->menu = $menu;
                     break;
+                case 'ActualizarOrden':
+                    $menusOrdenados = $request->input('menus', []);
+                    $idPadre = $request->input('id_padre', 0);
+                    
+                    try {
+                        DB::beginTransaction();
+                        
+                        foreach ($menusOrdenados as $index => $menuData) {
+                            $menu = Menu::find($menuData['id']);
+                            if ($menu) {
+                                $menu->orden = $index + 1;
+                                $menu->padre = $idPadre;
+                                $menu->save();
+                                
+                                $this->registrarAuditoria(
+                                    'Actualizar',
+                                    'menus',
+                                    $menu->id,
+                                    "Se actualizó el orden del menú '{$menu->nombre}' a posición " . ($index + 1)
+                                );
+                            }
+                        }
+                        
+                        DB::commit();
+                        MenuService::limpiarTodaLaCache();
+                        $data->respuesta = 'ok';
+                        $data->mensaje = 'Orden actualizado correctamente';
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Error al actualizar el orden: ' . $e->getMessage();
+                    }
+                    break;
                 default:
                     $data->respuesta = 'error';
                     $data->mensaje = 'Opción inválida';
@@ -349,6 +390,7 @@ class AdministracionDelSistema extends Controller
             $data->contenido = 'administracionDelSistema.administrarMenu';
             $data->padres = Menu::whereNull('padre')->orWhere('padre', 0)->get();
             $data->roles = Rol::all();
+            $data->iconos = Icons::all();
             return view('layouts.contenido', (array) $data);
         }
     }

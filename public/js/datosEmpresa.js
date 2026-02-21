@@ -242,7 +242,6 @@ $(document).ready(function() {
         
         requiredFields.forEach(field => {
             const element = $(`#${field}`);
-            console.log(element)
             if (!element.val() || !element.val().toString().trim()) {
                 element.addClass('is-invalid');
                 isValid = false;

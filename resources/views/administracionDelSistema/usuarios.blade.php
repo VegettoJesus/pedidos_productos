@@ -1,4 +1,4 @@
-<div class="container-fluid px-2">
+<div class="container-fluid px-2" style="display: inline-grid">
   <div class="card text-center text-white bg-dark">
     <div class="card-header">
         Lista de Usuarios

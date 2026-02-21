@@ -37,8 +37,6 @@ function inicializarSortable() {
                 actualizarOrdenVisual();
             }
         });
-        
-        console.log('Sortable inicializado correctamente');
     } catch (error) {
         console.error('Error al inicializar Sortable:', error);
     }

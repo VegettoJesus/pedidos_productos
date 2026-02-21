@@ -1,7 +1,4 @@
 <style>
-    /* Estilos específicos para datos empresa */
-
-/* Vista previa animada */
 .card-preview {
     transition: all 0.3s ease;
     border-left: 4px solid var(--color-primary);
@@ -12,7 +9,6 @@
     box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
-/* Validación RUC */
 .ruc-valido {
     border-color: var(--color-success) !important;
 }
@@ -21,19 +17,16 @@
     border-color: var(--color-danger) !important;
 }
 
-/* Indicador de campo requerido */
 .required-field::after {
     content: " *";
     color: var(--color-danger);
 }
 
-/* Badges para estados */
 .badge-ruc {
     font-size: 0.7em;
     padding: 0.25em 0.6em;
 }
 
-/* Botones de acción flotantes */
 .btn-action-floating {
     position: fixed;
     bottom: 2rem;
@@ -54,7 +47,6 @@
     box-shadow: 0 6px 16px rgba(0,0,0,0.2);
 }
 
-/* Animación de carga para RUC */
 .loading-ruc {
     display: inline-block;
     width: 1rem;
@@ -70,12 +62,10 @@
     100% { transform: rotate(360deg); }
 }
 
-/* Estilos para modales de datos empresa */
 .modal-empresa .modal-header {
     background: linear-gradient(135deg, var(--color-primary), #0b5ed7);
 }
 
-/* Responsive para vista previa */
 @media (max-width: 768px) {
     .card-preview {
         margin-bottom: 1rem;
