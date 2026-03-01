@@ -214,7 +214,7 @@ return new class extends Migration
             $table->enum('tipo', ['upsell', 'crosssell'])->default('upsell');
             $table->timestamps();
 
-            $table->unique(['producto_id', 'producto_relacionado_id'], 'relacion_unique');
+            $table->unique(['producto_id', 'producto_relacionado_id', 'tipo'], 'relacion_unique_tipo');
         });
 
         Schema::create('producto_valoraciones', function (Blueprint $table) {
@@ -233,18 +233,21 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('productos_relacionados');
-        Schema::dropIfExists('producto_agrupado');
+        Schema::disableForeignKeyConstraints();
+        Schema::dropIfExists('variacion_imagenes');
         Schema::dropIfExists('variacion_atributo_terminos');
         Schema::dropIfExists('producto_variaciones');
+        Schema::dropIfExists('producto_valoraciones');
+        Schema::dropIfExists('productos_relacionados');
+        Schema::dropIfExists('producto_agrupado');
+        Schema::dropIfExists('producto_atributo_valores');
         Schema::dropIfExists('producto_atributo');
         Schema::dropIfExists('atributo_terminos');
         Schema::dropIfExists('atributos');
         Schema::dropIfExists('producto_etiqueta');
         Schema::dropIfExists('etiquetas');
         Schema::dropIfExists('producto_imagenes');
-        Schema::dropIfExists('variacion_imagenes');
         Schema::dropIfExists('productos');
-        Schema::dropIfExists('producto_valoraciones');
+        Schema::enableForeignKeyConstraints();
     }
 };

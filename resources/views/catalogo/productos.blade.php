@@ -60,7 +60,7 @@
     font-size: 0.85rem;
   }
 </style>
-<div class="container-fluid px-2" style="display: inline-grid">
+<div class="container-fluid px-2 pb-3" style="display: inline-grid">
   <div class="card text-center text-white bg-dark">
     <div class="card-header">Lista de Productos</div>
     <div class="card-body">
@@ -804,40 +804,476 @@
     </div>
   </div>
 </div>
-
-<div class="modal fade" id="modalProductoVariable" tabindex="-1">
-  <div class="modal-dialog modal-xl">
-    <form id="formProductoVariable" onsubmit="return handleGuardarProductoVariable(event)">
+<div class="modal fade" id="modalProductoVariable" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+   <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Editar Producto Variable</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body" id="variable_variaciones_container">
-          <!-- Aquí se renderizan dinámicamente las variaciones -->
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-        </div>
+         <form id="formProductoVariable" enctype="multipart/form-data">
+            <!-- HEADER -->
+            <div class="modal-header bg-dark text-white">
+               <h5 class="modal-title">
+                  <i class="bi bi-diagram-3 me-2"></i> Editar Producto Variable
+               </h5>
+               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <!-- BODY -->
+            <div class="modal-body">
+               <input type="hidden" name="id" id="variable_id">
+               <!-- CONFIGURACIÓN GENERAL -->
+               <div class="card-section mb-4">
+                  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                     <h5 class="fw-semibold mb-3 mb-md-0">
+                        <i class="bi bi-gear me-2"></i> Configuración del producto
+                     </h5>
+                     <div class="d-flex flex-column flex-sm-row gap-3">
+                        <div>
+                           <label class="form-label fw-semibold mb-1">
+                           <i class="bi bi-flag me-1"></i> Estado
+                           </label>
+                           <select name="estado" id="variable_estado" class="form-select" required>
+                              <option value="borrador">Borrador</option>
+                              <option value="publicado">Publicado</option>
+                              <option value="oculto">Oculto</option>
+                           </select>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               <!-- DATOS PRINCIPALES -->
+               <div class="row">
+                  <div class="col-lg-7">
+                     <div class="card-section">
+                        <div class="row g-2">
+                           <div class="col-md-8">
+                              <label class="form-label fw-semibold">Nombre</label>
+                              <input type="text" name="nombre" id="variable_nombre" class="form-control" required>
+                           </div>
+                           <div class="col-md-4">
+                              <label class="form-label fw-semibold">Marca</label>
+                              <input type="text" name="marca" id="variable_marca" class="form-control">
+                           </div>
+                           <div class="col-12 mt-2">
+                              <label class="form-label fw-semibold">Descripción corta</label>
+                              <textarea name="descripcion" id="variable_descripcion" class="form-control" rows="3"></textarea>
+                           </div>
+                        </div>
+                     </div>
+                     <!-- Imágenes -->
+                     <div class="card-section mt-3">
+                        <div class="row align-items-center">
+                           <div class="col-md-8">
+                              <label class="form-label fw-semibold">Imágenes (máx 6)</label>
+                              <input id="variable_imagenes" type="file" name="imagenes[]" class="form-control" accept="image/*" multiple>
+                              <div class="note-small mt-1">La primera imagen será principal.</div>
+                              <div id="variable_previewContainer" class="mt-3"></div>
+                           </div>
+                           <!-- Miniatura -->
+                           <div class="col-md-4 text-end">
+                              <label class="form-label fw-semibold">Miniatura</label>
+                              <div class="position-relative d-inline-block">
+                                 <input id="variable_miniatura" type="file" name="imagen_miniatura" 
+                                    class="form-control mb-2 visually-hidden" accept="image/*">
+                                 <div id="variable_miniPreview" 
+                                    class="border rounded cursor-pointer" 
+                                    style="width:120px;height:100px;overflow:hidden;">
+                                    <img src="" id="variable_miniImg" 
+                                       style="width:100%;height:100%;object-fit:cover;display:none;">
+                                    <div id="variable_miniPlaceholder" 
+                                       class="d-flex flex-column align-items-center justify-content-center text-muted small" 
+                                       style="height:100%;">
+                                       <i class="bi bi-image fs-4 mb-1"></i>
+                                       <span>Click para subir</span>
+                                    </div>
+                                 </div>
+                                 <button type="button" id="variable_removeMini" 
+                                    class="btn btn-sm btn-outline-danger mt-2 d-none">
+                                 <i class="bi bi-trash"></i> Quitar
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                  <!-- DERECHA: Categoría + etiquetas -->
+                  <div class="col-lg-5">
+                     <div class="card-section">
+                        <label class="form-label fw-semibold">Categoría</label>
+                        <select id="variable_categoria" class="form-select mb-2"></select>
+                        <label class="form-label fw-semibold mt-2">Subcategorías</label>
+                        <div id="variable_subcategorias" class="subcat-list mb-2 text-muted">
+                           Selecciona una categoría primero
+                        </div>
+                     </div>
+                     <div class="card-section">
+                        <label class="form-label fw-semibold">Etiquetas</label>
+                        <div class="d-flex gap-2 mb-2">
+                           <input id="variable_tagInput" type="text" class="form-control" placeholder="Escribe una etiqueta">
+                           <button type="button" id="variable_btnAddTag" class="btn btn-primary">Añadir</button>
+                        </div>
+                        <div id="variable_availableTags" class="mb-2" style="max-height:120px; overflow:auto;"></div>
+                        <div class="mb-2">
+                           <label class="form-label mb-1">Etiquetas seleccionadas</label>
+                           <div id="variable_selectedTags" class="d-flex flex-wrap gap-2"></div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               <hr class="my-4">
+               <!-- TABS -->
+               <div class="row">
+                  <div class="col-md-3">
+                     <div class="nav flex-column nav-pills" role="tablist">
+                        <button type="button" class="nav-link active" data-bs-toggle="pill" data-bs-target="#variable-inventario">Inventario</button>
+                        <button type="button" class="nav-link" data-bs-toggle="pill" data-bs-target="#variable-envio">Envío</button>
+                        <button type="button" class="nav-link" data-bs-toggle="pill" data-bs-target="#variable-relacionados">Relacionados</button>
+                        <button type="button" class="nav-link" data-bs-toggle="pill" data-bs-target="#variable-atributos">Atributos</button>
+                        <button type="button" class="nav-link" data-bs-toggle="pill" data-bs-target="#variable-avanzado">Avanzado</button>
+                        <button type="button" class="nav-link" data-bs-toggle="pill" data-bs-target="#variable-variaciones">Variaciones</button>
+                     </div>
+                  </div>
+                  <div class="col-md-9">
+                     <div class="tab-content">
+                        <!-- INVENTARIO (solo SKU y gestión básica) -->
+                        <div class="tab-pane fade show active p-3" id="variable-inventario">
+                           <div class="mb-4">
+                              <label class="form-label fw-semibold">SKU</label>
+                              <input type="text" name="sku" id="variable_sku" class="form-control" placeholder="Ej: VAR-001">
+                              <div class="form-text small">SKU del producto principal (opcional)</div>
+                           </div>
+                           <div class="mb-4">
+                              <div class="form-check mb-3">
+                                 <input type="checkbox" id="variable_gestion_inventario" name="gestion_inventario" class="form-check-input">
+                                 <label class="form-check-label fw-semibold" for="variable_gestion_inventario">
+                                 Gestionar inventario global
+                                 </label>
+                              </div>
+                              <div id="variable_inventario_detalles" style="display: none;">
+                                 <div class="mb-3">
+                                    <label class="form-label">Cantidad en inventario global</label>
+                                    <input type="number" name="stock" id="variable_stock" class="form-control" min="0" value="0">
+                                    <div class="form-text small">Stock general del producto (opcional)</div>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="form-check mb-3">
+                              <input class="form-check-input" type="checkbox" name="vendido_individualmente" id="variable_vendido_individualmente">
+                              <label class="form-check-label fw-semibold" for="variable_vendido_individualmente">
+                              Limitar compras a 1 artículo por pedido
+                              </label>
+                              <div class="form-text small">El cliente solo podrá agregar una unidad por pedido</div>
+                           </div>
+                        </div>
+                        <!-- ENVÍO (igual que simple) -->
+                        <div class="tab-pane fade p-3" id="variable-envio">
+                           <div class="mb-3">
+                              <label class="form-label">Peso</label>
+                              <div class="input-group">
+                                 <input type="number" step="0.01" name="peso" id="variable_peso" class="form-control">
+                                 <select name="peso_unidad" id="variable_peso_unidad" class="form-select" style="max-width:90px;">
+                                    <option value="kg">kg</option>
+                                    <option value="g">g</option>
+                                    <option value="lb">lb</option>
+                                    <option value="oz">Oz</option>
+                                 </select>
+                              </div>
+                           </div>
+                           <div class="mb-3">
+                              <label class="form-label">Dimensiones (cm)</label>
+                              <div class="input-group">
+                                 <input type="number" step="0.01" name="longitud" id="variable_longitud" class="form-control" placeholder="Largo">
+                                 <input type="number" step="0.01" name="anchura" id="variable_anchura" class="form-control" placeholder="Ancho">
+                                 <input type="number" step="0.01" name="altura" id="variable_altura" class="form-control" placeholder="Alto">
+                              </div>
+                           </div>
+                        </div>
+                        <!-- RELACIONADOS (upsells y crosssells) -->
+                        <div class="tab-pane fade p-3" id="variable-relacionados">
+                           <div class="mb-4">
+                              <label class="form-label fw-semibold">
+                              <i class="bi bi-arrow-up-circle me-1"></i> Upsells
+                              </label>
+                              <input type="text" id="variable_upsells" class="form-control" placeholder="Buscar producto...">
+                           </div>
+                           <div class="mb-4">
+                              <label class="form-label fw-semibold">
+                              <i class="bi bi-arrow-left-right me-1"></i> Cross-sells
+                              </label>
+                              <input type="text" id="variable_crosssells" class="form-control" placeholder="Buscar producto...">
+                           </div>
+                        </div>
+                        <!-- ATRIBUTOS (con checkbox de variación) -->
+                        <div class="tab-pane fade p-3" id="variable-atributos">
+                           <div id="variable_atributosContainer"></div>
+                        </div>
+                        <!-- AVANZADO (igual que simple) -->
+                        <div class="tab-pane fade p-3" id="variable-avanzado">
+                           <div class="mb-3">
+                              <label class="form-label">Nota interna</label>
+                              <textarea name="nota_interna" id="variable_nota_interna" class="form-control" rows="3"></textarea>
+                           </div>
+                           <div class="form-check">
+                              <input type="checkbox" name="permite_valoraciones" id="variable_valoraciones" class="form-check-input" checked>
+                              <label class="form-check-label">Permitir valoraciones</label>
+                           </div>
+                        </div>
+                        <!-- VARIACIONES -->
+                        <div class="tab-pane fade p-3" id="variable-variaciones">
+                           <div class="mb-3">
+                              <div class="d-flex gap-2 mb-3">
+                                 <button type="button" id="variable_btnGenerateVariations" class="btn btn-outline-primary btn-sm">
+                                 <i class="bi bi-gear-wide-connected me-1"></i> Generar variaciones
+                                 </button>
+                                 <button type="button" id="variable_btnGenerateManual" class="btn btn-outline-secondary btn-sm">
+                                 <i class="bi bi-plus-square me-1"></i> Agregar manual
+                                 </button>
+                              </div>
+                              <div id="variable_variacionesContainer" class="mb-3"></div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <!-- FOOTER -->
+            <div class="modal-footer">
+               <button type="submit" id="btnGuardarVariable" class="btn btn-success">
+               <i class="bi bi-save me-1"></i> Guardar cambios
+               </button>
+               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+         </form>
       </div>
-    </form>
-  </div>
+   </div>
 </div>
-<div class="modal fade" id="modalProductoAgrupado" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <form id="formProductoAgrupado" onsubmit="return handleGuardarProductoAgrupado(event)">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Editar Producto Agrupado</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- Modal para Producto Agrupado (completo) -->
+<div class="modal fade" id="modalProductoAgrupado" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <form id="formProductoAgrupado" enctype="multipart/form-data" class="p-0">
+        
+        <!-- HEADER -->
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title">
+            <i class="bi bi-diagram-3 me-2"></i> Editar Producto Agrupado
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
+
+        <!-- BODY -->
         <div class="modal-body">
-          <h6>Productos Hijos</h6>
-          <ul id="agrupado_hijos"></ul>
+          <input type="hidden" name="id" id="agrupado_id">
+
+          <!-- CONFIGURACIÓN GENERAL -->
+          <div class="card-section mb-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+              <h5 class="fw-semibold mb-3 mb-md-0">
+                <i class="bi bi-gear me-2"></i> Configuración del producto
+              </h5>
+
+              <div class="d-flex flex-column flex-sm-row gap-3">
+                <div>
+                  <label class="form-label fw-semibold mb-1">
+                    <i class="bi bi-flag me-1"></i> Estado
+                  </label>
+                  <select name="estado" id="agrupado_estado" class="form-select" required>
+                    <option value="borrador">Borrador</option>
+                    <option value="publicado">Publicado</option>
+                    <option value="oculto">Oculto</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DATOS PRINCIPALES -->
+          <div class="row">
+            <div class="col-lg-7">
+              <div class="card-section">
+                <div class="row g-2">
+                  <div class="col-md-8">
+                    <label class="form-label fw-semibold">Nombre</label>
+                    <input type="text" name="nombre" id="agrupado_nombre" class="form-control" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold">Marca</label>
+                    <input type="text" name="marca" id="agrupado_marca" class="form-control">
+                  </div>
+                  <div class="col-12 mt-2">
+                    <label class="form-label fw-semibold">Descripción corta</label>
+                    <textarea name="descripcion" id="agrupado_descripcion" class="form-control" rows="3"></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Imágenes -->
+              <div class="card-section mt-3">
+                <div class="row align-items-center">
+                  <div class="col-md-8">
+                    <label class="form-label fw-semibold">Imágenes (máx 6)</label>
+                    <input id="agrupado_imagenes" type="file" name="imagenes[]" class="form-control" accept="image/*" multiple>
+                    <div class="note-small mt-1">La primera imagen será principal.</div>
+                    <div id="agrupado_previewContainer" class="mt-3"></div>
+                  </div>
+                  
+                  <!-- Miniatura -->
+                  <div class="col-md-4 text-end">
+                    <label class="form-label fw-semibold">Miniatura</label>
+                    <div class="position-relative d-inline-block">
+                      <input id="agrupado_miniatura" type="file" name="imagen_miniatura" 
+                            class="form-control mb-2 visually-hidden" accept="image/*">
+                      
+                      <div id="agrupado_miniPreview" 
+                          class="border rounded cursor-pointer" 
+                          style="width:120px;height:100px;overflow:hidden;">
+                        <img src="" id="agrupado_miniImg" 
+                            style="width:100%;height:100%;object-fit:cover;display:none;">
+                        <div id="agrupado_miniPlaceholder" 
+                            class="d-flex flex-column align-items-center justify-content-center text-muted small" 
+                            style="height:100%;">
+                          <i class="bi bi-image fs-4 mb-1"></i>
+                          <span>Click para subir</span>
+                        </div>
+                      </div>
+                      
+                      <button type="button" id="agrupado_removeMini" 
+                              class="btn btn-sm btn-outline-danger mt-2 d-none">
+                        <i class="bi bi-trash"></i> Quitar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DERECHA: Categoría + etiquetas -->
+            <div class="col-lg-5">
+              <div class="card-section">
+                <label class="form-label fw-semibold">Categoría</label>
+                <select id="agrupado_categoria" class="form-select mb-2"></select>
+
+                <label class="form-label fw-semibold mt-2">Subcategorías</label>
+                <div id="agrupado_subcategorias" class="subcat-list mb-2 text-muted">
+                  Selecciona una categoría primero
+                </div>
+              </div>
+
+              <div class="card-section">
+                <label class="form-label fw-semibold">Etiquetas</label>
+                <div class="d-flex gap-2 mb-2">
+                  <input id="agrupado_tagInput" type="text" class="form-control" placeholder="Escribe una etiqueta">
+                  <button type="button" id="agrupado_btnAddTag" class="btn btn-primary">Añadir</button>
+                </div>
+
+                <div class="note-small mb-2">
+                  Selecciona de la lista o crea una etiqueta nueva.
+                </div>
+
+                <div id="agrupado_availableTags" class="mb-2" style="max-height:120px; overflow:auto;">
+                </div>
+
+                <div class="mb-2">
+                  <label class="form-label mb-1">Etiquetas seleccionadas</label>
+                  <div id="agrupado_selectedTags" class="d-flex flex-wrap gap-2"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <!-- TABS -->
+          <div class="row">
+            <div class="col-md-3">
+              <div class="nav flex-column nav-pills" role="tablist">
+                <button type="button" class="nav-link active" data-bs-toggle="pill" data-bs-target="#agrupado-inventario">Inventario</button>
+                <button type="button" class="nav-link" data-bs-toggle="pill" data-bs-target="#agrupado-relacionados">Relacionados</button>
+                <button type="button" class="nav-link" data-bs-toggle="pill" data-bs-target="#agrupado-atributos">Atributos</button>
+                <button type="button" class="nav-link" data-bs-toggle="pill" data-bs-target="#agrupado-avanzado">Avanzado</button>
+              </div>
+            </div>
+
+            <div class="col-md-9">
+              <div class="tab-content">
+                
+                <!-- INVENTARIO (solo SKU) -->
+                <div class="tab-pane fade show active p-3" id="agrupado-inventario">
+                  <div class="mb-4">
+                    <label class="form-label fw-semibold">SKU</label>
+                    <input type="text" name="sku" id="agrupado_sku" class="form-control" placeholder="Ej: GRUPO-001">
+                    <div class="form-text small">Identificador único del producto agrupado</div>
+                  </div>
+                  
+                  <div class="alert alert-secondary bg-light small">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Los productos agrupados no gestionan inventario propio. El stock se calcula en base a los productos hijos.
+                  </div>
+                </div>
+
+                <!-- RELACIONADOS -->
+                <div class="tab-pane fade p-3" id="agrupado-relacionados">
+                  <div class="mb-4">
+                    <label class="form-label fw-semibold">
+                      <i class="bi bi-diagram-3 me-1"></i> Productos Agrupados
+                    </label>
+                    <div class="note-small mb-2">
+                      Los productos agrupados son productos que se venden como un conjunto.
+                      Busca y selecciona los productos que formarán parte de este grupo.
+                    </div>
+                    <input type="text" 
+                          id="agrupado_buscar_hijos" 
+                          class="form-control" 
+                          placeholder="Buscar producto por nombre o SKU...">
+                    <div class="mt-2">
+                      <small class="text-muted">Escribe al menos 2 caracteres para buscar</small>
+                    </div>
+                    <div id="agrupado_hijos_container" class="d-flex flex-wrap gap-2 mb-3"></div>
+                  </div>
+
+                  <div class="mb-4">
+                    <label class="form-label fw-semibold">
+                      <i class="bi bi-arrow-left-right me-1"></i> Cross-sells
+                    </label>
+                    <div class="note-small mb-2">
+                      Productos complementarios que se pueden comprar junto con el producto actual.
+                    </div>
+                    <input type="text" 
+                          id="agrupado_crosssells" 
+                          class="form-control" 
+                          placeholder="Buscar producto por nombre o SKU...">
+                    <div class="mt-2">
+                      <small class="text-muted">Escribe al menos 2 caracteres para buscar</small>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ATRIBUTOS (igual que simple) -->
+                <div class="tab-pane fade p-3" id="agrupado-atributos">
+                  <div id="agrupado_atributosContainer" class="mb-3"></div>
+                </div>
+
+                <!-- AVANZADO -->
+                <div class="tab-pane fade p-3" id="agrupado-avanzado">
+                  <div class="mb-3">
+                    <label class="form-label">Nota interna</label>
+                    <textarea name="nota_interna" id="agrupado_nota_interna" class="form-control" rows="3"></textarea>
+                  </div>
+                  <div class="form-check">
+                    <input type="checkbox" name="permite_valoraciones" id="agrupado_valoraciones" class="form-check-input" checked>
+                    <label class="form-check-label">Permitir valoraciones</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- FOOTER -->
         <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="submit" id="btnGuardarAgrupado" class="btn btn-success">
+            <i class="bi bi-save me-1"></i> Guardar cambios
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         </div>
+
       </div>
     </form>
   </div>

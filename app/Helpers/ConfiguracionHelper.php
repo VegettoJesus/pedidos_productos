@@ -59,7 +59,7 @@ class ConfiguracionHelper
         if ($configuracion) {
             $baseTitle = $configuracion->abreviatura_titulo ?? $configuracion->titulo_site ?? 'HTI';
         } else {
-            $baseTitle = 'HTI';
+            $baseTitle = 'EMP';
         }
         
         if ($seccion) {
