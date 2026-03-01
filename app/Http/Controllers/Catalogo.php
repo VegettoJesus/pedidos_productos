@@ -328,17 +328,13 @@ class Catalogo extends Controller
                         'subcategoria',
                         'imagenes',
                         'etiquetas',
-                        'atributos.terminos',
+                        'atributos', 
                         'variaciones.atributos',
                         'variaciones.imagenes',
                         'productosAgrupados.productoHijo',
-                        // IMPORTANTE: Usar withPivot para incluir el campo 'tipo'
                         'productosRelacionados' => function($query) {
-                            $query->select(
-                                'productos.id', 
-                                'productos.nombre', 
-                                'productos.sku'
-                            )->withPivot('tipo'); // <- AÑADIR ESTO
+                            $query->select('productos.id', 'productos.nombre', 'productos.sku')
+                                ->withPivot('tipo');
                         }
                     ])->find($id);
 
@@ -346,6 +342,18 @@ class Catalogo extends Controller
                         $data->respuesta = 'error';
                         $data->mensaje = 'Producto no encontrado';
                         break;
+                    }
+
+                    foreach ($producto->atributos as $atributo) {
+                        $terminosSeleccionados = \DB::table('producto_atributo_valores')
+                            ->join('producto_atributo', 'producto_atributo.id', '=', 'producto_atributo_valores.producto_atributo_id')
+                            ->join('atributo_terminos', 'atributo_terminos.id', '=', 'producto_atributo_valores.termino_id')
+                            ->where('producto_atributo.producto_id', $producto->id)
+                            ->where('producto_atributo.atributo_id', $atributo->id)
+                            ->select('atributo_terminos.*')
+                            ->get();
+                        
+                        $atributo->setRelation('terminos', $terminosSeleccionados);
                     }
 
                     $data->respuesta = 'ok';
@@ -472,6 +480,9 @@ class Catalogo extends Controller
                                 // Sincronizar atributos de la variación
                                 if (!empty($variacionData['atributos'])) {
                                     $atributoTermIds = collect($variacionData['atributos'])
+                                        ->filter(function($attr) {
+                                            return !is_null($attr['termId']) && $attr['termId'] !== '';
+                                        })
                                         ->pluck('termId')
                                         ->toArray();
                                     $variacion->atributos()->sync($atributoTermIds);
@@ -542,27 +553,677 @@ class Catalogo extends Controller
                     break;
 
                 case 'Editar':
-                    // Similar a Crear pero con actualización
-                    $id = $request->input('id');
-                    $producto = Producto::find($id);
-                    
-                    if (!$producto) {
-                        $data->respuesta = 'error';
-                        $data->mensaje = 'Producto no encontrado';
-                        break;
-                    }
-
                     DB::beginTransaction();
+                    
+                    try {
+                        $id = $request->input('id');
+                        $producto = Producto::find($id);
+                        
+                        if (!$producto) {
+                            $data->respuesta = 'error';
+                            $data->mensaje = 'Producto no encontrado';
+                            break;
+                        }
 
-                    // Actualizar datos básicos (similar a Crear)
-                    // ... código de actualización ...
+                        // --- Datos básicos del producto ---
+                        $productoData = [
+                            'nombre' => $request->input('nombre'),
+                            'descripcion' => $request->input('descripcion'),
+                            'tipo_producto' => 'simple', // Forzamos simple por ahora
+                            'id_subCategorias' => $request->input('subcategoria_id'),
+                            'sku' => $request->input('sku'),
+                            'marca' => $request->input('marca'),
+                            'precio_regular' => $request->input('precio_regular'),
+                            'precio_rebajado' => $request->input('precio_rebajado'),
+                            'fecha_inicio_rebaja' => $request->input('fecha_inicio_rebaja'),
+                            'fecha_fin_rebaja' => $request->input('fecha_fin_rebaja'),
+                            'estado' => $request->input('estado'),
+                            'gestion_inventario' => $request->boolean('gestion_inventario'),
+                            'estado_inventario' => $request->input('estado_inventario'),
+                            'stock' => intval($request->input('stock') ?? 0),
+                            'vendido_individualmente' => $request->boolean('vendido_individualmente'),
+                            'backorders' => $request->input('backorders') === 'yes',
+                            'permite_valoraciones' => $request->boolean('permite_valoraciones'),
+                            'peso' => $request->input('peso'),
+                            'peso_unidad' => $request->input('peso_unidad'),
+                            'longitud' => $request->input('longitud'),
+                            'anchura' => $request->input('anchura'),
+                            'altura' => $request->input('altura'),
+                            'nota_interna' => $request->input('nota_interna')
+                        ];
 
-                    DB::commit();
+                        // Limpiar fechas de rebaja si no están activas
+                        if (!$request->input('programar_rebaja')) {
+                            $productoData['fecha_inicio_rebaja'] = null;
+                            $productoData['fecha_fin_rebaja'] = null;
+                        }
 
-                    $data->respuesta = 'ok';
-                    $data->mensaje = 'Producto actualizado correctamente';
+                        $producto->update($productoData);
+
+                        // --- Carpeta destino para imágenes ---
+                        $carpetaDestino = public_path('image_producto');
+                        if (!File::exists($carpetaDestino)) {
+                            File::makeDirectory($carpetaDestino, 0755, true);
+                        }
+
+                        $fecha = date('Ymd_His');
+
+                        // --- 1. MINIATURA ---
+                        // Eliminar miniatura existente si se marcó para eliminar
+                        if ($request->input('eliminar_miniatura') === 'true' && $producto->imagen_miniatura) {
+                            $rutaMiniatura = public_path($producto->imagen_miniatura);
+                            if (File::exists($rutaMiniatura)) {
+                                File::delete($rutaMiniatura);
+                            }
+                            $producto->update(['imagen_miniatura' => null]);
+                        }
+
+                        // Subir nueva miniatura si se proporcionó
+                        if ($request->hasFile('imagen_miniatura')) {
+                            // Eliminar la anterior si existe
+                            if ($producto->imagen_miniatura) {
+                                $rutaAnterior = public_path($producto->imagen_miniatura);
+                                if (File::exists($rutaAnterior)) {
+                                    File::delete($rutaAnterior);
+                                }
+                            }
+                            
+                            $file = $request->file('imagen_miniatura');
+                            $nombre = 'mini_' . Str::random(5) . "_$fecha." . $file->getClientOriginalExtension();
+                            $file->move($carpetaDestino, $nombre);
+                            $producto->update(['imagen_miniatura' => "image_producto/$nombre"]);
+                        }
+
+                        // --- 2. IMÁGENES PRINCIPALES ---
+                        // Eliminar imágenes marcadas
+                        if ($request->has('imagenes_eliminar')) {
+                            $idsEliminar = json_decode($request->input('imagenes_eliminar'), true);
+                            if (is_array($idsEliminar) && count($idsEliminar) > 0) {
+                                $imagenesEliminar = ProductoImagen::whereIn('id', $idsEliminar)->get();
+                                foreach ($imagenesEliminar as $img) {
+                                    $ruta = public_path($img->imagen_path);
+                                    if (File::exists($ruta)) {
+                                        File::delete($ruta);
+                                    }
+                                    $img->delete();
+                                }
+                            }
+                        }
+
+                        // Subir nuevas imágenes
+                        if ($request->hasFile('imagenes')) {
+                            foreach ($request->file('imagenes') as $i => $imagen) {
+                                $nombre = 'img_' . ($i + 1) . '_' . Str::random(5) . "_$fecha." . $imagen->getClientOriginalExtension();
+                                $imagen->move($carpetaDestino, $nombre);
+
+                                ProductoImagen::create([
+                                    'producto_id' => $producto->id,
+                                    'imagen_path' => "image_producto/$nombre"
+                                ]);
+                            }
+                        }
+
+                        // --- 3. ETIQUETAS ---
+                        if ($request->has('etiquetas')) {
+                            $etiquetasIds = json_decode($request->input('etiquetas'), true);
+                            $etiquetasExistentes = Etiqueta::whereIn('id', $etiquetasIds)->pluck('id')->toArray();
+                            $producto->etiquetas()->sync($etiquetasExistentes);
+                        }
+
+                        // --- 4. ATRIBUTOS ---
+                        if ($request->has('atributos')) {
+                            $atributosData = json_decode($request->input('atributos'), true);
+                            
+                            // Eliminar atributos actuales
+                            ProductoAtributo::where('producto_id', $producto->id)->delete();
+                            
+                            foreach ($atributosData as $atributoData) {
+                                $productoAtributo = ProductoAtributo::create([
+                                    'producto_id' => $producto->id,
+                                    'atributo_id' => $atributoData['atributo_id'],
+                                    'visible' => $atributoData['visible'] ?? true,
+                                    'variacion' => $atributoData['variacion'] ?? false
+                                ]);
+
+                                if (!empty($atributoData['valores'])) {
+                                    $productoAtributo->valores()->sync($atributoData['valores']);
+                                }
+                            }
+                        }
+
+                        // --- 5. PRODUCTOS RELACIONADOS (Upsells/Crosssells) ---
+                        \Log::info('=== DEBUG RELACIONES ===');
+                        \Log::info('Producto ID: ' . $producto->id);
+                        \Log::info('Request has upsells: ' . ($request->has('upsells') ? 'SI' : 'NO'));
+                        \Log::info('Request has crosssells: ' . ($request->has('crosssells') ? 'SI' : 'NO'));
+
+                        if ($request->has('upsells')) {
+                            $upsellsIds = json_decode($request->input('upsells'), true);
+                            \Log::info('Upsells recibidos (RAW): ' . $request->input('upsells'));
+                            \Log::info('Upsells decodificados: ' . json_encode($upsellsIds));
+                        }
+
+                        if ($request->has('crosssells')) {
+                            $crosssellsIds = json_decode($request->input('crosssells'), true);
+                            \Log::info('Crosssells recibidos (RAW): ' . $request->input('crosssells'));
+                            \Log::info('Crosssells decodificados: ' . json_encode($crosssellsIds));
+                        }
+
+                        $deleted = ProductoRelacionado::where('producto_id', $producto->id)->delete();
+                        \Log::info("Eliminadas {$deleted} relaciones para producto {$producto->id}");
+
+                        // SEGUNDO: Usar upsert o firstOrCreate para evitar duplicados
+                        $relacionesAGuardar = [];
+
+                        // Agregar upsells
+                        if ($request->has('upsells')) {
+                            $upsellsIds = json_decode($request->input('upsells'), true);
+                            if (is_array($upsellsIds)) {
+                                foreach ($upsellsIds as $relId) {
+                                    $relacionesAGuardar[] = [
+                                        'producto_id' => $producto->id,
+                                        'producto_relacionado_id' => $relId,
+                                        'tipo' => 'upsell'
+                                    ];
+                                }
+                            }
+                        }
+
+                        // Agregar crosssells
+                        if ($request->has('crosssells')) {
+                            $crosssellsIds = json_decode($request->input('crosssells'), true);
+                            if (is_array($crosssellsIds)) {
+                                foreach ($crosssellsIds as $relId) {
+                                    $relacionesAGuardar[] = [
+                                        'producto_id' => $producto->id,
+                                        'producto_relacionado_id' => $relId,
+                                        'tipo' => 'crosssell'
+                                    ];
+                                }
+                            }
+                        }
+
+                        // TERCERO: Insertar todas las nuevas relaciones
+                        if (!empty($relacionesAGuardar)) {
+                            foreach ($relacionesAGuardar as $relacion) {
+                                try {
+                                    ProductoRelacionado::create($relacion);
+                                } catch (\Exception $e) {
+                                    // Si falla por duplicado, intentar actualizar
+                                    if ($e->getCode() == 23000) { // Código de error de duplicado
+                                        ProductoRelacionado::updateOrCreate(
+                                            [
+                                                'producto_id' => $relacion['producto_id'],
+                                                'producto_relacionado_id' => $relacion['producto_relacionado_id']
+                                            ],
+                                            ['tipo' => $relacion['tipo']]
+                                        );
+                                    } else {
+                                        throw $e;
+                                    }
+                                }
+                            }
+                        }
+
+                        DB::commit();
+
+                        $data->respuesta = 'ok';
+                        $data->mensaje = 'Producto actualizado correctamente';
+
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Error al actualizar el producto: ' . $e->getMessage();
+                    }
                     break;
+                case 'Editar_Agrupado':
+                    DB::beginTransaction();
+                    
+                    try {
+                        $id = $request->input('id');
+                        $producto = Producto::find($id);
+                        
+                        if (!$producto) {
+                            $data->respuesta = 'error';
+                            $data->mensaje = 'Producto no encontrado';
+                            break;
+                        }
 
+                        $productoData = [
+                            'nombre' => $request->input('nombre'),
+                            'descripcion' => $request->input('descripcion'),
+                            'tipo_producto' => $request->input('tipo_producto', 'agrupado'),
+                            'id_subCategorias' => $request->input('subcategoria_id'),
+                            'sku' => $request->input('sku'),
+                            'marca' => $request->input('marca'),
+                            'estado' => $request->input('estado'),
+                            'permite_valoraciones' => $request->boolean('permite_valoraciones'),
+                            'nota_interna' => $request->input('nota_interna'),
+                            'gestion_inventario' => false,
+                            'estado_inventario' => 'existe',
+                            'stock' => 0,
+                            'precio_regular' => 0,
+                            'precio_rebajado' => null,
+                            'fecha_inicio_rebaja' => null,
+                            'fecha_fin_rebaja' => null,
+                            'backorders' => false
+                        ];
+
+                        $producto->update($productoData);
+
+                        // --- Carpeta destino para imágenes ---
+                        $carpetaDestino = public_path('image_producto');
+                        if (!File::exists($carpetaDestino)) {
+                            File::makeDirectory($carpetaDestino, 0755, true);
+                        }
+
+                        $fecha = date('Ymd_His');
+
+                        // --- 1. MINIATURA ---
+                        if ($request->input('eliminar_miniatura') === 'true' && $producto->imagen_miniatura) {
+                            $rutaMiniatura = public_path($producto->imagen_miniatura);
+                            if (File::exists($rutaMiniatura)) {
+                                File::delete($rutaMiniatura);
+                            }
+                            $producto->update(['imagen_miniatura' => null]);
+                        }
+
+                        if ($request->hasFile('imagen_miniatura')) {
+                            if ($producto->imagen_miniatura) {
+                                $rutaAnterior = public_path($producto->imagen_miniatura);
+                                if (File::exists($rutaAnterior)) {
+                                    File::delete($rutaAnterior);
+                                }
+                            }
+                            
+                            $file = $request->file('imagen_miniatura');
+                            $nombre = 'mini_' . Str::random(5) . "_$fecha." . $file->getClientOriginalExtension();
+                            $file->move($carpetaDestino, $nombre);
+                            $producto->update(['imagen_miniatura' => "image_producto/$nombre"]);
+                        }
+
+                        // --- 2. IMÁGENES PRINCIPALES ---
+                        if ($request->has('imagenes_eliminar')) {
+                            $idsEliminar = json_decode($request->input('imagenes_eliminar'), true);
+                            if (is_array($idsEliminar) && count($idsEliminar) > 0) {
+                                $imagenesEliminar = ProductoImagen::whereIn('id', $idsEliminar)->get();
+                                foreach ($imagenesEliminar as $img) {
+                                    $ruta = public_path($img->imagen_path);
+                                    if (File::exists($ruta)) {
+                                        File::delete($ruta);
+                                    }
+                                    $img->delete();
+                                }
+                            }
+                        }
+
+                        if ($request->hasFile('imagenes')) {
+                            foreach ($request->file('imagenes') as $i => $imagen) {
+                                $nombre = 'img_' . ($i + 1) . '_' . Str::random(5) . "_$fecha." . $imagen->getClientOriginalExtension();
+                                $imagen->move($carpetaDestino, $nombre);
+
+                                ProductoImagen::create([
+                                    'producto_id' => $producto->id,
+                                    'imagen_path' => "image_producto/$nombre"
+                                ]);
+                            }
+                        }
+
+                        // --- 3. ETIQUETAS ---
+                        if ($request->has('etiquetas')) {
+                            $etiquetasIds = json_decode($request->input('etiquetas'), true);
+                            $etiquetasExistentes = Etiqueta::whereIn('id', $etiquetasIds)->pluck('id')->toArray();
+                            $producto->etiquetas()->sync($etiquetasExistentes);
+                        }
+
+                        // --- 4. ATRIBUTOS ---
+                        if ($request->has('atributos')) {
+                            $atributosData = json_decode($request->input('atributos'), true);
+                            
+                            ProductoAtributo::where('producto_id', $producto->id)->delete();
+                            
+                            foreach ($atributosData as $atributoData) {
+                                $productoAtributo = ProductoAtributo::create([
+                                    'producto_id' => $producto->id,
+                                    'atributo_id' => $atributoData['atributo_id'],
+                                    'visible' => $atributoData['visible'] ?? true,
+                                    'variacion' => $atributoData['variacion'] ?? false
+                                ]);
+
+                                if (!empty($atributoData['valores'])) {
+                                    $productoAtributo->valores()->sync($atributoData['valores']);
+                                }
+                            }
+                        }
+
+                        // --- 5. PRODUCTOS AGRUPADOS (hijos) ---
+                        ProductoAgrupado::where('producto_padre_id', $producto->id)->delete();
+                            
+                        if ($request->has('relacionados')) {
+                            $hijosIds = json_decode($request->input('relacionados'), true);        
+                            if (is_array($hijosIds)) {
+                                foreach ($hijosIds as $hijoId) {
+                                    ProductoAgrupado::create([
+                                        'producto_padre_id' => $producto->id,
+                                        'producto_hijo_id' => $hijoId
+                                    ]);
+                                }
+                            }
+                        }
+
+                        // --- 6. PRODUCTOS RELACIONADOS (Upsells/Crosssells) ---
+                        ProductoRelacionado::where('producto_id', $producto->id)->delete();
+
+                        if ($request->has('crosssells')) {
+                            $crosssellsIds = json_decode($request->input('crosssells'), true);
+                            if (is_array($crosssellsIds)) {
+                                foreach ($crosssellsIds as $relId) {
+                                    ProductoRelacionado::create([
+                                        'producto_id' => $producto->id,
+                                        'producto_relacionado_id' => $relId,
+                                        'tipo' => 'crosssell'
+                                    ]);
+                                }
+                            }
+                        }
+
+                        DB::commit();
+
+                        $data->respuesta = 'ok';
+                        $data->mensaje = 'Producto actualizado correctamente';
+
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Error al actualizar el producto: ' . $e->getMessage();
+                    }
+                    break;
+                case 'Editar_Variable':
+                    DB::beginTransaction();
+                    
+                    try {
+                        $id = $request->input('id');
+                        $producto = Producto::find($id);
+                        
+                        if (!$producto) {
+                            $data->respuesta = 'error';
+                            $data->mensaje = 'Producto no encontrado';
+                            break;
+                        }
+
+                        // --- Datos básicos del producto ---
+                        $productoData = [
+                            'nombre' => $request->input('nombre'),
+                            'descripcion' => $request->input('descripcion'),
+                            'tipo_producto' => 'variable',
+                            'id_subCategorias' => $request->input('subcategoria_id'),
+                            'sku' => $request->input('sku'),
+                            'marca' => $request->input('marca'),
+                            'estado' => $request->input('estado'),
+                            'gestion_inventario' => $request->boolean('gestion_inventario'),
+                            'stock' => intval($request->input('stock') ?? 0),
+                            'vendido_individualmente' => $request->boolean('vendido_individualmente'),
+                            'permite_valoraciones' => $request->boolean('permite_valoraciones'),
+                            'peso' => $request->input('peso'),
+                            'peso_unidad' => $request->input('peso_unidad'),
+                            'longitud' => $request->input('longitud'),
+                            'anchura' => $request->input('anchura'),
+                            'altura' => $request->input('altura'),
+                            'nota_interna' => $request->input('nota_interna')
+                        ];
+
+                        // Los productos variables no tienen precio directo
+                        $productoData['precio_regular'] = 0;
+                        $productoData['precio_rebajado'] = null;
+                        $productoData['fecha_inicio_rebaja'] = null;
+                        $productoData['fecha_fin_rebaja'] = null;
+
+                        $producto->update($productoData);
+
+                        // --- Carpeta destino para imágenes ---
+                        $carpetaDestino = public_path('image_producto');
+                        if (!File::exists($carpetaDestino)) {
+                            File::makeDirectory($carpetaDestino, 0755, true);
+                        }
+
+                        $fecha = date('Ymd_His');
+
+                        // --- 1. MINIATURA ---
+                        if ($request->input('eliminar_miniatura') === 'true' && $producto->imagen_miniatura) {
+                            $rutaMiniatura = public_path($producto->imagen_miniatura);
+                            if (File::exists($rutaMiniatura)) File::delete($rutaMiniatura);
+                            $producto->update(['imagen_miniatura' => null]);
+                        }
+
+                        if ($request->hasFile('imagen_miniatura')) {
+                            if ($producto->imagen_miniatura) {
+                                $rutaAnterior = public_path($producto->imagen_miniatura);
+                                if (File::exists($rutaAnterior)) File::delete($rutaAnterior);
+                            }
+                            
+                            $file = $request->file('imagen_miniatura');
+                            $nombre = 'mini_' . Str::random(5) . "_$fecha." . $file->getClientOriginalExtension();
+                            $file->move($carpetaDestino, $nombre);
+                            $producto->update(['imagen_miniatura' => "image_producto/$nombre"]);
+                        }
+
+                        // --- 2. IMÁGENES PRINCIPALES ---
+                        if ($request->has('imagenes_eliminar')) {
+                            $idsEliminar = json_decode($request->input('imagenes_eliminar'), true);
+                            if (is_array($idsEliminar) && count($idsEliminar) > 0) {
+                                $imagenesEliminar = ProductoImagen::whereIn('id', $idsEliminar)->get();
+                                foreach ($imagenesEliminar as $img) {
+                                    $ruta = public_path($img->imagen_path);
+                                    if (File::exists($ruta)) File::delete($ruta);
+                                    $img->delete();
+                                }
+                            }
+                        }
+
+                        if ($request->hasFile('imagenes')) {
+                            foreach ($request->file('imagenes') as $i => $imagen) {
+                                $nombre = 'img_' . ($i + 1) . '_' . Str::random(5) . "_$fecha." . $imagen->getClientOriginalExtension();
+                                $imagen->move($carpetaDestino, $nombre);
+
+                                ProductoImagen::create([
+                                    'producto_id' => $producto->id,
+                                    'imagen_path' => "image_producto/$nombre"
+                                ]);
+                            }
+                        }
+
+                        // --- 3. ETIQUETAS ---
+                        if ($request->has('etiquetas')) {
+                            $etiquetasIds = json_decode($request->input('etiquetas'), true);
+                            $etiquetasExistentes = Etiqueta::whereIn('id', $etiquetasIds)->pluck('id')->toArray();
+                            $producto->etiquetas()->sync($etiquetasExistentes);
+                        }
+
+                        // --- 4. ATRIBUTOS (con visible y variacion) ---
+                        if ($request->has('atributos')) {
+                            $atributosData = json_decode($request->input('atributos'), true);
+                            
+                            // Eliminar atributos actuales
+                            ProductoAtributo::where('producto_id', $producto->id)->delete();
+                            
+                            foreach ($atributosData as $atributoData) {
+                                $productoAtributo = ProductoAtributo::create([
+                                    'producto_id' => $producto->id,
+                                    'atributo_id' => $atributoData['atributo_id'],
+                                    'visible' => $atributoData['visible'] ?? true,
+                                    'variacion' => $atributoData['variacion'] ?? false
+                                ]);
+
+                                // ✅ SOLO sincronizar los valores seleccionados
+                                if (!empty($atributoData['valores'])) {
+                                    $productoAtributo->valores()->sync($atributoData['valores']);
+                                }
+                            }
+                        }
+
+                        // --- 5. VARIACIONES ---
+                        if ($request->has('variaciones')) {
+                            $variacionesData = json_decode($request->input('variaciones'), true);
+                            
+                            // Obtener IDs de variaciones a conservar
+                            $idsAConservar = collect($variacionesData)->pluck('id')->filter()->toArray();
+                            
+                            // Eliminar variaciones que no están en la lista actual
+                            if (!empty($idsAConservar)) {
+                                $variacionesAEliminar = ProductoVariacion::where('producto_padre_id', $producto->id)
+                                    ->whereNotIn('id', $idsAConservar)
+                                    ->get();
+                            } else {
+                                $variacionesAEliminar = ProductoVariacion::where('producto_padre_id', $producto->id)->get();
+                            }
+                            
+                            // Eliminar imágenes de variaciones eliminadas
+                            foreach ($variacionesAEliminar as $varEliminar) {
+                                foreach ($varEliminar->imagenes as $img) {
+                                    $ruta = public_path($img->imagen_path);
+                                    if (File::exists($ruta)) File::delete($ruta);
+                                    $img->delete();
+                                }
+                                $varEliminar->atributos()->detach();
+                                $varEliminar->delete();
+                            }
+
+                            // Procesar cada variación
+                            foreach ($variacionesData as $index => $variacionData) {
+                                if (!empty($variacionData['id'])) {
+                                    // Actualizar variación existente
+                                    $variacion = ProductoVariacion::find($variacionData['id']);
+                                    if ($variacion) {
+                                        $variacion->update([
+                                            'sku' => !empty($variacionData['sku']) ? $variacionData['sku'] : null,
+                                            'precio_regular' => floatval($variacionData['price_normal'] ?? 0),
+                                            'precio_rebajado' => floatval($variacionData['price_sale'] ?? 0),
+                                            'stock' => intval($variacionData['stock'] ?? 0),
+                                            'fecha_inicio_rebaja' => $variacionData['sale_start'] ?: null,
+                                            'fecha_fin_rebaja' => $variacionData['sale_end'] ?: null,
+                                            'peso' => $variacionData['weight'] ? floatval($variacionData['weight']) : null,
+                                            'peso_unidad' => $variacionData['weight_type'] ?? 'kg',
+                                            'longitud' => $variacionData['length'] ? floatval($variacionData['length']) : null,
+                                            'anchura' => $variacionData['width'] ? floatval($variacionData['width']) : null,
+                                            'altura' => $variacionData['height'] ? floatval($variacionData['height']) : null,
+                                            'descripcion' => $variacionData['description'] ?? null,
+                                            'backorders' => ($variacionData['backorder'] ?? 'no') === 'yes'
+                                        ]);
+
+                                        // Sincronizar atributos (filtrar valores null)
+                                        if (!empty($variacionData['atributos'])) {
+                                            $atributoTermIds = collect($variacionData['atributos'])
+                                                ->filter(function($attr) {
+                                                    // Solo sincronizar si termId NO es null
+                                                    return !is_null($attr['termId']);
+                                                })
+                                                ->pluck('termId')
+                                                ->toArray();
+                                            $variacion->atributos()->sync($atributoTermIds);
+                                        }
+                                    }
+                                } else {
+                                    // Crear nueva variación
+                                    $variacion = ProductoVariacion::create([
+                                        'producto_padre_id' => $producto->id,
+                                        'sku' => !empty($variacionData['sku']) ? $variacionData['sku'] : null,
+                                        'precio_regular' => floatval($variacionData['price_normal'] ?? 0),
+                                        'precio_rebajado' => floatval($variacionData['price_sale'] ?? 0),
+                                        'stock' => intval($variacionData['stock'] ?? 0),
+                                        'fecha_inicio_rebaja' => $variacionData['sale_start'] ?: null,
+                                        'fecha_fin_rebaja' => $variacionData['sale_end'] ?: null,
+                                        'peso' => $variacionData['weight'] ? floatval($variacionData['weight']) : null,
+                                        'peso_unidad' => $variacionData['weight_type'] ?? 'kg',
+                                        'longitud' => $variacionData['length'] ? floatval($variacionData['length']) : null,
+                                        'anchura' => $variacionData['width'] ? floatval($variacionData['width']) : null,
+                                        'altura' => $variacionData['height'] ? floatval($variacionData['height']) : null,
+                                        'descripcion' => $variacionData['description'] ?? null,
+                                        'backorders' => ($variacionData['backorder'] ?? 'no') === 'yes'
+                                    ]);
+
+                                    if (!empty($variacionData['atributos'])) {
+                                        $atributoTermIds = collect($variacionData['atributos'])
+                                            ->filter(function($attr) {
+                                                return !is_null($attr['termId']);
+                                            })
+                                            ->pluck('termId')
+                                            ->toArray();
+                                        $variacion->atributos()->sync($atributoTermIds);
+                                    }
+                                }
+
+                                // --- Imágenes de la variación (código existente) ---
+                                if ($request->hasFile("variation_images_{$index}")) {
+                                    foreach ($request->file("variation_images_{$index}") as $file) {
+                                        if ($file->isValid()) {
+                                            $nombre = 'var_' . $index . '_' . Str::random(5) . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
+                                            $file->move($carpetaDestino, $nombre);
+
+                                            VariacionImagen::create([
+                                                'variacion_id' => $variacion->id,
+                                                'imagen_path' => "image_producto/$nombre"
+                                            ]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // --- Eliminar imágenes de variaciones marcadas ---
+                        if ($request->has('variaciones_imagenes_eliminar')) {
+                            $imgIdsEliminar = json_decode($request->input('variaciones_imagenes_eliminar'), true);
+                            if (is_array($imgIdsEliminar) && count($imgIdsEliminar) > 0) {
+                                $imagenesEliminar = VariacionImagen::whereIn('id', $imgIdsEliminar)->get();
+                                foreach ($imagenesEliminar as $img) {
+                                    $ruta = public_path($img->imagen_path);
+                                    if (File::exists($ruta)) File::delete($ruta);
+                                    $img->delete();
+                                }
+                            }
+                        }
+
+                        // --- 6. UPSELLS Y CROSSSELLS ---
+                        // Eliminar relaciones existentes
+                        ProductoRelacionado::where('producto_id', $producto->id)->delete();
+
+                        // Agregar nuevas relaciones
+                        if ($request->has('upsells')) {
+                            $upsellsIds = json_decode($request->input('upsells'), true);
+                            if (is_array($upsellsIds)) {
+                                foreach ($upsellsIds as $relId) {
+                                    ProductoRelacionado::create([
+                                        'producto_id' => $producto->id,
+                                        'producto_relacionado_id' => $relId,
+                                        'tipo' => 'upsell'
+                                    ]);
+                                }
+                            }
+                        }
+
+                        if ($request->has('crosssells')) {
+                            $crosssellsIds = json_decode($request->input('crosssells'), true);
+                            if (is_array($crosssellsIds)) {
+                                foreach ($crosssellsIds as $relId) {
+                                    ProductoRelacionado::create([
+                                        'producto_id' => $producto->id,
+                                        'producto_relacionado_id' => $relId,
+                                        'tipo' => 'crosssell'
+                                    ]);
+                                }
+                            }
+                        }
+
+                        DB::commit();
+
+                        $data->respuesta = 'ok';
+                        $data->mensaje = 'Producto variable actualizado correctamente';
+
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Error al actualizar el producto: ' . $e->getMessage();
+                    }
+                    break;
                 case 'Eliminar':
                     DB::beginTransaction();
 
@@ -641,10 +1302,14 @@ class Catalogo extends Controller
                 case 'Buscar':
                     try {
                         $query = $request->input('query');
+                        $productoId = $request->input('producto_id');
 
                         $productos = Producto::select('id', 'nombre', 'sku')
-                            ->where('tipo_producto', 'simple')              // ✅ solo productos simples
-                            ->where('estado', 'publicado')                 // ✅ solo publicados
+                            ->where('tipo_producto', 'simple')
+                            ->where('estado', 'publicado')
+                            ->when($productoId, function ($q) use ($productoId) {
+                                $q->where('id', '!=', $productoId);
+                            })
                             ->where(function ($q) use ($query) {
                                 $q->where('nombre', 'like', "%{$query}%")
                                 ->orWhere('sku', 'like', "%{$query}%");
@@ -798,7 +1463,7 @@ class Catalogo extends Controller
             $data->categorias   = Categoria::with('subcategorias')->get();
             $data->etiquetas    = Etiqueta::all();
             $data->atributos    = Atributo::with('terminos')->get();
-            $data->script       = 'js/productos.js';
+            $data->script       = ['js/productos.js', 'js/productos-simples.js', 'js/productos-variables.js', 'js/productos-agrupados.js'];
             $data->css          = 'css/administracion.css';
             $data->contenido    = 'catalogo.productos';
             return view('layouts.contenido', (array) $data);

@@ -1,4 +1,5 @@
 <?php
+// database/migrations/[timestamp]_create_permisos_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -20,34 +21,24 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        DB::table('permisos')->insert([
-            [
-                'id_rol'    => 1,
-                'id_menus'  => 1,
-                'permisos'  => json_encode([
-                    'ver'     => true,
-                    'editar'  => true,
-                    'crear'   => true,
-                    'eliminar'=> true,
-                    'configurar'=> true
-                ]),
-                'created_at'=> now(),
-                'updated_at'=> now(),
-            ],
-            [
-                'id_rol'    => 1,
-                'id_menus'  => 2,
-                'permisos'  => json_encode([
-                    'ver'     => true,
-                    'editar'  => true,
-                    'crear'   => true,
-                    'eliminar'=> true,
-                    'configurar' => true,
-                ]),
-                'created_at'=> now(),
-                'updated_at'=> now(),
-            ],
+        $permisosDefault = json_encode([
+            'ver' => true,
+            'editar' => true,
+            'crear' => true,
+            'eliminar' => true,
+            'configurar' => true,
         ]);
+
+        // Insertar permisos para cada menú
+        for ($menuId = 1; $menuId <= 12; $menuId++) {
+            DB::table('permisos')->insert([
+                'id_rol' => 1,
+                'id_menus' => $menuId,
+                'permisos' => $permisosDefault,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     /**

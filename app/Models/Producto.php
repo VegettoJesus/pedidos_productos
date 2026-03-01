@@ -90,6 +90,7 @@ class Producto extends Model
     {
         return $this->belongsToMany(Producto::class, 'productos_relacionados', 
             'producto_id', 'producto_relacionado_id')
+            ->withPivot('tipo')
             ->withTimestamps();
     }
 
