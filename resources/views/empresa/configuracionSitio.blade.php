@@ -243,8 +243,262 @@
                                     <small id="contadorFooter" class="text-muted">0/1000</small>
                                 </div>
                             </div>
-                        </div>
                     </form>
+                    <div class="col-12 mt-2">
+                        <div class="">
+                            <div class="m-4">
+                                <ul class="nav nav-tabs card-header-tabs" id="footerTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="columns-tab" data-bs-toggle="tab" data-bs-target="#columns" type="button" role="tab">
+                                            <i class="bi bi-grid-3x3-gap-fill me-1"></i> Columnas
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="links-tab" data-bs-toggle="tab" data-bs-target="#links" type="button" role="tab">
+                                            <i class="bi bi-link-45deg me-1"></i> Enlaces
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact" type="button" role="tab">
+                                            <i class="bi bi-envelope-paper me-1"></i> Contacto
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="social-tab" data-bs-toggle="tab" data-bs-target="#social" type="button" role="tab">
+                                            <i class="bi bi-share me-1"></i> Redes Sociales
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="card-body p-0 p-sm-3">
+                                <div class="tab-content">
+                                    <div class="tab-pane fade show active" id="columns" role="tabpanel">
+                                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+                                            <h5 class="mb-0">Columnas del Footer</h5>
+                                            <button type="button" class="btn btn-primary w-sm-auto" id="btnNuevaColumna">
+                                                <i class="bi bi-plus-circle me-1"></i> Nueva Columna
+                                            </button>
+                                        </div>
+                                        <div id="listaColumnasFooter" class="sortable-container">
+                                            <div class="text-center py-4">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Cargando...</span>
+                                                </div>
+                                                <p class="mt-2">Cargando columnas...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="links" role="tabpanel">
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle me-2"></i>
+                                            Selecciona una columna de tipo <strong>"links"</strong> para gestionar sus enlaces.
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-12 col-md-4">
+                                                <label class="form-label fw-bold">Columna</label>
+                                                <select id="selectColumnaLinks" class="form-select">
+                                                    <option value="">-- Seleccionar columna --</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-12 col-md-8">
+                                                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-2">
+                                                    <h6 class="mb-0">Enlaces de la columna</h6>
+                                                    <button type="button" class="btn btn-success w-sm-auto" id="btnNuevoEnlace" disabled>
+                                                        <i class="bi bi-plus-circle me-1"></i> Agregar Enlace
+                                                    </button>
+                                                </div>
+                                                <div id="listaEnlacesFooter" class="list-group">
+                                                    <div class="text-center py-3 text-muted">
+                                                        Seleccione una columna para ver sus enlaces.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="contact" role="tabpanel">
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle me-2"></i>
+                                            Selecciona una columna de tipo <strong>"mixed"</strong> para editar su información de contacto.
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-12 col-md-4">
+                                                <label class="form-label fw-bold">Columna</label>
+                                                <select id="selectColumnaContact" class="form-select">
+                                                    <option value="">-- Seleccionar columna --</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-12 col-md-8">
+                                                <form id="formContactoFooter">
+                                                    <!-- TELÉFONO -->
+                                                    <div class="card mb-3 border">
+                                                        <div class="card-header bg-light">
+                                                            <i class="bi bi-telephone me-2"></i> Teléfono
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="mb-2">
+                                                                <label class="form-label">Número</label>
+                                                                <input type="text" class="form-control" id="contact_phone" placeholder="+34 123 456 789">
+                                                            </div>
+                                                            <div class="mb-0">
+                                                                <label class="form-label">Ícono (opcional)</label>
+                                                                <div class="d-flex gap-3 mb-2">
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input" type="radio" name="tipoIconoPhone" id="tipoPhoneLibreria" value="libreria" checked>
+                                                                        <label class="form-check-label">Ícono de librería</label>
+                                                                    </div>
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input" type="radio" name="tipoIconoPhone" id="tipoPhoneImagen" value="imagen">
+                                                                        <label class="form-check-label">Imagen .ico</label>
+                                                                    </div>
+                                                                </div>
+                                                                <div id="panelPhoneLibreria">
+                                                                    <div style="margin-bottom:10px;">
+                                                                        <input id="buscadorPhone" class="form-control form-control-sm" placeholder="Buscar icono...">
+                                                                    </div>
+                                                                    <div id="iconPickerPhone" class="icon-grid-modern" style="max-height:180px;"></div>
+                                                                    <input type="hidden" id="iconoPhoneHidden" value="">
+                                                                </div>
+                                                                <div id="panelPhoneImagen" style="display: none;">
+                                                                    <div class="upload-area" id="uploadAreaPhone" style="border:1px dashed #ccc; padding:10px; text-align:center; cursor:pointer;">
+                                                                        <i class="bi bi-cloud-upload"></i> Haz clic o arrastra un archivo .ico
+                                                                        <input type="file" id="uploadIconoPhone" accept=".ico" style="display: none;">
+                                                                    </div>
+                                                                    <div id="previewPhoneImagen" style="display: none; margin-top:10px;">
+                                                                        <img id="imgPreviewPhone" style="width:32px; height:32px;">
+                                                                        <span id="nombreArchivoPhone"></span>
+                                                                        <button type="button" id="btnQuitarPhone" class="btn btn-sm btn-outline-danger ms-2">Quitar</button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- CORREO -->
+                                                    <div class="card mb-3 border">
+                                                        <div class="card-header bg-light">
+                                                            <i class="bi bi-envelope me-2"></i> Correo electrónico
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="mb-2">
+                                                                <label class="form-label">Correo</label>
+                                                                <input type="email" class="form-control" id="contact_email" placeholder="info@ejemplo.com">
+                                                            </div>
+                                                            <div class="mb-0">
+                                                                <label class="form-label">Ícono (opcional)</label>
+                                                                <div class="d-flex gap-3 mb-2">
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input" type="radio" name="tipoIconoEmail" id="tipoEmailLibreria" value="libreria" checked>
+                                                                        <label class="form-check-label">Ícono de librería</label>
+                                                                    </div>
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input" type="radio" name="tipoIconoEmail" id="tipoEmailImagen" value="imagen">
+                                                                        <label class="form-check-label">Imagen .ico</label>
+                                                                    </div>
+                                                                </div>
+                                                                <div id="panelEmailLibreria">
+                                                                    <div style="margin-bottom:10px;">
+                                                                        <input id="buscadorEmail" class="form-control form-control-sm" placeholder="Buscar icono...">
+                                                                    </div>
+                                                                    <div id="iconPickerEmail" class="icon-grid-modern" style="max-height:180px;"></div>
+                                                                    <input type="hidden" id="iconoEmailHidden" value="">
+                                                                </div>
+                                                                <div id="panelEmailImagen" style="display: none;">
+                                                                    <div class="upload-area" id="uploadAreaEmail" style="border:1px dashed #ccc; padding:10px; text-align:center; cursor:pointer;">
+                                                                        <i class="bi bi-cloud-upload"></i> Haz clic o arrastra un archivo .ico
+                                                                        <input type="file" id="uploadIconoEmail" accept=".ico" style="display: none;">
+                                                                    </div>
+                                                                    <div id="previewEmailImagen" style="display: none; margin-top:10px;">
+                                                                        <img id="imgPreviewEmail" style="width:32px; height:32px;">
+                                                                        <span id="nombreArchivoEmail"></span>
+                                                                        <button type="button" id="btnQuitarEmail" class="btn btn-sm btn-outline-danger ms-2">Quitar</button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- DIRECCIÓN -->
+                                                    <div class="card mb-3 border">
+                                                        <div class="card-header bg-light">
+                                                            <i class="bi bi-geo-alt me-2"></i> Dirección
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="mb-2">
+                                                                <label class="form-label">Dirección</label>
+                                                                <textarea class="form-control" id="contact_address" rows="2" placeholder="Calle Falsa 123, Ciudad"></textarea>
+                                                            </div>
+                                                            <div class="mb-0">
+                                                                <label class="form-label">Ícono (opcional)</label>
+                                                                <div class="d-flex gap-3 mb-2">
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input" type="radio" name="tipoIconoAddress" id="tipoAddressLibreria" value="libreria" checked>
+                                                                        <label class="form-check-label">Ícono de librería</label>
+                                                                    </div>
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input" type="radio" name="tipoIconoAddress" id="tipoAddressImagen" value="imagen">
+                                                                        <label class="form-check-label">Imagen .ico</label>
+                                                                    </div>
+                                                                </div>
+                                                                <div id="panelAddressLibreria">
+                                                                    <div style="margin-bottom:10px;">
+                                                                        <input id="buscadorAddress" class="form-control form-control-sm" placeholder="Buscar icono...">
+                                                                    </div>
+                                                                    <div id="iconPickerAddress" class="icon-grid-modern" style="max-height:180px;"></div>
+                                                                    <input type="hidden" id="iconoAddressHidden" value="">
+                                                                </div>
+                                                                <div id="panelAddressImagen" style="display: none;">
+                                                                    <div class="upload-area" id="uploadAreaAddress" style="border:1px dashed #ccc; padding:10px; text-align:center; cursor:pointer;">
+                                                                        <i class="bi bi-cloud-upload"></i> Haz clic o arrastra un archivo .ico
+                                                                        <input type="file" id="uploadIconoAddress" accept=".ico" style="display: none;">
+                                                                    </div>
+                                                                    <div id="previewAddressImagen" style="display: none; margin-top:10px;">
+                                                                        <img id="imgPreviewAddress" style="width:32px; height:32px;">
+                                                                        <span id="nombreArchivoAddress"></span>
+                                                                        <button type="button" id="btnQuitarAddress" class="btn btn-sm btn-outline-danger ms-2">Quitar</button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <button type="button" class="btn btn-primary w-sm-auto mt-2" id="btnGuardarContacto">
+                                                        <i class="bi bi-save me-1"></i> Guardar contacto
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="social" role="tabpanel">
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle me-2"></i>
+                                            Selecciona una columna de tipo <strong>"mixed"</strong> para gestionar sus redes sociales.
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-12 col-md-4">
+                                                <label class="form-label fw-bold">Columna</label>
+                                                <select id="selectColumnaSocial" class="form-select">
+                                                    <option value="">-- Seleccionar columna --</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-12 col-md-8">
+                                                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-2">
+                                                    <h6 class="mb-0">Redes Sociales</h6>
+                                                    <button type="button" class="btn btn-success w-sm-auto" id="btnNuevaRedSocial" disabled>
+                                                        <i class="bi bi-plus-circle me-1"></i> Agregar Red Social
+                                                    </button>
+                                                </div>
+                                                <div id="listaRedesSociales" class="list-group">
+                                                    <div class="text-center py-3 text-muted">
+                                                        Seleccione una columna para ver sus redes.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-footer bg-light d-flex justify-content-between">
                     <button type="button" class="btn btn-outline-secondary" id="btnRestablecer">
@@ -393,3 +647,6 @@
         </div>
     </div>
 </div>
+<script>
+    window.iconosDisponibles = @json($iconos);
+</script>
