@@ -1131,7 +1131,80 @@ p {
 .table-orange-personality tbody tr:hover h5 {
 	color: var(--color-table-hover-text) !important;
 }
-
+.icon-grid-modern {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 12px;
+    padding: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+.icon-btn-modern {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 12px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+.icon-btn-modern i {
+    font-size: 28px;
+    margin-bottom: 8px;
+    color: #495057;
+}
+.icon-btn-modern span {
+    font-size: 12px;
+    color: #6c757d;
+}
+.icon-btn-modern:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    border-color: #007bff;
+    background: #fff;
+}
+.icon-btn-modern.selected {
+    background: #007bff;
+    border-color: #007bff;
+}
+.icon-btn-modern.selected i,
+.icon-btn-modern.selected span {
+    color: white;
+}
+.upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.upload-area:hover {
+    border-color: #007bff;
+    background: #f8f9ff;
+}
+.upload-area.dragover {
+    border-color: #007bff;
+    background: #e7f1ff;
+}
+#previewImagenSocial {
+    margin-top: 15px;
+    padding: 10px;
+    background: #f1f3f5;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.2em;
+}
 @media (max-width: 767.98px) {
 	#modalPermisos .modal-content {
 		border-radius: 12px !important;

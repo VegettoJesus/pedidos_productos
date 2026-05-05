@@ -7,6 +7,11 @@ use App\Models\ConfiguracionCorreo;
 use App\Models\HomeConfiguracion;
 use App\Models\Auditoria;
 use App\Models\EmpresaInformacion;
+use App\Models\FooterColumn;
+use App\Models\FooterLink;
+use App\Models\FooterContact;
+use App\Models\FooterSocial;
+use App\Data\Icons;
 use App\Models\Departamento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -508,6 +513,366 @@ class Empresa extends Controller
                     'total' => count($productos)
                 ]);
                 break;
+            case 'ListarFooterColumns':
+                $columns = FooterColumn::orderBy('sort_order')->get();
+                return response()->json(['success' => true, 'data' => $columns]);
+                break;
+
+            case 'GuardarFooterColumn':
+                $validator = Validator::make($request->all(), [
+                    'id' => 'nullable|integer',
+                    'title' => 'required|string|max:100',
+                    'column_type' => 'required|in:links,mixed',
+                    'active' => 'boolean',
+                    'icon' => 'nullable|string|max:255',
+                    'icono_archivo' => 'nullable|file|mimes:ico|max:2048'
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+                }
+
+                $active = filter_var($request->active, FILTER_VALIDATE_BOOLEAN);
+                $iconValue = $request->input('icon');
+
+                if ($request->hasFile('icono_archivo')) {
+                    $archivo = $request->file('icono_archivo');
+                    $extension = $archivo->getClientOriginalExtension();
+                    $nombreUnico = 'img_' . time() . '_' . uniqid() . '_' . 'column' . '.' . $extension;
+                    $destino = 'iconos_footer';
+                    $rutaDestino = public_path($destino);
+                    if (!file_exists($rutaDestino)) mkdir($rutaDestino, 0755, true);
+                    $archivo->move($rutaDestino, $nombreUnico);
+                    $iconValue = '/' . $destino . '/' . $nombreUnico;
+                }
+
+                if (empty($iconValue)) {
+                    $iconValue = null;
+                }
+
+                if (empty($request->id)) {
+                    $maxOrder = FooterColumn::max('sort_order') ?? 0;
+                    $column = FooterColumn::create([
+                        'title' => $request->title,
+                        'column_type' => $request->column_type,
+                        'active' => $active,
+                        'sort_order' => $maxOrder + 1,
+                        'icon' => $iconValue
+                    ]);
+                    $id = $column->id;
+                } else {
+                    $column = FooterColumn::findOrFail($request->id);
+                    if (!$request->hasFile('icono_archivo') && $column->icon && str_starts_with($column->icon, '/iconos_footer/') && ($iconValue === null || str_starts_with($iconValue, 'bi bi-'))) {
+                        $oldPath = public_path($column->icon);
+                        if (file_exists($oldPath)) unlink($oldPath);
+                    }
+                    $column->update([
+                        'title' => $request->title,
+                        'column_type' => $request->column_type,
+                        'active' => $active,
+                        'icon' => $iconValue
+                    ]);
+                    $id = $column->id;
+                }
+                return response()->json(['success' => true, 'id' => $id]);
+                break;
+
+            case 'OrdenarFooterColumns':
+                $orden = $request->input('orden');
+                foreach ($orden as $item) {
+                    FooterColumn::where('id', $item['id'])->update(['sort_order' => $item['sort_order']]);
+                }
+                return response()->json(['success' => true]);
+                break;
+
+            case 'EliminarFooterColumn':
+                $column = FooterColumn::find($request->input('id'));
+                if ($column) {
+                    if ($column->icon && str_starts_with($column->icon, '/iconos_footer/')) {
+                        $filePath = public_path($column->icon);
+                        if (file_exists($filePath)) unlink($filePath);
+                    }
+                    $column->delete();
+                }
+                return response()->json(['success' => true]);
+                break;
+
+            case 'ListarFooterLinks':
+                $links = FooterLink::where('column_id', $request->input('column_id'))
+                    ->orderBy('sort_order')
+                    ->get();
+                return response()->json(['success' => true, 'data' => $links]);
+                break;
+
+            case 'GuardarFooterLink':
+                $validator = Validator::make($request->all(), [
+                    'id' => 'nullable|integer',
+                    'column_id' => 'required|integer|exists:footer_columns,id',
+                    'text' => 'required|string|max:100',
+                    'url' => 'required|string|max:255',
+                    'active' => 'boolean',
+                    'icon' => 'nullable|string|max:255',
+                    'icono_archivo' => 'nullable|file|mimes:ico|max:2048'
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+                }
+
+                $active = filter_var($request->active, FILTER_VALIDATE_BOOLEAN);
+                $iconValue = $request->input('icon');
+
+                if ($request->hasFile('icono_archivo')) {
+                    $archivo = $request->file('icono_archivo');
+                    $extension = $archivo->getClientOriginalExtension();
+                    $nombreUnico = 'img_' . time() . '_' . uniqid() . '_' . 'link' . '.' . $extension;
+                    $destino = 'iconos_footer';
+                    $rutaDestino = public_path($destino);
+                    if (!file_exists($rutaDestino)) mkdir($rutaDestino, 0755, true);
+                    $archivo->move($rutaDestino, $nombreUnico);
+                    $iconValue = '/' . $destino . '/' . $nombreUnico;
+                }
+
+                if (empty($iconValue)) $iconValue = null;
+
+                if (empty($request->id)) {
+                    $maxOrder = FooterLink::where('column_id', $request->column_id)->max('sort_order') ?? 0;
+                    $link = FooterLink::create([
+                        'column_id' => $request->column_id,
+                        'text' => $request->text,
+                        'url' => $request->url,
+                        'active' => $active,
+                        'sort_order' => $maxOrder + 1,
+                        'icon' => $iconValue
+                    ]);
+                    $id = $link->id;
+                } else {
+                    $link = FooterLink::findOrFail($request->id);
+                    if ($request->hasFile('icono_archivo') && $link->icon && str_starts_with($link->icon, '/iconos_footer/') && ($iconValue === null || str_starts_with($iconValue, 'bi bi-'))) {
+                        $oldPath = public_path($link->icon);
+                        if (file_exists($oldPath)) unlink($oldPath);
+                    }
+                    $link->update([
+                        'text' => $request->text,
+                        'url' => $request->url,
+                        'active' => $active,
+                        'icon' => $iconValue
+                    ]);
+                    $id = $link->id;
+                }
+                return response()->json(['success' => true, 'id' => $id]);
+                break;
+
+            case 'EliminarFooterLink':
+                $link = FooterLink::find($request->input('id'));
+                if ($link) {
+                    if ($link->icon && str_starts_with($link->icon, '/iconos_footer/')) {
+                        $filePath = public_path($link->icon);
+                        if (file_exists($filePath)) {
+                            unlink($filePath);
+                        }
+                    }
+                    $link->delete();
+                }
+                return response()->json(['success' => true]);
+                break;
+
+            case 'ObtenerFooterContact':
+                $contact = FooterContact::where('column_id', $request->input('column_id'))->first();
+                return response()->json(['success' => true, 'data' => $contact]);
+                break;
+
+            case 'GuardarFooterContact':
+                $validator = Validator::make($request->all(), [
+                    'column_id' => 'required|integer|exists:footer_columns,id',
+                    'phone' => 'nullable|string|max:20',
+                    'email' => 'nullable|email|max:100',
+                    'address' => 'nullable|string|max:255',
+                    'phone_icon' => 'nullable|string|max:255',
+                    'email_icon' => 'nullable|string|max:255',
+                    'address_icon' => 'nullable|string|max:255',
+                    'phone_icono_archivo' => 'nullable|file|mimes:ico|max:2048',
+                    'email_icono_archivo' => 'nullable|file|mimes:ico|max:2048',
+                    'address_icono_archivo' => 'nullable|file|mimes:ico|max:2048'
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+                }
+
+                $contact = FooterContact::firstOrNew(['column_id' => $request->column_id]);
+
+                $contact->phone = $request->phone;
+                $contact->email = $request->email;
+                $contact->address = $request->address;
+                $iconFields = ['phone', 'email', 'address'];
+                foreach ($iconFields as $field) {
+                    $oldIcon = $contact->{$field . '_icon'} ?? null;
+                    $newIcon = null;
+
+                    if ($request->hasFile($field . '_icono_archivo')) {
+                        $archivo = $request->file($field . '_icono_archivo');
+                        $extension = $archivo->getClientOriginalExtension();
+                        $nombreUnico = 'img_' . time() . '_' . uniqid() . '_' . $field . '.' . $extension;
+                        $destino = 'iconos_footer';
+                        $rutaDestino = public_path($destino);
+                        if (!file_exists($rutaDestino)) mkdir($rutaDestino, 0755, true);
+                        $archivo->move($rutaDestino, $nombreUnico);
+                        $newIcon = '/' . $destino . '/' . $nombreUnico;
+
+                        if ($oldIcon && str_starts_with($oldIcon, '/iconos_footer/')) {
+                            $oldPath = public_path($oldIcon);
+                            if (file_exists($oldPath)) unlink($oldPath);
+                        }
+                    } else {
+                        $newIcon = $request->input($field . '_icon'); 
+
+                        if ($newIcon && !str_starts_with($newIcon, '/iconos_footer/')) {
+                            if ($oldIcon && str_starts_with($oldIcon, '/iconos_footer/')) {
+                                $oldPath = public_path($oldIcon);
+                                if (file_exists($oldPath)) unlink($oldPath);
+                            }
+                        } elseif (empty($newIcon)) {
+                            if ($oldIcon && str_starts_with($oldIcon, '/iconos_footer/')) {
+                                $oldPath = public_path($oldIcon);
+                                if (file_exists($oldPath)) unlink($oldPath);
+                            }
+                        }
+                    }
+
+                    $contact->{$field . '_icon'} = $newIcon ?? null;
+                }
+
+                $contact->save();
+
+                return response()->json(['success' => true]);
+                break;
+
+            case 'ListarFooterSocial':
+                $social = FooterSocial::where('column_id', $request->input('column_id'))
+                    ->orderBy('sort_order')
+                    ->get();
+                return response()->json(['success' => true, 'data' => $social]);
+                break;
+
+            case 'GuardarFooterSocial':
+                $validator = Validator::make($request->all(), [
+                    'id' => 'nullable|integer',
+                    'column_id' => 'required|integer|exists:footer_columns,id',
+                    'name' => 'required|string|max:50',
+                    'url' => 'required|string|max:255',
+                    'active' => 'boolean',
+                    'icon' => 'nullable',
+                    'icono_archivo' => 'nullable|file|mimes:ico|max:2048' 
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+                }
+
+                $active = filter_var($request->active, FILTER_VALIDATE_BOOLEAN);
+                $iconValue = $request->input('icon'); 
+
+                if ($request->hasFile('icono_archivo')) {
+                    $archivo = $request->file('icono_archivo');
+                    $nombreOriginal = pathinfo($archivo->getClientOriginalName(), PATHINFO_FILENAME);
+                    $nombreOriginal = preg_replace('/[^a-zA-Z0-9_-]/', '', $nombreOriginal);
+                    $extension = $archivo->getClientOriginalExtension();
+                    $nombreUnico = 'img_' . time() . '_' . uniqid() . $extension;
+                    
+                    $destino = 'iconos_footer';
+                    $rutaDestino = public_path($destino);
+                    if (!file_exists($rutaDestino)) {
+                        mkdir($rutaDestino, 0755, true);
+                    }
+                    
+                    $archivo->move($rutaDestino, $nombreUnico);
+                    $iconValue = '/' . $destino . '/' . $nombreUnico; 
+                }
+
+                if (empty($iconValue)) {
+                    return response()->json(['success' => false, 'message' => 'Debe proporcionar un ícono o una imagen'], 422);
+                }
+
+                if (empty($request->id)) {
+                    $maxOrder = FooterSocial::where('column_id', $request->column_id)->max('sort_order') ?? 0;
+                    $social = FooterSocial::create([
+                        'column_id' => $request->column_id,
+                        'name' => $request->name,
+                        'icon' => $iconValue,
+                        'url' => $request->url,
+                        'active' => $active,
+                        'sort_order' => $maxOrder + 1
+                    ]);
+                    $id = $social->id;
+                } else {
+                    $social = FooterSocial::findOrFail($request->id);
+                    $social->update([
+                        'name' => $request->name,
+                        'icon' => $iconValue,
+                        'url' => $request->url,
+                        'active' => $active
+                    ]);
+                    $id = $social->id;
+                }
+
+                return response()->json(['success' => true, 'id' => $id]);
+                break;
+
+            case 'EliminarFooterSocial':
+                $social = FooterSocial::find($request->input('id'));
+                if ($social) {
+                    $icon = $social->icon;
+                    if ($icon && str_starts_with($icon, '/iconos_footer/')) {
+                        $filePath = public_path($icon);
+                        if (file_exists($filePath)) {
+                            unlink($filePath);
+                        }
+                    }
+                    $social->delete();
+                }
+                return response()->json(['success' => true]);
+                break;
+
+            case 'ObtenerFooterLink':
+                $link = FooterLink::find($request->input('id'));
+                return response()->json(['success' => true, 'data' => $link]);
+                break;
+
+            case 'ObtenerFooterSocial':
+                $social = FooterSocial::find($request->input('id'));
+                return response()->json(['success' => true, 'data' => $social]);
+                break;
+            case 'LimpiarIconoFooterColumn':
+                $column = FooterColumn::find($request->input('id'));
+                if ($column) {
+                    if ($column->icon && str_starts_with($column->icon, '/iconos_footer/')) {
+                        $filePath = public_path($column->icon);
+                        if (file_exists($filePath)) {
+                            unlink($filePath);
+                        }
+                    }
+                    $column->icon = null;
+                    $column->save();
+                    return response()->json(['success' => true]);
+                }
+                return response()->json(['success' => false, 'message' => 'Columna no encontrada']);
+                break;
+            case 'LimpiarIconoFooterLink':
+                $link = FooterLink::find($request->input('id'));
+                if ($link) {
+                    if ($link->icon && str_starts_with($link->icon, '/iconos_footer/')) {
+                        $filePath = public_path($link->icon);
+                        if (file_exists($filePath)) {
+                            unlink($filePath);
+                        }
+                    }
+                    $link->icon = null;
+                    $link->save();
+                    return response()->json(['success' => true]);
+                }
+                return response()->json(['success' => false, 'message' => 'Enlace no encontrado']);
+                break;
 
                 default:
                     $data->respuesta = 'error';
@@ -518,6 +883,7 @@ class Empresa extends Controller
             return response()->json($data);
         } else {
             $data = new \stdClass();
+            $data->iconos = Icons::all();
             $data->script = 'js/configuracionSitio.js';
             $data->css = 'css/administracion.css';
             $data->contenido = 'empresa.configuracionSitio';
