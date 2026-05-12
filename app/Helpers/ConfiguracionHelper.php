@@ -7,6 +7,10 @@ use App\Models\ConfiguracionSistema;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use App\Services\MenuService;
+use App\Models\FooterColumn;
+use App\Models\FooterLink;
+use App\Models\FooterContact;
+use App\Models\FooterSocial;
 
 class ConfiguracionHelper
 {
@@ -57,7 +61,7 @@ class ConfiguracionHelper
         $configuracion = self::getConfig();
         
         if ($configuracion) {
-            $baseTitle = $configuracion->abreviatura_titulo ?? $configuracion->titulo_site ?? 'HTI';
+            $baseTitle = $configuracion->abreviatura_titulo ?? $configuracion->titulo_site ?? 'EMP';
         } else {
             $baseTitle = 'EMP';
         }
@@ -115,14 +119,151 @@ class ConfiguracionHelper
     }
 
     /**
-     * Limpiar caché de configuración
+     * Obtener todas las columnas de footer activas, ordenadas
+     */
+    public static function getFooterColumns()
+    {
+        return Cache::remember('footer_columns_active', self::CACHE_TIME, function () {
+            return FooterColumn::where('active', true)
+                ->orderBy('sort_order')
+                ->get();
+        });
+    }
+
+    /**
+     * Obtener enlaces de una columna (solo los activos)
+     */
+    public static function getFooterLinks($columnId)
+    {
+        return Cache::remember("footer_links_{$columnId}", self::CACHE_TIME, function () use ($columnId) {
+            return FooterLink::where('column_id', $columnId)
+                ->where('active', true)
+                ->orderBy('sort_order')
+                ->get();
+        });
+    }
+
+    /**
+     * Obtener contacto de una columna mixta
+     */
+    public static function getFooterContact($columnId)
+    {
+        return Cache::remember("footer_contact_{$columnId}", self::CACHE_TIME, function () use ($columnId) {
+            return FooterContact::where('column_id', $columnId)->first();
+        });
+    }
+
+    /**
+     * Obtener redes sociales de una columna mixta (solo activas)
+     */
+    public static function getFooterSocialNetworks($columnId)
+    {
+        return Cache::remember("footer_social_{$columnId}", self::CACHE_TIME, function () use ($columnId) {
+            return FooterSocial::where('column_id', $columnId)
+                ->where('active', true)
+                ->orderBy('sort_order')
+                ->get();
+        });
+    }
+
+    /**
+     * Genera el HTML del icono (clase CSS o imagen)
+     */
+    public static function renderFooterIcon($icon)
+    {
+        if (empty($icon)) {
+            return '';
+        }
+        // Si es una ruta de imagen (comienza con /iconos_footer/ o cualquier /)
+        if (str_starts_with($icon, '/') || preg_match('/\.(ico|png|jpg|jpeg|gif|svg|webp)$/i', $icon)) {
+            return '<img src="' . asset($icon) . '" alt="icono" style="width: 20px; height: 20px; object-fit: contain; margin-right: 8px;">';
+        }
+        // Asumimos clase CSS estilo Bootstrap Icons
+        return '<i class="' . e($icon) . '" style="margin-right: 8px;"></i>';
+    }
+
+    public static function normalizeUrl($url)
+    {
+        if (empty($url)) {
+            return '';
+        }
+        
+        $trimmed = trim($url);
+        
+        // Protocolos ya válidos o casos especiales
+        if (preg_match('/^(https?:\/\/|#|\/|mailto:|tel:)/i', $trimmed)) {
+            return $trimmed;
+        }
+        
+        // Si no tiene protocolo, agregamos https:// por defecto
+        return 'https://' . $trimmed;
+    }
+
+    public static function clearFooterCache()
+    {
+        Cache::forget('footer_columns_active');
+        // Podrías eliminar todas las keys que empiecen por 'footer_links_' o 'footer_contact_'
+        // Para simplificar, borra todas las relacionadas con footer
+        $keys = ['footer_columns_active'];
+        foreach (FooterColumn::pluck('id') as $id) {
+            $keys[] = "footer_links_{$id}";
+            $keys[] = "footer_contact_{$id}";
+            $keys[] = "footer_social_{$id}";
+        }
+        Cache::deleteMultiple($keys);
+    }
+
+    /**
+     * Obtener la información de la empresa (único registro)
+     */
+    public static function getEmpresaInfo()
+    {
+        return Cache::remember('empresa_informacion', self::CACHE_TIME, function () {
+            return \App\Models\EmpresaInformacion::first();
+        });
+    }
+
+    /**
+     * Obtener teléfono de la empresa (prioriza celular si existe)
+     */
+    public static function getPhone()
+    {
+        $empresa = self::getEmpresaInfo();
+        if ($empresa) {
+            return $empresa->celular ?: $empresa->telefono;
+        }
+        return null;
+    }
+
+    /**
+     * Obtener email de la empresa (por defecto el admin email)
+     */
+    public static function getEmail()
+    {
+        $empresa = self::getEmpresaInfo();
+        if ($empresa && $empresa->email) {
+            return $empresa->email;
+        }
+        return self::getAdminEmail(); // fallback al email de configuración
+    }
+
+    /**
+     * Obtener dirección completa formateada
+     */
+    public static function getFullAddress()
+    {
+        $empresa = self::getEmpresaInfo();
+        return $empresa ? $empresa->direccion_completa : null;
+    }
+
+    /**
+     * Limpiar caché de empresa también en clearCache()
      */
     public static function clearCache()
     {
         Cache::forget('configuracion_sistema');
         Cache::forget('configuracion_sistema_array');
-        
-        // Limpiar también caché de menús
+        Cache::forget('empresa_informacion');
         MenuService::limpiarCache();
     }
 }

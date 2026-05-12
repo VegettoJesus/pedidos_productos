@@ -1,33 +1,103 @@
 <footer class="footer">
     <div class="footer-container">
-        <div>
-            <h3 class="footer-title">High Technology Innovation</h3>
-            <p>Líderes en tecnología innovadora y soluciones inteligentes para el futuro.</p>
-        </div>
-            
-        <div>
-            <h3 class="footer-title">Enlaces Rápidos</h3>
-            <ul class="footer-links">
-                <li><a href="#" class="footer-link">Inicio</a></li>
-                <li><a href="#" class="footer-link">Productos</a></li>
-                <li><a href="#" class="footer-link">Ofertas</a></li>
-                <li><a href="#" class="footer-link">Nosotros</a></li>
-            </ul>
-        </div>
-            
-        <div>
-            <h3 class="footer-title">Contacto</h3>
-            <ul class="footer-links">
-                <li><a href="tel:+1234567890" class="footer-link">+1 (234) 567-890</a></li>
-                <li><a href="mailto:info@hitech.com" class="footer-link">info@hitech.com</a></li>
-                <li class="footer-link">Av. Tecnología 123, Ciudad Digital</li>
-            </ul>
-        </div>
+        @php
+            $footerColumns = \App\Helpers\ConfiguracionHelper::getFooterColumns();
+        @endphp
+
+        @forelse($footerColumns as $column)
+            @php
+                $columnId = $column->id;
+                $type = $column->column_type;
+                $iconHtml = \App\Helpers\ConfiguracionHelper::renderFooterIcon($column->icon);
+                $title = e($column->title);
+            @endphp
+
+            <div>
+                <h3 class="footer-title">
+                    {!! $iconHtml !!} {{ $title }}
+                </h3>
+
+                {{-- Columna de solo enlaces --}}
+                @if($type === 'links')
+                    @php $links = \App\Helpers\ConfiguracionHelper::getFooterLinks($columnId); @endphp
+                    @if($links->isNotEmpty())
+                        <ul class="footer-links">
+                           @foreach($links as $link)
+                                <li>
+                                    {!! \App\Helpers\ConfiguracionHelper::renderFooterIcon($link->icon) !!}
+                                    <a href="{{ \App\Helpers\ConfiguracionHelper::normalizeUrl($link->url) }}" 
+                                    class="footer-link" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer">
+                                        {{ e($link->text) }}
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p class="text-muted small">Sin enlaces configurados.</p>
+                    @endif
+
+                {{-- Columna mixta: contacto + redes sociales --}}
+                @elseif($type === 'mixed')
+                    @php
+                        $contact = \App\Helpers\ConfiguracionHelper::getFooterContact($columnId);
+                        $socials = \App\Helpers\ConfiguracionHelper::getFooterSocialNetworks($columnId);
+                    @endphp
+
+                    @if($contact && ($contact->phone || $contact->email || $contact->address))
+                        <ul class="footer-links">
+                            @if($contact->phone)
+                                <li>
+                                    {!! \App\Helpers\ConfiguracionHelper::renderFooterIcon($contact->phone_icon) !!}
+                                    <a href="tel:{{ e($contact->phone) }}" class="footer-link">{{ e($contact->phone) }}</a>
+                                </li>
+                            @endif
+                            @if($contact->email)
+                                <li>
+                                    {!! \App\Helpers\ConfiguracionHelper::renderFooterIcon($contact->email_icon) !!}
+                                    <a href="mailto:{{ e($contact->email) }}" class="footer-link">{{ e($contact->email) }}</a>
+                                </li>
+                            @endif
+                            @if($contact->address)
+                                <li>
+                                    {!! \App\Helpers\ConfiguracionHelper::renderFooterIcon($contact->address_icon) !!}
+                                    <span class="footer-link">{{ e($contact->address) }}</span>
+                                </li>
+                            @endif
+                        </ul>
+                    @endif
+
+                    @if($socials->isNotEmpty())
+                        <div class="footer-social-links mt-2">
+                            @foreach($socials as $social)
+                                <a href="{{ e($social->url) }}" class="footer-social-link me-2" target="_blank" rel="noopener noreferrer" title="{{ e($social->name) }}">
+                                    {!! \App\Helpers\ConfiguracionHelper::renderFooterIcon($social->icon) !!}
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @if((!$contact || (!$contact->phone && !$contact->email && !$contact->address)) && $socials->isEmpty())
+                        <p class="text-muted small">Sin contenido configurado.</p>
+                    @endif
+                @endif
+            </div>
+        @empty
+            {{-- Si no hay columnas, puedes mostrar algo por defecto o simplemente nada --}}
+            <div>
+                <h3 class="footer-title">Mi Empresa</h3>
+                <p class="text-muted small">Contenido del footer en construcción.</p>
+            </div>
+        @endforelse
     </div>
-        
+
     <div class="copyright">
-        &copy; 2026 High Technology Innovation. Todos los derechos reservados.
+        &copy; {{ date('Y') }} {{ e(\App\Helpers\ConfiguracionHelper::getCompanyName()) }}.
+        {{ e(\App\Helpers\ConfiguracionHelper::getFooterText()) }}
     </div>
+
+    {{-- Scripts que ya tenías --}}
     <script src="{{ asset('js/tiendaMain.js') }}"></script>
     @isset($script)
         <script src="{{ asset($script) }}"></script>
