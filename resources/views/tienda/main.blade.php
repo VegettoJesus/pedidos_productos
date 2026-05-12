@@ -1,7 +1,11 @@
-<h1>Bienvenido a <span class="highlight">High Technology Innovation</span></h1>
-        <p>Tu destino preferido para la tecnología más avanzada e innovadora. Ofrecemos los mejores productos tecnológicos, desde dispositivos inteligentes hasta componentes de última generación, con la calidad y soporte que mereces.</p>
-        
-        <p>Explora nuestro catálogo y descubre las últimas novedades en el mundo de la tecnología. En High Technology Innovation nos dedicamos a brindar soluciones inteligentes para un futuro conectado.</p>
+<div class="inicio-full-container">
+    <h1>Bienvenido a <span class="highlight">{{ $titulo_site ?: 'EMPRESA' }}</span></h1>
+        @if(!empty($descripcion_corta))
+            <p>{{ $descripcion_corta }}</p>
+        @else
+            <p>Tu destino preferido para la tecnología más avanzada e innovadora. Ofrecemos los mejores productos tecnológicos, desde dispositivos inteligentes hasta componentes de última generación, con la calidad y soporte que mereces.</p>
+            <p>Explora nuestro catálogo y descubre las últimas novedades en el mundo de la tecnología. En esta empresa nos dedicamos a brindar soluciones inteligentes para un futuro conectado.</p>
+        @endif
         
         <div class="products">
             <div class="product-card">
@@ -36,3 +40,4 @@
                 </div>
             </div>
         </div>
+</div>

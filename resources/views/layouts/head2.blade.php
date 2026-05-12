@@ -1,10 +1,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="{{ asset('img/logoCorp.ico') }}" type="image/x-icon">
-
-
-    <title>@yield('title', 'HTI')</title>
+    <link rel="icon" href="{{ ConfiguracionHelper::getFavicon() }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ ConfiguracionHelper::getFavicon() }}" type="image/x-icon">
+    <title>@yield('title', ConfiguracionHelper::getPageTitle())</title>
     <link rel="stylesheet" href="{{ asset('css/tienda.css') }}">
     @isset($css)
         <link href="{{ asset($css) }}" rel="stylesheet">

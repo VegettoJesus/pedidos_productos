@@ -574,6 +574,7 @@ class Empresa extends Controller
                     ]);
                     $id = $column->id;
                 }
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => true, 'id' => $id]);
                 break;
 
@@ -582,6 +583,7 @@ class Empresa extends Controller
                 foreach ($orden as $item) {
                     FooterColumn::where('id', $item['id'])->update(['sort_order' => $item['sort_order']]);
                 }
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => true]);
                 break;
 
@@ -594,6 +596,7 @@ class Empresa extends Controller
                     }
                     $column->delete();
                 }
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => true]);
                 break;
 
@@ -660,6 +663,7 @@ class Empresa extends Controller
                     ]);
                     $id = $link->id;
                 }
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => true, 'id' => $id]);
                 break;
 
@@ -674,6 +678,7 @@ class Empresa extends Controller
                     }
                     $link->delete();
                 }
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => true]);
                 break;
 
@@ -744,7 +749,7 @@ class Empresa extends Controller
                 }
 
                 $contact->save();
-
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => true]);
                 break;
 
@@ -815,7 +820,7 @@ class Empresa extends Controller
                     ]);
                     $id = $social->id;
                 }
-
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => true, 'id' => $id]);
                 break;
 
@@ -831,6 +836,7 @@ class Empresa extends Controller
                     }
                     $social->delete();
                 }
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => true]);
                 break;
 
@@ -856,6 +862,7 @@ class Empresa extends Controller
                     $column->save();
                     return response()->json(['success' => true]);
                 }
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => false, 'message' => 'Columna no encontrada']);
                 break;
             case 'LimpiarIconoFooterLink':
@@ -871,6 +878,7 @@ class Empresa extends Controller
                     $link->save();
                     return response()->json(['success' => true]);
                 }
+                ConfiguracionHelper::clearFooterCache();
                 return response()->json(['success' => false, 'message' => 'Enlace no encontrado']);
                 break;
 
