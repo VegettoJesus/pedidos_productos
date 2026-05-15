@@ -21,6 +21,7 @@ use App\Services\MenuService;
 use App\Data\Icons;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Stevebauman\Purify\Facades\Purify;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -364,7 +365,8 @@ class Catalogo extends Controller
                     DB::beginTransaction();
 
                     try {
-                        // ✅ CORRECTO: Obtener datos básicos
+
+                        $descripcionLimpia = preg_replace('/<img[^>]*>/i', '', $request->input('descripcion_larga', ''));                   
                         $productoBaseFields = [
                             'nombre', 'descripcion', 'tipo_producto', 'id_subCategorias',
                             'sku', 'marca', 'peso', 'peso_unidad', 'longitud',
@@ -382,7 +384,7 @@ class Catalogo extends Controller
                         }
 
                         $productoData = $request->only($productoBaseFields);
-                        
+                        $productoData['descripcion_completa'] = $descripcionLimpia;
                         $productoData['id_usuario'] = Auth::id();
                         $productoData['estado'] = $request->input('estado');
                         $productoData['gestion_inventario'] = $request->boolean('gestion_inventario');
@@ -565,10 +567,11 @@ class Catalogo extends Controller
                             break;
                         }
 
-                        // --- Datos básicos del producto ---
+                        $descripcionLimpia = preg_replace('/<img[^>]*>/i', '', $request->input('descripcion_larga', ''));
                         $productoData = [
                             'nombre' => $request->input('nombre'),
                             'descripcion' => $request->input('descripcion'),
+                            'descripcion_completa' => $descripcionLimpia,
                             'tipo_producto' => 'simple', // Forzamos simple por ahora
                             'id_subCategorias' => $request->input('subcategoria_id'),
                             'sku' => $request->input('sku'),
@@ -788,10 +791,11 @@ class Catalogo extends Controller
                             $data->mensaje = 'Producto no encontrado';
                             break;
                         }
-
+                        $descripcionLimpia = preg_replace('/<img[^>]*>/i', '', $request->input('descripcion_larga', ''));
                         $productoData = [
                             'nombre' => $request->input('nombre'),
                             'descripcion' => $request->input('descripcion'),
+                            'descripcion_completa' => $descripcionLimpia,
                             'tipo_producto' => $request->input('tipo_producto', 'agrupado'),
                             'id_subCategorias' => $request->input('subcategoria_id'),
                             'sku' => $request->input('sku'),
@@ -950,11 +954,12 @@ class Catalogo extends Controller
                             $data->mensaje = 'Producto no encontrado';
                             break;
                         }
-
+                        $descripcionLimpia = preg_replace('/<img[^>]*>/i', '', $request->input('descripcion_larga', ''));
                         // --- Datos básicos del producto ---
                         $productoData = [
                             'nombre' => $request->input('nombre'),
                             'descripcion' => $request->input('descripcion'),
+                            'descripcion_completa' => $descripcionLimpia,
                             'tipo_producto' => 'variable',
                             'id_subCategorias' => $request->input('subcategoria_id'),
                             'sku' => $request->input('sku'),

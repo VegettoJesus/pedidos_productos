@@ -13,7 +13,7 @@ class Producto extends Model
     protected $table = 'productos';
 
     protected $fillable = [
-        'id_usuario', 'nombre', 'descripcion', 'tipo_producto', 'estado',
+        'id_usuario', 'nombre', 'descripcion', 'descripcion_completa' , 'tipo_producto', 'estado',
         'id_subCategorias', 'precio_regular', 'precio_rebajado', 'fecha_inicio_rebaja',
         'fecha_fin_rebaja', 'gestion_inventario', 'estado_inventario', 'stock',
         'stock_minimo', 'max_stock', 'vendido_individualmente', 'backorders',

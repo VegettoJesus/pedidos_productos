@@ -746,15 +746,53 @@
   // ---- Modal Management ----
   function initModals() {
     if (typeof bootstrap === 'undefined') {
-      console.error('Bootstrap no está cargado');
-      return;
+        console.error('Bootstrap no está cargado');
+        return;
     }
 
     state.modals = {
-      producto: new bootstrap.Modal(qs('#modalProducto')),
-      crearAtributo: new bootstrap.Modal(qs('#modalCrearAtributo')),
-      crearValor: new bootstrap.Modal(qs('#modalCrearValor'))
+        producto: new bootstrap.Modal(qs('#modalProducto')),
+        crearAtributo: new bootstrap.Modal(qs('#modalCrearAtributo')),
+        crearValor: new bootstrap.Modal(qs('#modalCrearValor'))
     };
+    const modalElement = qs('#modalProducto');
+    if (modalElement) {
+        modalElement.addEventListener('shown.bs.modal', function () {
+            if (typeof tinymce !== 'undefined' && !tinymce.get('descripcionLarga')) {
+                tinymce.init({
+                    selector: '#descripcionLarga',
+                    language: 'es_MX',
+                    height: 400,
+                    menubar: false,
+                    license_key: 'gpl',
+                    base_url: '/assets/tinymce',  
+                    suffix: '.min',
+                    plugins: [
+                        'lists', 'link', 'autolink', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code',
+                        'fullscreen', 'insertdatetime', 'media', 'table',
+                        'wordcount'
+                    ],
+                    toolbar: 'undo redo | styles forecolor | bold italic | alignleft aligncenter alignright alignjustify',
+                    content_style: `
+                      @font-face {
+                          font-family: 'default';
+                          src: url('/fonts/Poppins-Light.ttf');
+                      }
+                      body {
+                          font-family: 'default', Poppins, sans-serif;
+                          font-size: 14px;
+                      }
+                    `,
+                    statusbar: false,
+                    forced_root_block: 'p',
+                    convert_urls: false,
+                    remove_script_host: false,
+                    paste_data_images: false
+                });
+            }
+        });
+    }
 
     setupModalNavigation();
   }
@@ -1685,6 +1723,10 @@
 
   function buildFormData(form) {
     const formData = new FormData(form);
+    if (typeof tinymce !== 'undefined' && tinymce.get('descripcionLarga')) {
+        const contenido = tinymce.get('descripcionLarga').getContent();
+        formData.set('descripcion_larga', contenido);
+    }
     
     const keysToRemove = [];
     for (let key of formData.keys()) {

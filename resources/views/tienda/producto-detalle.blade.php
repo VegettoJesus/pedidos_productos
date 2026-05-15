@@ -132,7 +132,7 @@
         </ul>
         <div class="tab-content active" id="tab-description">
             <div class="full-description">
-                {!! nl2br(e($producto->descripcion)) !!}
+                {!! $producto->descripcion_completa !!}
             </div>
         </div>
         <div class="tab-content" id="tab-reviews">

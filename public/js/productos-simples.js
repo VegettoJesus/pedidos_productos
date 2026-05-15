@@ -500,6 +500,12 @@ function createAtributoBlockSimple(attr) {
   return wrapper;
 }
 
+$('#modalProductoSimple').on('hidden.bs.modal', function () {
+    if (typeof tinymce !== 'undefined' && tinymce.get('simple_descripcion_larga')) {
+        tinymce.get('simple_descripcion_larga').remove();
+    }
+});
+
 function abrirModalSimple(producto) {
   editState.productoActual = producto;
   editState.imagenes = producto.imagenes || [];
@@ -527,6 +533,50 @@ function abrirModalSimple(producto) {
   $('#simple_nota_interna').val(producto.nota_interna || '');
   $('#simple_valoraciones').prop('checked', !!producto.permite_valoraciones);
 
+  if (typeof tinymce !== 'undefined') {
+        if (tinymce.get('simple_descripcion_larga')) {
+            tinymce.get('simple_descripcion_larga').remove();
+        }
+        
+        tinymce.init({
+            selector: '#simple_descripcion_larga',
+            language: 'es_MX',
+            height: 400,
+            menubar: false,
+            license_key: 'gpl',
+            base_url: '/assets/tinymce',  
+            suffix: '.min',
+            plugins: [
+                'lists', 'link', 'autolink', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code',
+                'fullscreen', 'insertdatetime', 'media', 'table',
+                'wordcount'
+            ],
+            toolbar: 'undo redo | styles forecolor | bold italic | alignleft aligncenter alignright alignjustify',
+            content_style: `
+              @font-face {
+                  font-family: 'default';
+                  src: url('/fonts/Poppins-Light.ttf');
+              }
+              body {
+                  font-family: 'default', Poppins, sans-serif;
+                  font-size: 14px;
+              }
+            `,
+            statusbar: false,
+            forced_root_block: 'p',
+            convert_urls: false,
+            remove_script_host: false,
+            paste_data_images: false,
+            setup: function(editor) {
+                editor.on('init', function() {
+                    editor.setContent(producto.descripcion_completa || '');
+                });
+            }
+        });
+    } else {
+        $('#simple_descripcion_larga').val(producto.descripcion_completa || '');
+    }
   // Miniatura
   if (producto.imagen_miniatura) {
     $('#simple_miniImg').attr('src', "/" + producto.imagen_miniatura).show();
@@ -534,7 +584,6 @@ function abrirModalSimple(producto) {
     $('#simple_removeMini').removeClass('d-none');
   }
 
-  // 🔥 CORRECCIÓN: Cargar upsells y crosssells UNA SOLA VEZ desde productos_relacionados
   if (producto.productos_relacionados && producto.productos_relacionados.length > 0) {
     console.log('Productos relacionados cargados:', producto.productos_relacionados);
     
@@ -1688,6 +1737,13 @@ async function guardarProductoSimple() {
     formData.append('nombre', $('#simple_nombre').val());
     formData.append('marca', $('#simple_marca').val());
     formData.append('descripcion', $('#simple_descripcion').val());
+    const editor = tinymce.get('simple_descripcion_larga');
+    if (editor && typeof editor.getContent === 'function') {
+        const contenido = editor.getContent();
+        formData.set('descripcion_larga', contenido);
+    } else {
+        formData.set('descripcion_larga', $('#simple_descripcion_larga').val());
+    }
     formData.append('estado', $('#simple_estado').val());
     formData.append('subcategoria_id', $('input[name="subcategoria_id"]:checked').val());
     

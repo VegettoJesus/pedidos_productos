@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -15,6 +16,7 @@ return new class extends Migration
             // Información básica
             $table->string('nombre', 255);
             $table->text('descripcion')->nullable();
+            $table->text('descripcion_completa')->nullable();
             
             // Tipo y categorización
             $table->enum('tipo_producto', ['simple', 'variable', 'agrupado']);
@@ -117,6 +119,81 @@ return new class extends Migration
             
             $table->unique(['atributo_id', 'slug']);
         });
+
+        DB::table('atributos')->insert([
+            'nombre' => 'Color',
+            'slug' => 'color',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $atributoId = DB::table('atributos')->where('slug', 'color')->value('id');
+
+        $colores = [
+            // Rojos
+            ['nombre' => 'Rojo', 'slug' => 'rojo'],
+            ['nombre' => 'Burdeos', 'slug' => 'burdeos'],
+            ['nombre' => 'Carmesí', 'slug' => 'carmesi'],
+            
+            // Azules
+            ['nombre' => 'Azul', 'slug' => 'azul'],
+            ['nombre' => 'Celeste', 'slug' => 'celeste'],
+            ['nombre' => 'Índigo', 'slug' => 'indigo'],
+            ['nombre' => 'Azul Acero', 'slug' => 'azul_acero'],
+            
+            // Verdes
+            ['nombre' => 'Verde', 'slug' => 'verde'],
+            ['nombre' => 'Menta', 'slug' => 'menta'],
+            ['nombre' => 'Oliva', 'slug' => 'oliva'],
+            ['nombre' => 'Esmeralda', 'slug' => 'esmeralda'],
+            
+            // Amarillos / Naranjas
+            ['nombre' => 'Amarillo', 'slug' => 'amarillo'],
+            ['nombre' => 'Mostaza', 'slug' => 'mostaza'],
+            ['nombre' => 'Naranja', 'slug' => 'naranja'],
+            
+            // Violetas / Purpuras
+            ['nombre' => 'Morado', 'slug' => 'morado'],
+            ['nombre' => 'Lavanda', 'slug' => 'lavanda'],
+            ['nombre' => 'Violeta', 'slug' => 'violeta'],
+            
+            // Rosas
+            ['nombre' => 'Rosa', 'slug' => 'rosa'],
+            ['nombre' => 'Fucsia', 'slug' => 'fucsia'],
+            ['nombre' => 'Salmón', 'slug' => 'salmon'],
+            
+            // Marrones / Tierra
+            ['nombre' => 'Marrón', 'slug' => 'marron'],
+            ['nombre' => 'Caqui', 'slug' => 'caqui'],
+            ['nombre' => 'Terracota', 'slug' => 'terracota'],
+            
+            // Neutros / Metálicos
+            ['nombre' => 'Negro', 'slug' => 'negro'],
+            ['nombre' => 'Blanco', 'slug' => 'blanco'],
+            ['nombre' => 'Gris', 'slug' => 'gris'],
+            ['nombre' => 'Plateado', 'slug' => 'plateado'],
+            ['nombre' => 'Dorado', 'slug' => 'dorado'],
+            ['nombre' => 'Bronce', 'slug' => 'bronce'],
+            ['nombre' => 'Crema', 'slug' => 'crema'],
+            ['nombre' => 'Marfil', 'slug' => 'marfil'],
+            
+            // Otros populares
+            ['nombre' => 'Turquesa', 'slug' => 'turquesa'],
+            ['nombre' => 'Coral', 'slug' => 'coral'],
+            ['nombre' => 'Lila', 'slug' => 'lila'],
+            ['nombre' => 'Beige', 'slug' => 'beige'],
+        ];
+
+        foreach ($colores as $color) {
+            DB::table('atributo_terminos')->insert([
+                'atributo_id' => $atributoId,
+                'nombre' => $color['nombre'],
+                'slug' => $color['slug'],
+                'descripcion' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         // Tabla pivote producto_atributo
         Schema::create('producto_atributo', function (Blueprint $table) {

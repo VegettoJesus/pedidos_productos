@@ -98,6 +98,51 @@ async function abrirModalVariable(producto) {
         configurarEnvioVariable(producto);
         configurarAvanzadoVariable(producto);
         configurarRelacionadosVariable();
+
+        if (typeof tinymce !== 'undefined') {
+            if (tinymce.get('variable_descripcion_larga')) {
+                tinymce.get('variable_descripcion_larga').remove();
+            }
+            
+            tinymce.init({
+                selector: '#variable_descripcion_larga',
+                language: 'es_MX',
+                height: 400,
+                menubar: false,
+                license_key: 'gpl',
+                base_url: '/assets/tinymce',  
+                suffix: '.min',
+                plugins: [
+                    'lists', 'link', 'autolink', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code',
+                    'fullscreen', 'insertdatetime', 'media', 'table',
+                    'wordcount'
+                ],
+                toolbar: 'undo redo | styles forecolor | bold italic | alignleft aligncenter alignright alignjustify',
+                content_style: `
+                @font-face {
+                    font-family: 'default';
+                    src: url('/fonts/Poppins-Light.ttf');
+                }
+                body {
+                    font-family: 'default', Poppins, sans-serif;
+                    font-size: 14px;
+                }
+                `,
+                statusbar: false,
+                forced_root_block: 'p',
+                convert_urls: false,
+                remove_script_host: false,
+                paste_data_images: false,
+                setup: function(editor) {
+                    editor.on('init', function() {
+                        editor.setContent(producto.descripcion_completa || '');
+                    });
+                }
+            });
+        } else {
+            $('#variable_descripcion_larga').val(producto.descripcion_completa || '');
+        }
         
         // Configurar pestañas
         configurarPestanasVariable();
@@ -1542,6 +1587,13 @@ async function guardarProductoVariable() {
     formData.append('estado', $('#variable_estado').val());
     formData.append('tipo_producto', 'variable');
     formData.append('subcategoria_id', $('input[name="subcategoria_id"]:checked').val());
+    const editor = tinymce.get('variable_descripcion_larga');
+    if (editor && typeof editor.getContent === 'function') {
+        const contenido = editor.getContent();
+        formData.set('descripcion_larga', contenido);
+    } else {
+        formData.set('descripcion_larga', $('#variable_descripcion_larga').val());
+    }
 
     // --- Inventario ---
     formData.append('sku', $('#variable_sku').val() || '');

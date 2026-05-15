@@ -160,6 +160,12 @@
                     <label class="form-label fw-semibold">Descripción corta</label>
                     <textarea name="descripcion" class="form-control" rows="3" placeholder="Descripción breve"></textarea>
                   </div>
+                  <div class="col-12 mt-3">
+                    <label class="form-label fw-semibold">
+                        Descripción completa
+                    </label>
+                    <textarea id="descripcionLarga" name="descripcion_larga" class="form-control" rows="10" placeholder="Descripción detallada del producto..."></textarea>
+                  </div>
                 </div>
               </div>
 
@@ -521,6 +527,12 @@
                     <label class="form-label fw-semibold">Descripción corta</label>
                     <textarea name="descripcion" id="simple_descripcion" class="form-control" rows="3"></textarea>
                   </div>
+                  <div class="col-12 mt-3">
+                    <label class="form-label fw-semibold">
+                        Descripción completa
+                    </label>
+                    <textarea id="simple_descripcion_larga" name="simple_descripcion_larga" class="form-control" rows="10" placeholder="Descripción detallada del producto..."></textarea>
+                  </div>
                 </div>
               </div>
 
@@ -855,6 +867,12 @@
                               <label class="form-label fw-semibold">Descripción corta</label>
                               <textarea name="descripcion" id="variable_descripcion" class="form-control" rows="3"></textarea>
                            </div>
+                           <div class="col-12 mt-3">
+                            <label class="form-label fw-semibold">
+                                Descripción completa
+                            </label>
+                            <textarea id="variable_descripcion_larga" name="variable_descripcion_larga" class="form-control" rows="10" placeholder="Descripción detallada del producto..."></textarea>
+                          </div>
                         </div>
                      </div>
                      <!-- Imágenes -->
@@ -1100,6 +1118,12 @@
                   <div class="col-12 mt-2">
                     <label class="form-label fw-semibold">Descripción corta</label>
                     <textarea name="descripcion" id="agrupado_descripcion" class="form-control" rows="3"></textarea>
+                  </div>
+                  <div class="col-12 mt-3">
+                    <label class="form-label fw-semibold">
+                        Descripción completa
+                    </label>
+                    <textarea id="agrupado_descripcion_larga" name="agrupado_descripcion_larga" class="form-control" rows="10" placeholder="Descripción detallada del producto..."></textarea>
                   </div>
                 </div>
               </div>

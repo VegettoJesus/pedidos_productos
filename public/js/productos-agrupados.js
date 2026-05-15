@@ -9,7 +9,11 @@ const editStateAgrupado = {
     nuevaMiniatura: null,
     eliminarMiniatura: false
 };
-
+$('#modalProductoAgrupado').on('hidden.bs.modal', function () {
+    if (typeof tinymce !== 'undefined' && tinymce.get('agrupado_descripcion_larga')) {
+        tinymce.get('agrupado_descripcion_larga').remove();
+    }
+});
 async function abrirModalAgrupado(producto) {
     editStateAgrupado.productoActual = producto;
     editStateAgrupado.imagenes = producto.imagenes || [];
@@ -62,6 +66,51 @@ async function abrirModalAgrupado(producto) {
     $('#agrupado_sku').val(producto.sku || '');
     $('#agrupado_nota_interna').val(producto.nota_interna || '');
     $('#agrupado_valoraciones').prop('checked', !!producto.permite_valoraciones);
+
+    if (typeof tinymce !== 'undefined') {
+        if (tinymce.get('agrupado_descripcion_larga')) {
+            tinymce.get('agrupado_descripcion_larga').remove();
+        }
+        
+        tinymce.init({
+            selector: '#agrupado_descripcion_larga',
+            language: 'es_MX',
+            height: 400,
+            menubar: false,
+            license_key: 'gpl',
+            base_url: '/assets/tinymce',  
+            suffix: '.min',
+            plugins: [
+                'lists', 'link', 'autolink', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code',
+                'fullscreen', 'insertdatetime', 'media', 'table',
+                'wordcount'
+            ],
+            toolbar: 'undo redo | styles forecolor | bold italic | alignleft aligncenter alignright alignjustify',
+            content_style: `
+              @font-face {
+                  font-family: 'default';
+                  src: url('/fonts/Poppins-Light.ttf');
+              }
+              body {
+                  font-family: 'default', Poppins, sans-serif;
+                  font-size: 14px;
+              }
+            `,
+            statusbar: false,
+            forced_root_block: 'p',
+            convert_urls: false,
+            remove_script_host: false,
+            paste_data_images: false,
+            setup: function(editor) {
+                editor.on('init', function() {
+                    editor.setContent(producto.descripcion_completa || '');
+                });
+            }
+        });
+    } else {
+        $('#agrupado_descripcion_larga').val(producto.descripcion_completa || '');
+    }
 
     // Miniatura
     if (producto.imagen_miniatura) {
@@ -1027,7 +1076,6 @@ function truncateTagText(text, maxLength = 25) {
 }
 
 // Guardar producto agrupado
-// Guardar producto agrupado - VERSIÓN CORREGIDA
 async function guardarProductoAgrupado() {
     // Validar campos obligatorios
     if (!validarProductoAgrupado()) {
@@ -1045,16 +1093,21 @@ async function guardarProductoAgrupado() {
 
     const formData = new FormData();
     
-    // Datos básicos - ¡CORREGIDO!
-    formData.append('opcion', 'Editar_Agrupado'); // Coincide con el backend
+    formData.append('opcion', 'Editar_Agrupado'); 
     formData.append('id', $('#agrupado_id').val());
     formData.append('nombre', $('#agrupado_nombre').val());
     formData.append('marca', $('#agrupado_marca').val());
     formData.append('descripcion', $('#agrupado_descripcion').val());
     formData.append('estado', $('#agrupado_estado').val());
     formData.append('tipo_producto', 'agrupado');
+    const editor = tinymce.get('agrupado_descripcion_larga');
+    if (editor && typeof editor.getContent === 'function') {
+        const contenido = editor.getContent();
+        formData.set('descripcion_larga', contenido);
+    } else {
+        formData.set('descripcion_larga', $('#agrupado_descripcion_larga').val());
+    }
     
-    // ¡CORREGIDO! Usar el mismo nombre que espera el backend
     const subcategoriaId = $('input[name="agrupado_subcategoria_id"]:checked').val();
     formData.append('subcategoria_id', subcategoriaId);
     
