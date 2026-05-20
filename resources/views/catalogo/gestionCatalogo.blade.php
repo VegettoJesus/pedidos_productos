@@ -74,7 +74,7 @@
 </style>
 <div class="container-fluid px-2 pb-4" style="display: inline-grid">
     <div class="card">
-        <div class="card-header bg-dark text-white">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Gestión de Categorías y Subcategorías</h5>
         </div>
         <div class="card-body">
@@ -104,7 +104,7 @@
                         </div>
                     </div>
                     <div class="table-responsive mt-4">
-                        <table id="tablaCategorias" class="table table-orange-personality" style="width: 100% !important;">
+                        <table id="tablaCategorias" class="table table-hover" style="width: 100% !important;">
                             <thead>
                                 <tr>
                                     <th class="text-center">Id</th>
@@ -138,7 +138,7 @@
                         </div>
                     </div>
                     <div class="table-responsive mt-4">
-                        <table id="tablaSubcategorias" class="table table-orange-personality" style="width: 100% !important;">
+                        <table id="tablaSubcategorias" class="table table-hover" style="width: 100% !important;">
                             <thead>
                                 <tr>
                                     <th class="text-center">Id</th>

@@ -199,12 +199,28 @@
     if(!relPane) return;
     relPane.innerHTML = `
       <div class="mb-3">
-        <label class="form-label">Ventas dirigidas (Upsells)</label>
+        <label class="form-label fw-semibold">
+          <i class="bi bi-arrow-up-circle me-1"></i> Upsells
+        </label>
+        <div class="note-small mb-2">
+          Productos de mayor valor que sugieres en lugar del actual (ejemplo: versión premium, modelo superior).
+        </div>
         <input type="text" id="inputUpsells" class="form-control" placeholder="Buscar producto...">
+        <div class="mt-2">
+          <small class="text-muted">Escribe al menos 2 caracteres para buscar</small>
+        </div>
       </div>
       <div class="mb-3">
-        <label class="form-label">Ventas cruzadas (Cross-sells)</label>
+        <label class="form-label fw-semibold">
+          <i class="bi bi-arrow-left-right me-1"></i> Cross-sells
+        </label>
+        <div class="note-small mb-2">
+          Productos complementarios que se pueden comprar junto con el producto actual.
+        </div>
         <input type="text" id="inputCrosssells" class="form-control" placeholder="Buscar producto...">
+        <div class="mt-2">
+          <small class="text-muted">Escribe al menos 2 caracteres para buscar</small>
+        </div>
       </div>
     `;
     setupProductSearch('#inputUpsells', 'upsells');
@@ -1765,24 +1781,24 @@
     if (state.variaciones && state.variaciones.length) {
         const variacionesParaEnviar = state.variaciones.map((variacion, index) => {
             const variacionData = {
-                sku: variacion.sku || '',
-                stock: variacion.stock || 0,
-                price_normal: variacion.price_normal || '',
-                price_sale: variacion.price_sale || '',
-                sale_start: variacion.sale_start || '',
-                sale_end: variacion.sale_end || '',
-                weight: variacion.weight || '',
-                weight_type: variacion.weight_type || 'kg',
-                length: variacion.length || '',
-                width: variacion.width || '',
-                height: variacion.height || '',
-                description: variacion.description || '',
-                backorder: variacion.backorder || 'no',
-                atributos: (variacion.atributos || []).map(attr => ({
-                    atrId: attr.atrId,
-                    termId: attr.termId // Puede ser null para "Cualquier"
-                }))
-            };
+              sku: variacion.sku || null,                  // null si vacío
+              stock: variacion.stock !== undefined && variacion.stock !== '' ? Number(variacion.stock) : 0,
+              price_normal: variacion.price_normal ? Number(variacion.price_normal) : 0,
+              price_sale: variacion.price_sale ? Number(variacion.price_sale) : 0,
+              sale_start: variacion.sale_start || null,
+              sale_end: variacion.sale_end || null,
+              weight: variacion.weight ? Number(variacion.weight) : null,     // 🔥 clave
+              weight_type: variacion.weight_type || 'kg',
+              length: variacion.length ? Number(variacion.length) : null,     // 🔥 clave
+              width: variacion.width ? Number(variacion.width) : null,        // 🔥 clave
+              height: variacion.height ? Number(variacion.height) : null,     // 🔥 clave
+              description: variacion.description || null,
+              backorder: variacion.backorder || 'no',
+              atributos: (variacion.atributos || []).map(attr => ({
+                  atrId: attr.atrId,
+                  termId: attr.termId // puede ser null
+              }))
+          };
             
             // Agregar imágenes de variación
             if (variacion.images && variacion.images.length > 0) {

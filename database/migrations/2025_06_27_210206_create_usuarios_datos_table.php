@@ -15,7 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('tipoDoc', 50);
             $table->string('numeroDoc', 20);
-            $table->string('direccion', 350);
+            $table->string('calle', 255)->nullable();
+            $table->string('numero', 20)->nullable();
+            $table->string('dir_otros', 255)->nullable();
             $table->string('celular', 100);
             $table->date('fecha_nacimiento');
             $table->string('imagen', 255)->nullable();

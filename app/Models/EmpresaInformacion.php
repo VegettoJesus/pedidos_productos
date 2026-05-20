@@ -56,13 +56,7 @@ class EmpresaInformacion extends Model
 
     public function getDireccionCompletaAttribute()
     {
-        return trim(sprintf(
-            '%s, %s, %s, %s',
-            $this->direccion,
-            optional($this->distrito)->nombre,
-            optional($this->provincia)->nombre,
-            optional($this->departamento)->nombre
-        ));
+        return trim("{$this->calle} {$this->numero}, {$this->dir_otros} - {$this->distrito} {$this->cod_postal}");
     }
 
     public function getTelefonoFormateadoAttribute()

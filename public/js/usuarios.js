@@ -5,156 +5,6 @@ let direccionSeleccionada = '';
 let codigoPostalSeleccionado = '';
 let searchTimeout = null;
 
-const peruCenter = [-12.0464, -77.0428]; // Centro de Lima
-const peruZoom = 13;
-
-$('#modalMapa').on('shown.bs.modal', function () {
-    if (!mapa) {
-        mapa = L.map('map').setView(peruCenter, peruZoom);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
-        }).addTo(mapa);
-
-        mapa.on('click', function(e) {
-            agregarMarcador(e.latlng);
-            obtenerDireccionDesdeCoordenadas(e.latlng, true); // <-- true para actualizar el buscador
-        });
-
-        // Geolocalización inicial
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    mapa.setView([position.coords.latitude, position.coords.longitude], 15);
-                },
-                function(error) {
-                    console.log('Geolocalización no disponible:', error);
-                }
-            );
-        }
-    }
-});
-
-// Limpiar mapa al cerrar modal
-$('#modalMapa').on('hidden.bs.modal', function () {
-    if (marcadorSeleccionado) {
-        mapa.removeLayer(marcadorSeleccionado);
-        marcadorSeleccionado = null;
-    }
-    $('#searchResults').hide().empty();
-    $('#searchMap').val('');
-    $('#modalNuevoUsuario').modal('show');
-});
-
-// Agregar marcador al mapa
-function agregarMarcador(latlng) {
-    if (marcadorSeleccionado) {
-        mapa.removeLayer(marcadorSeleccionado);
-    }
-    marcadorSeleccionado = L.marker(latlng).addTo(mapa);
-    mapa.setView(latlng, 16);
-}
-
-// Función para construir dirección resumida
-function construirDireccion(addr) {
-    let direccion = '';
-    if (addr.road) direccion += addr.road;                // Avenida o calle
-    /* if (addr.house_number) direccion += ' ' + addr.house_number; // Número de la calle */
-    if (addr.suburb) direccion += ', ' + addr.suburb;    // Barrio
-    else if (addr.city_district) direccion += ', ' + addr.city_district; // Distrito
-    else if (addr.city) direccion += ', ' + addr.city;
-    return direccion;
-}
-
-// Obtener dirección desde coordenadas (geocodificación inversa)
-function obtenerDireccionDesdeCoordenadas(latlng, actualizarBuscador = false) {
-    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}&zoom=18&addressdetails=1`)
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.address) {
-                direccionSeleccionada = construirDireccion(data.address);
-                codigoPostalSeleccionado = data.address.postcode || '';
-
-                // Actualizar el buscador si se requiere
-                if (actualizarBuscador) {
-                    $('#searchMap').val(data.display_name);
-                }
-            }
-        })
-        .catch(err => console.error('Error al obtener dirección:', err));
-}
-
-// Buscar direcciones usando Nominatim (incluyendo house_number)
-function buscarDirecciones(query) {
-    if (query.length < 3) {
-        $('#searchResults').hide().empty();
-        return;
-    }
-
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=pe&limit=5&addressdetails=1`)
-        .then(res => res.json())
-        .then(data => {
-            const resultsList = $('#searchResults');
-            resultsList.empty();
-
-            if (data && data.length > 0) {
-                data.forEach(item => {
-                    const li = $('<li class="list-group-item list-group-item-action"></li>')
-                        .text(item.display_name)
-                        .data('lat', item.lat)
-                        .data('lon', item.lon)
-                        .data('address', item.address)
-                        .click(function() {
-                            const latlng = L.latLng($(this).data('lat'), $(this).data('lon'));
-                            agregarMarcador(latlng);
-
-                            direccionSeleccionada = construirDireccion($(this).data('address'));
-                            codigoPostalSeleccionado = $(this).data('address').postcode || '';
-
-                            $('#searchMap').val(item.display_name);
-                            resultsList.hide().empty();
-                        });
-
-                    resultsList.append(li);
-                });
-                resultsList.show();
-            } else {
-                resultsList.hide();
-            }
-        })
-        .catch(err => console.error('Error al buscar direcciones:', err));
-}
-
-$('#searchMap').on('input', function() {
-    clearTimeout(searchTimeout);
-    const query = $(this).val().trim();
-    if (query.length >= 3) {
-        searchTimeout = setTimeout(() => buscarDirecciones(query), 500);
-    } else {
-        $('#searchResults').hide().empty();
-    }
-});
-
-$('#searchMap').on('keydown', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        buscarDirecciones($(this).val().trim());
-    }
-});
-
-$('#guardarUbicacion').click(function() {
-    if (!marcadorSeleccionado && !direccionSeleccionada) {
-        alert('Seleccione una ubicación en el mapa o busque una dirección.');
-        return;
-    }
-
-    // Enviar dirección resumida al modal principal
-    $('#direccion').val(direccionSeleccionada);
-    $('#cod_postal').val(codigoPostalSeleccionado);
-
-    $('#modalMapa').modal('hide');
-    $('#modalNuevoUsuario').modal('show');
-});
-
 const togglePassword = document.querySelector('#togglePassword');
   const password = document.querySelector('#password');
 
@@ -168,6 +18,9 @@ const togglePassword = document.querySelector('#togglePassword');
 $(document).ready(function () {
     $('#departamento_id').on('change', function () {
         let departamento_id = $(this).val();
+        let provinciaSeleccionada = $('#provincia_id').attr('data-selected');
+        let distritoSeleccionado = $('#distrito_id').attr('data-selected');
+        
         if (departamento_id) {
             $.get('/get-provincias/' + departamento_id, function (data) {
                 $('#provincia_id').prop('disabled', false).empty().append('<option value="">Seleccione</option>');
@@ -176,14 +29,24 @@ $(document).ready(function () {
                 $.each(data, function (key, provincia) {
                     $('#provincia_id').append('<option value="' + provincia.id + '">' + provincia.nombre + '</option>');
                 });
+
+                // Si hay una provincia seleccionada, seleccionarla
+                if (provinciaSeleccionada) {
+                    $('#provincia_id').val(provinciaSeleccionada).trigger('change');
+                    // Limpiar después de usar
+                    $('#provincia_id').removeAttr('data-selected');
+                }
             });
         } else {
             $('#provincia_id, #distrito_id').prop('disabled', true).empty().append('<option value="">Seleccione</option>');
+            $('#provincia_id, #distrito_id').removeAttr('data-selected');
         }
     });
 
     $('#provincia_id').on('change', function () {
         let provincia_id = $(this).val();
+        let distritoSeleccionado = $('#distrito_id').attr('data-selected');
+        
         if (provincia_id) {
             $.get('/get-distritos/' + provincia_id, function (data) {
                 $('#distrito_id').prop('disabled', false).empty().append('<option value="">Seleccione</option>');
@@ -191,10 +54,11 @@ $(document).ready(function () {
                     $('#distrito_id').append('<option value="' + distrito.id + '">' + distrito.nombre + '</option>');
                 });
 
-                // Si estamos editando y tenemos distrito, seleccionarlo
-                if(window.distritoEditar) {
-                    $('#distrito_id').val(window.distritoEditar);
-                    window.distritoEditar = null; // limpiar después
+                // Si hay un distrito seleccionado, seleccionarlo
+                if (distritoSeleccionado) {
+                    $('#distrito_id').val(distritoSeleccionado);
+                    // Limpiar después de usar
+                    $('#distrito_id').removeAttr('data-selected');
                 }
             });
         } else {
@@ -477,24 +341,6 @@ $(document).ready(function () {
         formData.append("opcion", "Registrar");
         formData.append("_token", $("input[name=_token]").val());
 
-        // Construir direccionCompleto
-        let numCalle = $("#num_calle").val().trim();
-        let dirOtros = $("#dir_otros").val().trim().replace(/\//g, ',');
-        let direccion = $("#direccion").val().trim();
-        let codPostal = $("#cod_postal").val().trim();
-        let direccionCompleto = '';
-
-        if(direccion.includes(',')) {
-            let partes = direccion.split(',');
-            let callePrincipal = partes[0].trim();
-            let restoDireccion = partes.slice(1).join(',').trim();
-            direccionCompleto = `${callePrincipal} ${numCalle}, ${dirOtros}${restoDireccion ? ', ' + restoDireccion : ''} ${codPostal}`;
-        } else {
-            direccionCompleto = `${direccion} ${numCalle}, ${dirOtros} ${codPostal}`;
-        }
-        
-        formData.append("direccion_completo", direccionCompleto);
-
         // Enviar AJAX
         $.ajax({
             url: "usuarios",
@@ -526,6 +372,7 @@ $('#tablaUsuarios').on('click', '.btn-editar', function () {
     $("#formNuevoUsuario")[0].reset();
     let idUser = $(this).data('id');
     mensajesGlobalLoader = showPreloader("Cargando información...", "cargar");
+    
     $.post('usuarios', {
         opcion: 'Obtener',
         id_user: idUser,
@@ -541,30 +388,28 @@ $('#tablaUsuarios').on('click', '.btn-editar', function () {
             $('#email').val(user.email);
             $('#id_rol').val(user.id_rol);
             $('#estado').val(user.estado ? 1 : 0);
-
             $('#password').val('');
-
             $('#tipoDoc').val(datos.tipoDoc);
             $('#numeroDoc').val(datos.numeroDoc);
             $('#celular').val(datos.celular);
             $('#fecha_nacimiento').val(datos.fecha_nacimiento);
             $('#nacionalidad').val(datos.nacionalidad);
-            $('#departamento_id').val(datos.departamento).trigger('change');
-            window.distritoEditar = datos.distrito;
+            $('#calle').val(datos.calle || '');
+            $('#numero').val(datos.numero || '');
+            $('#dir_otros').val(datos.dir_otros || '');
+            $('#cod_postal').val(datos.cod_postal || '');
 
-            setTimeout(() => {
-                $('#provincia_id').val(datos.provincia).trigger('change');
-                $('#distrito_id').val(datos.distrito).trigger('change');
-            }, 500);
-            let direccionParseada = parseDireccionCompleta(datos.direccion);
-            $('#direccion').val(direccionParseada.direccion);
-            $('#num_calle').val(direccionParseada.num_calle);
-            $('#dir_otros').val(direccionParseada.dir_otros);
-            $('#cod_postal').val(direccionParseada.cod_postal);
+            // Guardar los valores a seleccionar en atributos del DOM
+            $('#departamento_id').attr('data-selected', datos.departamento);
+            $('#provincia_id').attr('data-selected', datos.provincia);
+            $('#distrito_id').attr('data-selected', datos.distrito);
+
+            // Establecer departamento
+            $('#departamento_id').val(datos.departamento).trigger('change');
 
             if(datos.imagen){
                 $('#imagen').after(`<img src="/perfil_usuario/${datos.imagen}" class="img-thumbnail mt-2" width="100" id="img_preview">`);
-            }else{
+            } else {
                 $('#img_preview').remove(); 
             }
 
@@ -577,42 +422,6 @@ $('#tablaUsuarios').on('click', '.btn-editar', function () {
         }
     }, 'json');
 });
-
-function parseDireccionCompleta(direccionCompleta) {
-    let partes = direccionCompleta.split(',').map(p => p.trim());
-
-    let direccion = '';
-    let num_calle = '';
-    let dir_otros = '';
-    let cod_postal = '';
-
-    if (partes.length >= 3) {
-        let primeraParte = partes[0];
-        let arrPrimera = primeraParte.split(' ');
-        num_calle = arrPrimera.pop() || ''; 
-        let dirBase = arrPrimera.join(' '); 
-
-        dir_otros = partes.slice(1, partes.length - 1).join(', '); 
-
-        let ultimaParte = partes[partes.length - 1];
-        let arrUltima = ultimaParte.split(' ');
-        cod_postal = arrUltima.pop() || ''; 
-        let ultimaDireccion = arrUltima.join(' '); 
-
-        if (dirBase && ultimaDireccion) {
-            direccion = dirBase + ', ' + ultimaDireccion;
-        } else {
-            direccion = dirBase || ultimaDireccion;
-        }
-    }
-
-    return {
-        direccion,
-        num_calle,
-        dir_otros,
-        cod_postal
-    };
-}
 
 let tablaRoles;
 
@@ -833,7 +642,9 @@ $(document).on('click', '.btn-detalle', function () {
             $('#detalleEmail').text(usuario.email);
             $('#detalleDocumento').text(`${datos?.tipoDoc ?? ''} ${datos?.numeroDoc ?? ''}`);
             let direccionCompleta = [
-                datos?.direccion,
+                datos?.calle + " " + datos?.numero,
+                datos?.dir_otros,
+                datos?.cod_postal,
                 datos?.provincia?.nombre,
                 datos?.departamento?.nombre
             ].filter(Boolean).join(', ');

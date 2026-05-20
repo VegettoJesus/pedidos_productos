@@ -62,7 +62,8 @@ class PerfilController extends Controller
             'provincia_id' => 'required',
             'distrito_id' => 'required',
             'direccion' => 'required|string',
-            'num_calle' => 'nullable|string',
+            'calle' => 'nullable|string',
+            'numero' => 'nullable|string',
             'dir_otros' => 'nullable|string',
             'cod_postal' => 'nullable|string',
             'imagen' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
@@ -88,24 +89,15 @@ class PerfilController extends Controller
         }
         
         $user->save();
-        $distrito = Distrito::find($request->distrito_id);
-        $nombreDistrito = $distrito ? $distrito->nombre : '';
-        $direccionBase = trim($request->direccion . ' ' . $request->num_calle);
-        $direccionBase .= $request->dir_otros ? ', ' . $request->dir_otros : '';
-        $direccionCompleta = $direccionBase;
-        if ($nombreDistrito) {
-            $direccionCompleta .= ', ' . $nombreDistrito;
-        }
-        if ($request->cod_postal) {
-            $direccionCompleta .= ' ' . $request->cod_postal;
-        }
         
         $usuarioDato = UsuarioDato::updateOrCreate(
             ['id_usuario' => $user->id],
             [
                 'tipoDoc' => $request->tipoDoc,
                 'numeroDoc' => $request->numeroDoc,
-                'direccion' => $direccionCompleta,
+                'calle' => $request->direccion,
+                'numero' => $request->num_calle,
+                'dir_otros' => $request->dir_otros,
                 'celular' => $request->celular,
                 'fecha_nacimiento' => $request->fecha_nacimiento,
                 'nacionalidad' => $request->nacionalidad,

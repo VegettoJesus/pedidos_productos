@@ -66,7 +66,7 @@
                     </div>
                     <div class="table-responsive">
                         <table id="tablaMenusPrincipales" class="table table-hover">
-                            <thead class="table-dark">
+                            <thead>
                                 <tr>
                                     <th width="5%">#</th>
                                     <th width="5%"><i class="bi bi-grip-vertical"></i></th>
@@ -95,7 +95,7 @@
                         </div>
                         <div class="table-responsive">
                             <table class="table table-hover">
-                                <thead class="table-dark">
+                                <thead>
                                     <tr>
                                         <th width="5%">#</th>
                                         <th width="5%"><i class="bi bi-grip-vertical"></i></th>
@@ -180,7 +180,7 @@
             <div class="d-none d-md-block bg-white">
               <div class="table-container p-3">
                 <table class="table table-hover align-middle mb-0" id="tablaPermisos">
-                  <thead class="sticky-top bg-white shadow-sm">
+                  <thead class="sticky-top shadow-sm">
                     <tr>
                       <th class="bg-white" style="min-width: 200px;">
                         <div class="d-flex align-items-center">

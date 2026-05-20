@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Auditoria;
+use App\Traits\AuditableTrait;
 use App\Models\Departamento;
 use App\Models\Distrito;
 use App\Models\Provincia;
@@ -13,18 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class Ubicaciones extends Controller
 {
-    private function registrarAuditoria($accion, $tabla, $registroId = null, $descripcion = null)
-    {
-        Auditoria::create([
-            'user_id'       => Auth::id(),
-            'accion'        => $accion,
-            'tabla_afectada'=> $tabla,
-            'registro_id'   => $registroId,
-            'descripcion'   => $descripcion,
-            'ip'            => request()->ip(),
-            'navegador'     => request()->header('User-Agent')
-        ]);
-    }
+    use AuditableTrait;
 
     public function sitio(Request $request)
     {
@@ -168,18 +157,42 @@ class Ubicaciones extends Controller
                         'activo' => $request->activo ?? true
                     ]);
                     $tabla = 'departamentos';
+                    $this->registrarAuditoria(
+                        'Crear',
+                        $tabla,
+                        $registro->id,
+                        $registro->nombre,
+                        null,
+                        null,
+                        "Tipo: Departamento | Activo: " . ($registro->activo ? 'Sí' : 'No')
+                    );
                     break;
 
                 case 'provincia':
+                    $departamento = Departamento::find($request->departamento_id);
+                    $nombreDepartamento = $departamento ? $departamento->nombre : 'ID: ' . $request->departamento_id;
                     $registro = Provincia::create([
                         'nombre' => $request->nombre,
                         'departamento_id' => $request->departamento_id,
                         'activo' => $request->activo ?? true
                     ]);
                     $tabla = 'provincias';
+                    $this->registrarAuditoria(
+                        'Crear',
+                        $tabla,
+                        $registro->id,
+                        $registro->nombre,
+                        null,
+                        null,
+                        "Departamento: {$nombreDepartamento} | Activo: " . ($registro->activo ? 'Sí' : 'No')
+                    );
                     break;
 
                 case 'distrito':
+                    $provincia = Provincia::with('departamento')->find($request->provincia_id);
+                    $nombreProvincia = $provincia ? $provincia->nombre : 'ID: ' . $request->provincia_id;
+                    $nombreDepartamento = $provincia && $provincia->departamento ? $provincia->departamento->nombre : 'N/A';
+                    
                     $registro = Distrito::create([
                         'nombre' => $request->nombre,
                         'costo_envio' => $request->costo_envio,
@@ -187,11 +200,20 @@ class Ubicaciones extends Controller
                         'activo' => $request->activo ?? true
                     ]);
                     $tabla = 'distritos';
+                    
+                    $costoFormateado = $registro->costo_envio ? 'S/ ' . number_format($registro->costo_envio, 2) : 'No definido';
+                    
+                    $this->registrarAuditoria(
+                        'Crear',
+                        $tabla,
+                        $registro->id,
+                        $registro->nombre,
+                        null,
+                        null,
+                        "Provincia: {$nombreProvincia} | Departamento: {$nombreDepartamento} | Costo envío: {$costoFormateado} | Activo: " . ($registro->activo ? 'Sí' : 'No')
+                    );
                     break;
             }
-
-            $this->registrarAuditoria('crear', $tabla, $registro->id, 
-                ucfirst($tipo) . " creado: " . $request->nombre);
 
             DB::commit();
 
@@ -219,25 +241,81 @@ class Ubicaciones extends Controller
             switch ($tipo) {
                 case 'departamento':
                     $registro = Departamento::findOrFail($request->id);
+                    $valoresAnteriores = [
+                        'nombre' => $registro->nombre,
+                        'activo' => $registro->activo
+                    ];
+                    
                     $registro->update([
                         'nombre' => $request->nombre,
                         'activo' => $request->activo
                     ]);
                     $tabla = 'departamentos';
+                    
+                    $valoresNuevos = [
+                        'nombre' => $registro->nombre,
+                        'activo' => $registro->activo
+                    ];
+                    
+                    $this->registrarAuditoria(
+                        'Actualizar',
+                        $tabla,
+                        $registro->id,
+                        $registro->nombre,
+                        $valoresAnteriores,
+                        $valoresNuevos,
+                        "Tipo: Departamento"
+                    );
                     break;
 
                 case 'provincia':
                     $registro = Provincia::findOrFail($request->id);
+                    $departamento = Departamento::find($request->departamento_id);
+                    $nombreDepartamento = $departamento ? $departamento->nombre : 'ID: ' . $request->departamento_id;
+                    
+                    $valoresAnteriores = [
+                        'nombre' => $registro->nombre,
+                        'departamento_id' => $registro->departamento_id,
+                        'activo' => $registro->activo
+                    ];
+                    
                     $registro->update([
                         'nombre' => $request->nombre,
                         'departamento_id' => $request->departamento_id,
                         'activo' => $request->activo
                     ]);
                     $tabla = 'provincias';
+                    
+                    $valoresNuevos = [
+                        'nombre' => $registro->nombre,
+                        'departamento_id' => $registro->departamento_id,
+                        'activo' => $registro->activo
+                    ];
+                    
+                    $this->registrarAuditoria(
+                        'Actualizar',
+                        $tabla,
+                        $registro->id,
+                        $registro->nombre,
+                        $valoresAnteriores,
+                        $valoresNuevos,
+                        "Departamento: {$nombreDepartamento}"
+                    );
                     break;
 
                 case 'distrito':
                     $registro = Distrito::findOrFail($request->id);
+                    $provincia = Provincia::with('departamento')->find($request->provincia_id);
+                    $nombreProvincia = $provincia ? $provincia->nombre : 'ID: ' . $request->provincia_id;
+                    $nombreDepartamento = $provincia && $provincia->departamento ? $provincia->departamento->nombre : 'N/A';
+                    
+                    $valoresAnteriores = [
+                        'nombre' => $registro->nombre,
+                        'costo_envio' => $registro->costo_envio,
+                        'provincia_id' => $registro->provincia_id,
+                        'activo' => $registro->activo
+                    ];
+                    
                     $registro->update([
                         'nombre' => $request->nombre,
                         'costo_envio' => $request->costo_envio,
@@ -245,11 +323,27 @@ class Ubicaciones extends Controller
                         'activo' => $request->activo
                     ]);
                     $tabla = 'distritos';
+                    
+                    $valoresNuevos = [
+                        'nombre' => $registro->nombre,
+                        'costo_envio' => $registro->costo_envio,
+                        'provincia_id' => $registro->provincia_id,
+                        'activo' => $registro->activo
+                    ];
+                    
+                    $costoInfo = $registro->costo_envio ? 'S/ ' . number_format($registro->costo_envio, 2) : 'No definido';
+                    
+                    $this->registrarAuditoria(
+                        'Actualizar',
+                        $tabla,
+                        $registro->id,
+                        $registro->nombre,
+                        $valoresAnteriores,
+                        $valoresNuevos,
+                        "Provincia: {$nombreProvincia} | Departamento: {$nombreDepartamento} | Costo envío: {$costoInfo}"
+                    );
                     break;
             }
-
-            $this->registrarAuditoria('editar', $tabla, $registro->id, 
-                ucfirst($tipo) . " editado: " . $request->nombre);
 
             DB::commit();
 
@@ -273,11 +367,14 @@ class Ubicaciones extends Controller
             $registro = null;
             $tabla = '';
             $nombre = '';
+            $detalleExtra = '';
 
             switch ($tipo) {
                 case 'departamento':
                     $registro = Departamento::findOrFail($request->id);
                     $nombre = $registro->nombre;
+                    $cantidadProvincias = $registro->provincias()->count();
+                    $detalleExtra = "Provincias asociadas: {$cantidadProvincias}";
                     $registro->delete(); 
                     $tabla = 'departamentos';
                     break;
@@ -285,6 +382,10 @@ class Ubicaciones extends Controller
                 case 'provincia':
                     $registro = Provincia::findOrFail($request->id);
                     $nombre = $registro->nombre;
+                    $departamento = $registro->departamento;
+                    $nombreDepartamento = $departamento ? $departamento->nombre : 'N/A';
+                    $cantidadDistritos = $registro->distritos()->count();
+                    $detalleExtra = "Departamento: {$nombreDepartamento} | Distritos asociados: {$cantidadDistritos}";
                     $registro->delete();
                     $tabla = 'provincias';
                     break;
@@ -292,13 +393,23 @@ class Ubicaciones extends Controller
                 case 'distrito':
                     $registro = Distrito::findOrFail($request->id);
                     $nombre = $registro->nombre;
+                    $provincia = $registro->provincia;
+                    $nombreProvincia = $provincia ? $provincia->nombre : 'N/A';
+                    $detalleExtra = "Provincia: {$nombreProvincia}";
                     $registro->delete();
                     $tabla = 'distritos';
                     break;
             }
 
-            $this->registrarAuditoria('eliminar', $tabla, $request->id, 
-                ucfirst($tipo) . " eliminado: " . $nombre);
+            $this->registrarAuditoria(
+                'Eliminar',
+                $tabla,
+                $request->id,
+                $nombre,
+                null,
+                null,
+                $detalleExtra
+            );
 
             DB::commit();
 
@@ -317,6 +428,7 @@ class Ubicaciones extends Controller
 
     private function cambiarEstado(Request $request, $tipo)
     {
+        DB::beginTransaction();
         try {
             $registro = null;
             $tabla = '';
@@ -338,12 +450,27 @@ class Ubicaciones extends Controller
                     break;
             }
 
-            $nuevoEstado = !$registro->activo;
+            $estadoAnterior = $registro->activo;
+            $nuevoEstado = !$estadoAnterior;
+            
+            $valoresAnteriores = ['activo' => $estadoAnterior];
+            $valoresNuevos = ['activo' => $nuevoEstado];
+            
             $registro->update(['activo' => $nuevoEstado]);
 
             $estadoTexto = $nuevoEstado ? 'activado' : 'desactivado';
-            $this->registrarAuditoria('cambiar_estado', $tabla, $registro->id, 
-                ucfirst($tipo) . " {$estadoTexto}: " . $registro->nombre);
+            
+            $this->registrarAuditoria(
+                'Actualizar',
+                $tabla,
+                $registro->id,
+                $registro->nombre,
+                $valoresAnteriores,
+                $valoresNuevos,
+                "Cambio de estado: {$estadoTexto}"
+            );
+
+            DB::commit();
 
             return response()->json([
                 'respuesta' => 'success',
@@ -351,6 +478,7 @@ class Ubicaciones extends Controller
                 'nuevo_estado' => $nuevoEstado
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'respuesta' => 'error',
                 'mensaje' => 'Error al cambiar estado: ' . $e->getMessage()

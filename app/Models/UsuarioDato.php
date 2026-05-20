@@ -15,7 +15,6 @@ class UsuarioDato extends Model
     protected $fillable = [
         'tipoDoc',
         'numeroDoc',
-        'direccion',
         'celular',
         'fecha_nacimiento',
         'imagen',
@@ -24,7 +23,10 @@ class UsuarioDato extends Model
         'distrito',
         'provincia',
         'departamento',
-        'cod_postal'
+        'cod_postal',
+        'calle',
+        'numero',
+        'dir_otros',
     ];
 
     // Relación con el modelo User

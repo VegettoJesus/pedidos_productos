@@ -447,20 +447,20 @@ $(document).ready(function () {
             
             // Lista de permisos con íconos y colores
             const permisosConfig = [
-                { key: 'ver', icon: 'bi-eye', color: 'success', label: 'Ver' },
-                { key: 'crear', icon: 'bi-plus-circle', color: 'primary', label: 'Crear' },
-                { key: 'editar', icon: 'bi-pencil', color: 'warning', label: 'Editar' },
-                { key: 'eliminar', icon: 'bi-trash', color: 'danger', label: 'Eliminar' },
-                { key: 'configurar', icon: 'bi-gear', color: 'info', label: 'Config.' },
-                { key: 'roles', icon: 'bi-person-badge', color: 'purple', label: 'Roles' },
-                { key: 'subcategoria', icon: 'bi-diagram-3', color: 'teal', label: 'Subcat.' }
+                { key: 'ver', icon: 'bi-eye', color: 'white', label: 'Ver' },
+                { key: 'crear', icon: 'bi-plus-circle', color: 'white', label: 'Crear' },
+                { key: 'editar', icon: 'bi-pencil', color: 'white', label: 'Editar' },
+                { key: 'eliminar', icon: 'bi-trash', color: 'white', label: 'Eliminar' },
+                { key: 'configurar', icon: 'bi-gear', color: 'white', label: 'Config.' },
+                { key: 'roles', icon: 'bi-person-badge', color: 'white', label: 'Roles' },
+                { key: 'subcategoria', icon: 'bi-diagram-3', color: 'white', label: 'Subcat.' }
             ];
 
             // Generar cabeceras con estilo moderno - DESKTOP
             let ths = `
-                <th class="bg-white head-rol-modern">
+                <th class="head-rol-modern">
                     <div class="d-flex align-items-center">
-                        <i class="bi bi-person-badge me-2 text-primary"></i>
+                        <i class="bi bi-person-badge me-2 text-white"></i>
                         <span class="fw-semibold">Rol</span>
                     </div>
                 </th>

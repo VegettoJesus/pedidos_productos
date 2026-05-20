@@ -79,24 +79,16 @@
                             <!-- Descripción Corta -->
                             <div class="col-12 mb-3">
                                 <label for="descripcion_corta" class="form-label fw-bold">
-                                    <i class="bi bi-chat-left-text me-1"></i>Descripción Corta
+                                    <i class="bi bi-chat-left-text me-1"></i>Introducción de la Página de Inicio
                                 </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="bi bi-card-text"></i>
-                                    </span>
-                                    <textarea class="form-control" 
-                                              id="descripcion_corta" 
-                                              name="descripcion_corta" 
-                                              rows="3"
-                                              maxlength="500"
-                                              required></textarea>
+                                <div class="">
+                                    <textarea id="descripcion_corta" name="descripcion_corta" class="form-control" rows="10" maxlength="500" placeholder="Escribir aqui.." required></textarea>
                                     <div class="invalid-feedback">
                                         Por favor ingrese una descripción del sitio.
                                     </div>
                                 </div>
                                 <div class="d-flex justify-content-between mt-1">
-                                    <small class="text-muted">Descripción que aparece en buscadores y redes sociales.</small>
+                                    <small class="text-muted">Este texto se mostrará como introducción principal en la portada de tu sitio. También se usa para SEO y redes sociales.</small>
                                     <small id="contadorDescripcion" class="text-muted">0/500</small>
                                 </div>
                             </div>

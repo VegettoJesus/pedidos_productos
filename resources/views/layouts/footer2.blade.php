@@ -22,15 +22,9 @@
                     @php $links = \App\Helpers\ConfiguracionHelper::getFooterLinks($columnId); @endphp
                     @if($links->isNotEmpty())
                         <ul class="footer-links">
-                           @foreach($links as $link)
+                            @foreach($links as $link)
                                 <li>
-                                    {!! \App\Helpers\ConfiguracionHelper::renderFooterIcon($link->icon) !!}
-                                    <a href="{{ \App\Helpers\ConfiguracionHelper::normalizeUrl($link->url) }}" 
-                                    class="footer-link" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer">
-                                        {{ e($link->text) }}
-                                    </a>
+                                    {!! \App\Helpers\ConfiguracionHelper::renderFooterLink($link) !!}
                                 </li>
                             @endforeach
                         </ul>
@@ -71,9 +65,22 @@
                     @if($socials->isNotEmpty())
                         <div class="footer-social-links mt-2">
                             @foreach($socials as $social)
-                                <a href="{{ e($social->url) }}" class="footer-social-link me-2" target="_blank" rel="noopener noreferrer" title="{{ e($social->name) }}">
-                                    {!! \App\Helpers\ConfiguracionHelper::renderFooterIcon($social->icon) !!}
-                                </a>
+                                @php
+                                    $hasName = !empty($social->name);
+                                    $linkClass = $hasName ? 'footer-social-link-with-name' : 'footer-social-link';
+                                @endphp
+                                <div>
+                                    <a href="{{ e($social->url) }}" 
+                                    class="{{ $linkClass }} me-2" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    title="{{ $hasName ? e($social->name) : e($social->url) }}">
+                                        {!! \App\Helpers\ConfiguracionHelper::renderFooterIcon($social->icon) !!}
+                                        @if($hasName)
+                                            <span class="footer-social-name">{{ e($social->name) }}</span>
+                                        @endif
+                                    </a>
+                                </div>
                             @endforeach
                         </div>
                     @endif

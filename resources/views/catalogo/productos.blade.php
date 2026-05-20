@@ -387,12 +387,28 @@
 
                 <div class="tab-pane fade p-3" id="tab-relacionados">
                   <div class="mb-3">
-                    <label class="form-label">Ventas dirigidas (Upsells)</label>
-                    <input type="text" id="inputUpsells" class="form-control" placeholder="Buscar producto...">
+                      <label class="form-label fw-semibold">
+                          <i class="bi bi-arrow-up-circle me-1"></i> Upsells
+                      </label>
+                      <div class="note-small mb-2">
+                          Productos de mayor valor que sugieres en lugar del actual (ejemplo: versión premium, modelo superior).
+                      </div>
+                      <input type="text" id="inputUpsells" class="form-control" placeholder="Buscar producto...">
+                      <div class="mt-2">
+                          <small class="text-muted">Escribe al menos 2 caracteres para buscar</small>
+                      </div>
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">Ventas cruzadas (Cross-sells)</label>
+                    <label class="form-label fw-semibold">
+                      <i class="bi bi-arrow-left-right me-1"></i> Cross-sells
+                    </label>
+                    <div class="note-small mb-2">
+                      Productos complementarios que se pueden comprar junto con el producto actual.
+                    </div>
                     <input type="text" id="inputCrosssells" class="form-control" placeholder="Buscar producto...">
+                    <div class="mt-2">
+                      <small class="text-muted">Escribe al menos 2 caracteres para buscar</small>
+                    </div>
                   </div>
                 </div>
 
@@ -429,7 +445,7 @@
 <div class="modal fade" id="modalCrearAtributo" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog">
     <form id="formCrearAtributo" class="modal-content p-3">
-      <div class="modal-header">
+      <div class="modal-header bg-dark text-white">
         <h5 class="modal-title">Nuevo atributo</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
@@ -451,7 +467,7 @@
 <div class="modal fade" id="modalCrearValor" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog">
     <form id="formCrearValor" class="modal-content p-3">
-      <div class="modal-header">
+      <div class="modal-header bg-dark text-white">
         <h5 class="modal-title">Nuevo valor</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
@@ -755,8 +771,8 @@
                       <i class="bi bi-arrow-up-circle me-1"></i> Upsells
                     </label>
                     <div class="note-small mb-2">
-                      Productos que podrían gustar al cliente en lugar del producto actual.
-                    </div>
+                          Productos de mayor valor que sugieres en lugar del actual (ejemplo: versión premium, modelo superior).
+                      </div>
                     <input type="text" 
                           id="simple_upsells" 
                           class="form-control" 
@@ -1009,14 +1025,26 @@
                               <label class="form-label fw-semibold">
                               <i class="bi bi-arrow-up-circle me-1"></i> Upsells
                               </label>
+                              <div class="note-small mb-2">
+                                Productos de mayor valor que sugieres en lugar del actual (ejemplo: versión premium, modelo superior).
+                              </div>
                               <input type="text" id="variable_upsells" class="form-control" placeholder="Buscar producto...">
-                           </div>
+                              <div class="mt-2">
+                                  <small class="text-muted">Escribe al menos 2 caracteres para buscar</small>
+                              </div>
+                            </div>
                            <div class="mb-4">
                               <label class="form-label fw-semibold">
                               <i class="bi bi-arrow-left-right me-1"></i> Cross-sells
                               </label>
+                              <div class="note-small mb-2">
+                                Productos complementarios que se pueden comprar junto con el producto actual.
+                              </div>
                               <input type="text" id="variable_crosssells" class="form-control" placeholder="Buscar producto...">
-                           </div>
+                              <div class="mt-2">
+                                <small class="text-muted">Escribe al menos 2 caracteres para buscar</small>
+                              </div>
+                            </div>
                         </div>
                         <!-- ATRIBUTOS (con checkbox de variación) -->
                         <div class="tab-pane fade p-3" id="variable-atributos">
