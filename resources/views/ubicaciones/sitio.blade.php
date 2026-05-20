@@ -1,6 +1,6 @@
 <div class="container-fluid px-2 pb-4" style="display: inline-grid">
-    <div class="card">
-        <div class="card-header bg-dark text-white">
+    <div class="card text-center text-white bg-dark menu-management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Gestión de Ubicaciones</h5>
         </div>
         <div class="card-body">
@@ -34,7 +34,7 @@
                         </div>
                     </div>
                     <div class="table-responsive mt-4">
-                        <table id="tablaDepartamentos" class="table table-orange-personality" style="width: 100% !important;">
+                        <table id="tablaDepartamentos"  class="table table-hover" style="width: 100% !important;">
                             <thead>
                                 <tr>
                                     <th class="text-center">Id</th>
@@ -66,7 +66,7 @@
                         </div>
                     </div>
                     <div class="table-responsive mt-4">
-                        <table id="tablaProvincias" class="table table-orange-personality" style="width: 100% !important;">
+                        <table id="tablaProvincias" class="table table-hover" style="width: 100% !important;">
                             <thead>
                                 <tr>
                                     <th class="text-center">Id</th>
@@ -105,7 +105,7 @@
                         </div>
                     </div>
                     <div class="table-responsive mt-4">
-                        <table id="tablaDistritos" class="table table-orange-personality" style="width: 100% !important;">
+                        <table id="tablaDistritos" class="table table-hover" style="width: 100% !important;">
                             <thead>
                                 <tr>
                                     <th class="text-center">Id</th>

@@ -207,17 +207,14 @@
 
             <!-- Dirección y Código Postal -->
             <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12 position-relative">
-              <label for="direccion" class="form-label fw-bold">Calle</label>
+              <label for="calle" class="form-label fw-bold">Calle</label>
               <div class="input-group">
-                <input type="text" class="form-control" id="direccion" name="direccion" placeholder="Av. Ejemplo">
-                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#modalMapa">
-                  <i class="bi bi-geo-alt-fill"></i>
-                </button>
+                <input type="text" class="form-control" id="calle" name="calle" placeholder="Av. Ejemplo">
               </div>
             </div>
             <div class="col-lg-2 col-md-12 col-sm-12 col-xs-12">
               <label for="cod_postal" class="form-label fw-bold">Nº Calle</label>
-              <input type="text" class="form-control" id="num_calle" name="num_calle" placeholder="Nº Calle">
+              <input type="text" class="form-control" id="numero" name="numero" placeholder="Nº Calle">
             </div>
             <div class="col-lg-4 col-md-12 col-sm-12 col-xs-12">
               <label for="cod_postal" class="form-label fw-bold">Puerta/Piso/Dpto/Otros</label>
@@ -235,27 +232,6 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle"></i> Cancelar</button>
         <button type="submit" form="formNuevoUsuario" class="btn btn-primary"><i class="bi bi-save2-fill"></i> Guardar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Mapa -->
-<div class="modal fade" id="modalMapa" tabindex="-1" aria-labelledby="modalMapaLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-  <div class="modal-dialog modal-xl modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg">
-      <div class="modal-header bg-dark text-white">
-        <h5 class="modal-title" id="modalMapaLabel"><i class="bi bi-map-fill"></i> Seleccione Ubicación</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body position-relative">
-        <input id="searchMap" class="form-control mb-2" type="text" placeholder="Buscar dirección...">
-        <ul id="searchResults" class="list-group position-absolute" style="z-index:1000;width:95%;"></ul>
-        <div id="map" style="height:500px;width:100%; margin-top:5px;"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-        <button type="button" class="btn btn-primary" id="guardarUbicacion">Usar Ubicación</button>
       </div>
     </div>
   </div>

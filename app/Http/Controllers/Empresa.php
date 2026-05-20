@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ConfiguracionSistema;
 use App\Models\ConfiguracionCorreo;
 use App\Models\HomeConfiguracion;
-use App\Models\Auditoria;
+use App\Traits\AuditableTrait;
 use App\Models\EmpresaInformacion;
 use App\Models\FooterColumn;
 use App\Models\FooterLink;
@@ -29,19 +29,7 @@ use Illuminate\Support\Facades\Cache;
 
 class Empresa extends Controller
 {
-    private function registrarAuditoria($accion, $tabla, $registroId = null, $descripcion = null)
-    {
-        Auditoria::create([
-            'user_id'       => Auth::id(),
-            'accion'        => $accion,
-            'tabla_afectada'=> $tabla,
-            'registro_id'   => $registroId,
-            'descripcion'   => $descripcion,
-            'ip'            => request()->ip(),
-            'navegador'     => request()->header('User-Agent')
-        ]);
-    }
-
+    use AuditableTrait;
     public function datosEmpresa(Request $request)
     {
         if ($request->isMethod('post')) {
@@ -84,29 +72,37 @@ class Empresa extends Controller
                     }
 
                     $empresa = EmpresaInformacion::first();
-                    $valoresAnteriores = $empresa ? $empresa->toArray() : [];
-
+                    $datosPermitidos = $request->except(['opcion', '_token', '_method']);
                     if ($empresa) {
-                        $empresa->update($request->all());
-                        $accion = 'actualizar';
+                        $valoresAnteriores = $empresa->toArray();
+                        unset($valoresAnteriores['id'], $valoresAnteriores['created_at'], $valoresAnteriores['updated_at']);
+                        $empresa->update($datosPermitidos);
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'empresa_informacion',
+                            $empresa->id,
+                            $empresa->razon_social,
+                            $valoresAnteriores,   
+                            $datosPermitidos,     
+                            null
+                        );
+                        $data->message = 'Datos de la empresa actualizados correctamente';
                     } else {
-                        $empresa = EmpresaInformacion::create($request->all());
-                        $accion = 'crear';
+                        $empresa = EmpresaInformacion::create($datosPermitidos);
+                        $this->registrarAuditoria(
+                            'Crear',
+                            'empresa_informacion',
+                            $empresa->id,
+                            $empresa->razon_social,
+                            null,                  
+                            null,                  
+                            "RUC: {$empresa->ruc}"
+                        );
+                        
+                        $data->message = 'Datos de la empresa guardados correctamente';
                     }
-
-                    // Registrar auditoría
-                    $descripcion = "Datos de empresa actualizados. ";
-                    if ($request->has('razon_social')) {
-                        $descripcion .= "Razón Social: {$request->razon_social}. ";
-                    }
-                    if ($request->has('ruc')) {
-                        $descripcion .= "RUC: {$request->ruc}";
-                    }
-                    
-                    $this->registrarAuditoria($accion, 'empresa_informacion', $empresa->id, $descripcion);
 
                     $data->success = true;
-                    $data->message = 'Datos de la empresa guardados correctamente';
                     $data->data = $empresa;
                     break;
 
@@ -142,15 +138,31 @@ class Empresa extends Controller
                     break;
 
                 case 'Guardar':
+                    $contenidoOriginal = $request->input('descripcion_corta', '');
+                    $contenidoLimpioImagenes = preg_replace('/<img[^>]*>/i', '', $contenidoOriginal);
+                    $contenidoDecodificado = html_entity_decode($contenidoLimpioImagenes, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                    $textoPlano = strip_tags($contenidoDecodificado);
+                    $textoPlano = preg_replace('/\s+/u', ' ', trim($textoPlano));
+
+                    $longitudReal = mb_strlen($textoPlano, 'UTF-8');
+
                     $validator = Validator::make($request->all(), [
                         'titulo_site' => 'required|string|max:255',
                         'abreviatura_titulo' => 'required|string|max:50',
-                        'descripcion_corta' => 'required|string|max:500',
                         'icono_site' => 'nullable|string|max:255',
                         'email_admin' => 'required|email|max:255',
                         'footer_text' => 'nullable|string|max:1000',
                         'max_entradas_home' => 'required|integer|min:1|max:50'
                     ]);
+                    
+                    if ($longitudReal > 500) {
+                        $validator->errors()->add('descripcion_corta', 'La introducción no puede superar los 500 caracteres.');
+                        $data->respuesta = 'error';
+                        $data->success = false;
+                        $data->message = 'Error de validación';
+                        $data->errors = $validator->errors();
+                        return response()->json($data, 422);
+                    }
 
                     if ($validator->fails()) {
                         $data->respuesta = 'error';
@@ -162,57 +174,50 @@ class Empresa extends Controller
 
                     $configuracion = ConfiguracionSistema::first();
                     
-                    // Guardar valores antiguos para auditoría
-                    $valoresAnteriores = $configuracion ? $configuracion->toArray() : [];
+                    $datosPermitidos = $request->except(['opcion', '_token', '_method']);
+                    $datosPermitidos['descripcion_corta'] = $contenidoLimpioImagenes;
 
                     if ($configuracion) {
-                        $configuracion->update($request->only([
-                            'titulo_site',
-                            'abreviatura_titulo',
-                            'descripcion_corta',
-                            'icono_site',
-                            'email_admin',
-                            'footer_text',
-                            'max_entradas_home'
-                        ]));
+                        $valoresAnteriores = $configuracion->toArray();
+                        unset($valoresAnteriores['id'], $valoresAnteriores['created_at'], $valoresAnteriores['updated_at']);
                         
-                        $accion = 'actualizar';
+                        $configuracion->update($datosPermitidos);
+                        
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'configuracion_sistema',
+                            $configuracion->id,
+                            $configuracion->titulo_site,
+                            $valoresAnteriores,
+                            $datosPermitidos,
+                            null
+                        );
+                        
+                        $data->message = 'Configuración actualizada correctamente';
                     } else {
-                        $configuracion = ConfiguracionSistema::create($request->all());
-                        $accion = 'crear';
+                        $configuracion = ConfiguracionSistema::create($datosPermitidos);
+                        
+                        $this->registrarAuditoria(
+                            'Crear',
+                            'configuracion_sistema',
+                            $configuracion->id,
+                            $configuracion->titulo_site,  
+                            null,
+                            null,
+                            "Título: {$configuracion->titulo_site} | Email: {$configuracion->email_admin}"
+                        );
+                        
+                        $data->message = 'Configuración creada correctamente';
                     }
 
                     ConfiguracionHelper::clearCache();
                     MenuService::limpiarTodaLaCache();
 
-                    // Registrar auditoría detallada
-                    $descripcion = "Configuración del sitio actualizada. Cambios: ";
-                    $cambios = [];
-                    
-                    foreach ($request->all() as $key => $value) {
-                        if (isset($valoresAnteriores[$key]) && $valoresAnteriores[$key] != $value) {
-                            if ($key === 'icono_site') {
-                                $cambios[] = "$key: '" . basename($valoresAnteriores[$key]) . "' → '" . basename($value) . "'";
-                            } else {
-                                $cambios[] = "$key: '{$valoresAnteriores[$key]}' → '$value'";
-                            }
-                        }
-                    }
-                    
-                    if (!empty($cambios)) {
-                        $descripcion .= implode(', ', $cambios);
-                    } else {
-                        $descripcion = "Configuración del sitio actualizada (sin cambios detectados)";
-                    }
-                    
-                    $this->registrarAuditoria($accion, 'configuracion_sistema', $configuracion->id, $descripcion);
-
                     $data->respuesta = 'success';
                     $data->success = true;
-                    $data->message = 'Configuración actualizada correctamente';
                     $data->cache_cleared = true;
                     $data->data = $configuracion;
-                    break;
+                break;
 
                 case 'Iconos':
 
@@ -326,20 +331,17 @@ class Empresa extends Controller
                 break;
 
             case 'GuardarHome':
-                // Si los datos vienen como JSON string, decodificarlos
                 $inputData = $request->getContent();
                 
                 if (empty($inputData)) {
                     $inputData = $request->all();
                 } else {
-                    // Intentar decodificar como JSON
                     $inputData = json_decode($inputData, true);
                     if (json_last_error() !== JSON_ERROR_NONE) {
                         $inputData = $request->all();
                     }
                 }
                 
-                // Validar que secciones exista
                 if (!isset($inputData['secciones'])) {
                     return response()->json([
                         'respuesta' => 'error',
@@ -353,12 +355,11 @@ class Empresa extends Controller
                     'secciones.*.id' => 'required|integer|exists:home_configuracion,id',
                     'secciones.*.numero_elementos' => 'required|integer|min:1|max:50',
                     'secciones.*.orden' => 'required|integer|min:0',
-                    'secciones.*.mostrar' => ['required', Rule::in([true, false, 'true', 'false', 1, 0, '1', '0'])], // Aceptar varios formatos
+                    'secciones.*.mostrar' => ['required', Rule::in([true, false, 'true', 'false', 1, 0, '1', '0'])],
                     'secciones.*.configuracion_json' => 'nullable|array'
                 ]);
 
                 if ($validator->fails()) {
-                    // Log para debug
                     \Log::error('Validación fallida GuardarHome', [
                         'errors' => $validator->errors(),
                         'input_data' => $inputData,
@@ -375,52 +376,63 @@ class Empresa extends Controller
 
                 DB::beginTransaction();
                 try {
-                    $cambios = [];
+                    $todosLosCambios = [];
+                    $seccionesActualizadas = [];
                     
                     foreach ($inputData['secciones'] as $seccionData) {
                         $valoresAnteriores = DB::table('home_configuracion')
                             ->where('id', $seccionData['id'])
                             ->first();
                         
-                        // Convertir 'mostrar' a booleano para la base de datos
+                        $seccionNombre = $valoresAnteriores->seccion ?? "Sección ID {$seccionData['id']}";
                         $mostrar = filter_var($seccionData['mostrar'], FILTER_VALIDATE_BOOLEAN);
+                        $valoresNuevos = [
+                            'numero_elementos' => $seccionData['numero_elementos'],
+                            'orden' => $seccionData['orden'],
+                            'mostrar' => $mostrar,
+                            'configuracion_json' => json_encode($seccionData['configuracion_json'] ?? []),
+                            'updated_at' => now()
+                        ];
+                        $cambiosSeccion = [];
+                        if ($valoresAnteriores) {
+                            if ($valoresAnteriores->numero_elementos != $seccionData['numero_elementos']) {
+                                $cambiosSeccion[] = "numero_elementos: '{$valoresAnteriores->numero_elementos}' → '{$seccionData['numero_elementos']}'";
+                            }
+                            if ($valoresAnteriores->orden != $seccionData['orden']) {
+                                $cambiosSeccion[] = "orden: '{$valoresAnteriores->orden}' → '{$seccionData['orden']}'";
+                            }
+                            if ($valoresAnteriores->mostrar != $mostrar) {
+                                $cambiosSeccion[] = "mostrar: '" . ($valoresAnteriores->mostrar ? 'true' : 'false') . "' → '" . ($mostrar ? 'true' : 'false') . "'";
+                            }
+                        }
                         
                         DB::table('home_configuracion')
                             ->where('id', $seccionData['id'])
-                            ->update([
-                                'numero_elementos' => $seccionData['numero_elementos'],
-                                'orden' => $seccionData['orden'],
-                                'mostrar' => $mostrar,
-                                'configuracion_json' => json_encode($seccionData['configuracion_json'] ?? []),
-                                'updated_at' => now()
-                            ]);
-
-                        // Detectar cambios para auditoría
-                        if ($valoresAnteriores) {
-                            $seccionNombre = DB::table('home_configuracion')
-                                ->where('id', $seccionData['id'])
-                                ->value('seccion');
-                            
-                            if ($valoresAnteriores->numero_elementos != $seccionData['numero_elementos']) {
-                                $cambios[] = "{$seccionNombre}.numero_elementos: '{$valoresAnteriores->numero_elementos}' → '{$seccionData['numero_elementos']}'";
-                            }
-                            if ($valoresAnteriores->orden != $seccionData['orden']) {
-                                $cambios[] = "{$seccionNombre}.orden: '{$valoresAnteriores->orden}' → '{$seccionData['orden']}'";
-                            }
-                            if ($valoresAnteriores->mostrar != $mostrar) {
-                                $cambios[] = "{$seccionNombre}.mostrar: '" . ($valoresAnteriores->mostrar ? 'true' : 'false') . "' → '" . ($mostrar ? 'true' : 'false') . "'";
-                            }
+                            ->update($valoresNuevos);
+                        
+                        if (!empty($cambiosSeccion)) {
+                            $todosLosCambios[] = "{$seccionNombre}: " . implode(', ', $cambiosSeccion);
+                            $seccionesActualizadas[] = $seccionNombre;
                         }
                     }
 
                     DB::commit();
 
-                    // Registrar auditoría
-                    $descripcion = !empty($cambios) 
-                        ? "Configuración del Home actualizada. Cambios: " . implode(', ', $cambios)
-                        : "Configuración del Home actualizada (sin cambios detectados)";
+                    if (!empty($todosLosCambios)) {
+                        $descripcion = "Configuración del Home actualizada. Secciones modificadas: " . implode('; ', $todosLosCambios);
+                    } else {
+                        $descripcion = "Configuración del Home actualizada (sin cambios detectados)";
+                    }
                     
-                    $this->registrarAuditoria('actualizar', 'home_configuracion', null, $descripcion);
+                    $this->registrarAuditoria(
+                        'Actualizar',
+                        'home_configuracion',
+                        null,  
+                        'Configuración Home',
+                        null,  
+                        null,  
+                        $descripcion  
+                    );
 
                     return response()->json([
                         'respuesta' => 'success',
@@ -473,20 +485,17 @@ class Empresa extends Controller
                         'estado'
                     );
 
-                // Buscar por nombre, SKU o ID
                 if (!empty($busqueda)) {
                     $query->where(function($q) use ($busqueda) {
                         $q->where('nombre', 'LIKE', "%{$busqueda}%")
                         ->orWhere('sku', 'LIKE', "%{$busqueda}%");
-                        
-                        // Si la búsqueda es numérica, buscar por ID también
+                
                         if (is_numeric($busqueda)) {
                             $q->orWhere('id', '=', (int) $busqueda);
                         }
                     });
                 }
 
-                // Excluir IDs si se especifican
                 if (!empty($excluirIds)) {
                     $query->whereNotIn('id', $excluirIds);
                 }
@@ -550,32 +559,88 @@ class Empresa extends Controller
                     $iconValue = null;
                 }
 
-                if (empty($request->id)) {
-                    $maxOrder = FooterColumn::max('sort_order') ?? 0;
-                    $column = FooterColumn::create([
-                        'title' => $request->title,
-                        'column_type' => $request->column_type,
-                        'active' => $active,
-                        'sort_order' => $maxOrder + 1,
-                        'icon' => $iconValue
-                    ]);
-                    $id = $column->id;
-                } else {
-                    $column = FooterColumn::findOrFail($request->id);
-                    if (!$request->hasFile('icono_archivo') && $column->icon && str_starts_with($column->icon, '/iconos_footer/') && ($iconValue === null || str_starts_with($iconValue, 'bi bi-'))) {
-                        $oldPath = public_path($column->icon);
-                        if (file_exists($oldPath)) unlink($oldPath);
+                DB::beginTransaction();
+                try {
+                    if (empty($request->id)) {
+                        $maxOrder = FooterColumn::max('sort_order') ?? 0;
+                        $column = FooterColumn::create([
+                            'title' => $request->title,
+                            'column_type' => $request->column_type,
+                            'active' => $active,
+                            'sort_order' => $maxOrder + 1,
+                            'icon' => $iconValue
+                        ]);
+                        $id = $column->id;
+        
+                        $this->registrarAuditoria(
+                            'Crear',
+                            'footer_columns',
+                            $column->id,
+                            $column->title,
+                            null,
+                            null,
+                            "Tipo: {$column->column_type} | Orden: {$column->sort_order}"
+                        );
+                        
+                    } else {
+                        $column = FooterColumn::findOrFail($request->id);
+                        $valoresAnteriores = [
+                            'title' => $column->title,
+                            'column_type' => $column->column_type,
+                            'active' => $column->active,
+                            'icon' => $column->icon,
+                            'sort_order' => $column->sort_order
+                        ];
+                        
+                        if (!$request->hasFile('icono_archivo') && $column->icon && str_starts_with($column->icon, '/iconos_footer/') && ($iconValue === null || str_starts_with($iconValue, 'bi bi-'))) {
+                            $oldPath = public_path($column->icon);
+                            if (file_exists($oldPath)) unlink($oldPath);
+                        }
+                        
+                        $valoresNuevos = [
+                            'title' => $request->title,
+                            'column_type' => $request->column_type,
+                            'active' => $active,
+                            'icon' => $iconValue
+                        ];
+                        
+                        $column->update($valoresNuevos);
+                        $id = $column->id;
+                        $cambioIcono = false;
+                        if ($valoresAnteriores['icon'] != $iconValue) {
+                            $cambioIcono = true;
+                        }
+                        
+                        $detalleExtra = [];
+                        if ($cambioIcono) {
+                            $detalleExtra[] = "Ícono actualizado";
+                        }
+                        
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'footer_columns',
+                            $column->id,
+                            $column->title,
+                            $valoresAnteriores,
+                            $valoresNuevos,
+                            !empty($detalleExtra) ? implode(' | ', $detalleExtra) : null
+                        );
                     }
-                    $column->update([
-                        'title' => $request->title,
-                        'column_type' => $request->column_type,
-                        'active' => $active,
-                        'icon' => $iconValue
-                    ]);
-                    $id = $column->id;
+                    
+                    DB::commit();
+                    ConfiguracionHelper::clearFooterCache();
+                    
+                    return response()->json(['success' => true, 'id' => $id]);
+                    
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Error al guardar columna de footer: ' . $e->getMessage());
+                    
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Error al guardar: ' . $e->getMessage()
+                    ], 500);
                 }
-                ConfiguracionHelper::clearFooterCache();
-                return response()->json(['success' => true, 'id' => $id]);
                 break;
 
             case 'OrdenarFooterColumns':
@@ -588,16 +653,73 @@ class Empresa extends Controller
                 break;
 
             case 'EliminarFooterColumn':
-                $column = FooterColumn::find($request->input('id'));
-                if ($column) {
+                $validator = Validator::make($request->all(), [
+                    'id' => 'required|integer|exists:footer_columns,id'
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'ID de columna no válido',
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+
+                DB::beginTransaction();
+                try {
+                    $column = FooterColumn::find($request->input('id'));
+                    
+                    if (!$column) {
+                        return response()->json([
+                            'success' => false, 
+                            'message' => 'Columna no encontrada'
+                        ], 404);
+                    }
+                    
+                    $id = $column->id;
+                    $titulo = $column->title;
+                    $tipo = $column->column_type;
+                    $icono = $column->icon;
+                    
                     if ($column->icon && str_starts_with($column->icon, '/iconos_footer/')) {
                         $filePath = public_path($column->icon);
-                        if (file_exists($filePath)) unlink($filePath);
+                        if (file_exists($filePath)) {
+                            unlink($filePath);
+                        }
                     }
+                    
                     $column->delete();
+                    
+                    $this->registrarAuditoria(
+                        'Eliminar',
+                        'footer_columns',
+                        $id,
+                        $titulo,
+                        null,
+                        null,  
+                        "Tipo: {$tipo}"
+                    );
+                    
+                    DB::commit();
+                    ConfiguracionHelper::clearFooterCache();
+                    
+                    return response()->json([
+                        'success' => true, 
+                        'message' => 'Columna eliminada correctamente'
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Error al eliminar columna de footer: ' . $e->getMessage(), [
+                        'id' => $request->input('id'),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Error al eliminar: ' . $e->getMessage()
+                    ], 500);
                 }
-                ConfiguracionHelper::clearFooterCache();
-                return response()->json(['success' => true]);
                 break;
 
             case 'ListarFooterLinks':
@@ -611,8 +733,8 @@ class Empresa extends Controller
                 $validator = Validator::make($request->all(), [
                     'id' => 'nullable|integer',
                     'column_id' => 'required|integer|exists:footer_columns,id',
-                    'text' => 'required|string|max:100',
-                    'url' => 'required|string|max:255',
+                    'text' => 'nullable|string|max:100',
+                    'url' => 'nullable|string|max:255',
                     'active' => 'boolean',
                     'icon' => 'nullable|string|max:255',
                     'icono_archivo' => 'nullable|file|mimes:ico|max:2048'
@@ -636,50 +758,169 @@ class Empresa extends Controller
                     $iconValue = '/' . $destino . '/' . $nombreUnico;
                 }
 
-                if (empty($iconValue)) $iconValue = null;
-
-                if (empty($request->id)) {
-                    $maxOrder = FooterLink::where('column_id', $request->column_id)->max('sort_order') ?? 0;
-                    $link = FooterLink::create([
-                        'column_id' => $request->column_id,
-                        'text' => $request->text,
-                        'url' => $request->url,
-                        'active' => $active,
-                        'sort_order' => $maxOrder + 1,
-                        'icon' => $iconValue
-                    ]);
-                    $id = $link->id;
-                } else {
-                    $link = FooterLink::findOrFail($request->id);
-                    if ($request->hasFile('icono_archivo') && $link->icon && str_starts_with($link->icon, '/iconos_footer/') && ($iconValue === null || str_starts_with($iconValue, 'bi bi-'))) {
-                        $oldPath = public_path($link->icon);
-                        if (file_exists($oldPath)) unlink($oldPath);
-                    }
-                    $link->update([
-                        'text' => $request->text,
-                        'url' => $request->url,
-                        'active' => $active,
-                        'icon' => $iconValue
-                    ]);
-                    $id = $link->id;
+                if (empty($iconValue)) {
+                    $iconValue = null;
                 }
-                ConfiguracionHelper::clearFooterCache();
-                return response()->json(['success' => true, 'id' => $id]);
+
+                DB::beginTransaction();
+                try {
+                    if (empty($request->id)) {
+                        $maxOrder = FooterLink::where('column_id', $request->column_id)->max('sort_order') ?? 0;
+                        $link = FooterLink::create([
+                            'column_id' => $request->column_id,
+                            'text' => $request->text,
+                            'url' => $request->url,
+                            'active' => $active,
+                            'sort_order' => $maxOrder + 1,
+                            'icon' => $iconValue
+                        ]);
+                        $id = $link->id;
+                        
+                        $columna = FooterColumn::find($request->column_id);
+                        $nombreColumna = $columna ? $columna->title : "ID {$request->column_id}";
+                        
+                        $this->registrarAuditoria(
+                            'Crear',
+                            'footer_links',
+                            $link->id,
+                            $link->text,
+                            null,
+                            null,
+                            "Columna: {$nombreColumna} | URL: {$link->url}"
+                        );
+                        
+                    } else {
+                        $link = FooterLink::findOrFail($request->id);
+                        
+                        $valoresAnteriores = [
+                            'text' => $link->text,
+                            'url' => $link->url,
+                            'active' => $link->active,
+                            'icon' => $link->icon,
+                            'sort_order' => $link->sort_order,
+                            'column_id' => $link->column_id
+                        ];
+                        
+                        if ($request->hasFile('icono_archivo') && $link->icon && str_starts_with($link->icon, '/iconos_footer/') && ($iconValue === null || str_starts_with($iconValue, 'bi bi-'))) {
+                            $oldPath = public_path($link->icon);
+                            if (file_exists($oldPath)) {
+                                unlink($oldPath);
+                            }
+                        }
+                        
+                        $valoresNuevos = [
+                            'text' => $request->text,
+                            'url' => $request->url,
+                            'active' => $active,
+                            'icon' => $iconValue
+                        ];
+                        
+                        $link->update($valoresNuevos);
+                        $id = $link->id;
+                        $cambioIcono = ($valoresAnteriores['icon'] != $iconValue);
+                        $detalleExtra = [];
+                        if ($cambioIcono) {
+                            $detalleExtra[] = "Ícono actualizado";
+                        }
+                        
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'footer_links',
+                            $link->id,
+                            $link->text,
+                            $valoresAnteriores,
+                            $valoresNuevos,
+                            !empty($detalleExtra) ? implode(' | ', $detalleExtra) : null
+                        );
+                    }
+                    
+                    DB::commit();
+                    ConfiguracionHelper::clearFooterCache();
+                    
+                    return response()->json(['success' => true, 'id' => $id]);
+                    
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Error al guardar link de footer: ' . $e->getMessage(), [
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Error al guardar: ' . $e->getMessage()
+                    ], 500);
+                }
                 break;
 
             case 'EliminarFooterLink':
-                $link = FooterLink::find($request->input('id'));
-                if ($link) {
+                $validator = Validator::make($request->all(), [
+                    'id' => 'required|integer|exists:footer_links,id'
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'ID de link no válido',
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+
+                DB::beginTransaction();
+                try {
+                    $link = FooterLink::find($request->input('id'));
+                    
+                    if (!$link) {
+                        return response()->json([
+                            'success' => false, 
+                            'message' => 'Link no encontrado'
+                        ], 404);
+                    }
+                    
+                    $id = $link->id;
+                    $texto = $link->text;
+                    $url = $link->url;
+                    $columnId = $link->column_id;
+                    $columna = FooterColumn::find($columnId);
+                    $nombreColumna = $columna ? $columna->title : "ID {$columnId}";
                     if ($link->icon && str_starts_with($link->icon, '/iconos_footer/')) {
                         $filePath = public_path($link->icon);
                         if (file_exists($filePath)) {
                             unlink($filePath);
                         }
                     }
+                    
                     $link->delete();
+                    
+                    $this->registrarAuditoria(
+                        'Eliminar',
+                        'footer_links',
+                        $id,
+                        $texto,
+                        null,  
+                        null,  
+                        "URL: {$url} | Columna: {$nombreColumna}"
+                    );
+                    
+                    DB::commit();
+                    ConfiguracionHelper::clearFooterCache();
+                    
+                    return response()->json([
+                        'success' => true, 
+                        'message' => 'Link eliminado correctamente'
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Error al eliminar link de footer: ' . $e->getMessage(), [
+                        'id' => $request->input('id'),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Error al eliminar: ' . $e->getMessage()
+                    ], 500);
                 }
-                ConfiguracionHelper::clearFooterCache();
-                return response()->json(['success' => true]);
                 break;
 
             case 'ObtenerFooterContact':
@@ -705,52 +946,125 @@ class Empresa extends Controller
                     return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
                 }
 
-                $contact = FooterContact::firstOrNew(['column_id' => $request->column_id]);
+                DB::beginTransaction();
+                try {
+                    $contact = FooterContact::firstOrNew(['column_id' => $request->column_id]);
+                    $esCreacion = !$contact->exists;
+                    $valoresAnteriores = $esCreacion ? null : [
+                        'phone' => $contact->phone,
+                        'email' => $contact->email,
+                        'address' => $contact->address,
+                        'phone_icon' => $contact->phone_icon,
+                        'email_icon' => $contact->email_icon,
+                        'address_icon' => $contact->address_icon
+                    ];
 
-                $contact->phone = $request->phone;
-                $contact->email = $request->email;
-                $contact->address = $request->address;
-                $iconFields = ['phone', 'email', 'address'];
-                foreach ($iconFields as $field) {
-                    $oldIcon = $contact->{$field . '_icon'} ?? null;
-                    $newIcon = null;
+                    $contact->phone = $request->phone;
+                    $contact->email = $request->email;
+                    $contact->address = $request->address;
+                    $iconFields = ['phone', 'email', 'address'];
+                    $iconosCambiados = [];
+                    
+                    foreach ($iconFields as $field) {
+                        $oldIcon = $contact->{$field . '_icon'} ?? null;
+                        $newIcon = null;
 
-                    if ($request->hasFile($field . '_icono_archivo')) {
-                        $archivo = $request->file($field . '_icono_archivo');
-                        $extension = $archivo->getClientOriginalExtension();
-                        $nombreUnico = 'img_' . time() . '_' . uniqid() . '_' . $field . '.' . $extension;
-                        $destino = 'iconos_footer';
-                        $rutaDestino = public_path($destino);
-                        if (!file_exists($rutaDestino)) mkdir($rutaDestino, 0755, true);
-                        $archivo->move($rutaDestino, $nombreUnico);
-                        $newIcon = '/' . $destino . '/' . $nombreUnico;
+                        if ($request->hasFile($field . '_icono_archivo')) {
+                            $archivo = $request->file($field . '_icono_archivo');
+                            $extension = $archivo->getClientOriginalExtension();
+                            $nombreUnico = 'img_' . time() . '_' . uniqid() . '_' . $field . '.' . $extension;
+                            $destino = 'iconos_footer';
+                            $rutaDestino = public_path($destino);
+                            if (!file_exists($rutaDestino)) mkdir($rutaDestino, 0755, true);
+                            $archivo->move($rutaDestino, $nombreUnico);
+                            $newIcon = '/' . $destino . '/' . $nombreUnico;
 
-                        if ($oldIcon && str_starts_with($oldIcon, '/iconos_footer/')) {
-                            $oldPath = public_path($oldIcon);
-                            if (file_exists($oldPath)) unlink($oldPath);
-                        }
-                    } else {
-                        $newIcon = $request->input($field . '_icon'); 
-
-                        if ($newIcon && !str_starts_with($newIcon, '/iconos_footer/')) {
                             if ($oldIcon && str_starts_with($oldIcon, '/iconos_footer/')) {
                                 $oldPath = public_path($oldIcon);
                                 if (file_exists($oldPath)) unlink($oldPath);
                             }
-                        } elseif (empty($newIcon)) {
-                            if ($oldIcon && str_starts_with($oldIcon, '/iconos_footer/')) {
-                                $oldPath = public_path($oldIcon);
-                                if (file_exists($oldPath)) unlink($oldPath);
+                            $iconosCambiados[] = $field;
+                        } else {
+                            $newIcon = $request->input($field . '_icon'); 
+
+                            if ($newIcon && !str_starts_with($newIcon, '/iconos_footer/')) {
+                                if ($oldIcon && str_starts_with($oldIcon, '/iconos_footer/')) {
+                                    $oldPath = public_path($oldIcon);
+                                    if (file_exists($oldPath)) unlink($oldPath);
+                                }
+                                $iconosCambiados[] = $field;
+                            } elseif (empty($newIcon)) {
+                                if ($oldIcon && str_starts_with($oldIcon, '/iconos_footer/')) {
+                                    $oldPath = public_path($oldIcon);
+                                    if (file_exists($oldPath)) unlink($oldPath);
+                                }
+                                $iconosCambiados[] = $field;
+                            } elseif ($oldIcon != $newIcon) {
+                                $iconosCambiados[] = $field;
                             }
                         }
+
+                        $contact->{$field . '_icon'} = $newIcon ?? null;
                     }
 
-                    $contact->{$field . '_icon'} = $newIcon ?? null;
+                    $contact->save();
+                    
+                    $columna = FooterColumn::find($request->column_id);
+                    $nombreColumna = $columna ? $columna->title : "ID {$request->column_id}";
+                    
+                    $valoresNuevos = [
+                        'phone' => $contact->phone,
+                        'email' => $contact->email,
+                        'address' => $contact->address,
+                        'phone_icon' => $contact->phone_icon,
+                        'email_icon' => $contact->email_icon,
+                        'address_icon' => $contact->address_icon
+                    ];
+                    
+                    $detalleExtra = [];
+                    if (!empty($iconosCambiados)) {
+                        $detalleExtra[] = "Íconos actualizados: " . implode(', ', $iconosCambiados);
+                    }
+                    
+                    if ($esCreacion) {
+                        $this->registrarAuditoria(
+                            'Crear',
+                            'footer_contacts',
+                            $contact->id,
+                            "Contacto - {$nombreColumna}",
+                            null,
+                            null,
+                            "Columna: {$nombreColumna} | Email: {$contact->email} | Teléfono: {$contact->phone}"
+                        );
+                    } else {
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'footer_contacts',
+                            $contact->id,
+                            "Contacto - {$nombreColumna}",
+                            $valoresAnteriores,
+                            $valoresNuevos,
+                            !empty($detalleExtra) ? implode(' | ', $detalleExtra) : null
+                        );
+                    }
+                    
+                    DB::commit();
+                    ConfiguracionHelper::clearFooterCache();
+                    
+                    return response()->json(['success' => true, 'message' => $esCreacion ? 'Contacto creado correctamente' : 'Contacto actualizado correctamente']);
+                    
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Error al guardar contacto de footer: ' . $e->getMessage(), [
+                        'column_id' => $request->column_id,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Error al guardar: ' . $e->getMessage()
+                    ], 500);
                 }
-
-                $contact->save();
-                ConfiguracionHelper::clearFooterCache();
-                return response()->json(['success' => true]);
                 break;
 
             case 'ListarFooterSocial':
@@ -764,7 +1078,7 @@ class Empresa extends Controller
                 $validator = Validator::make($request->all(), [
                     'id' => 'nullable|integer',
                     'column_id' => 'required|integer|exists:footer_columns,id',
-                    'name' => 'required|string|max:50',
+                    'name' => 'nullable|string|max:50',
                     'url' => 'required|string|max:255',
                     'active' => 'boolean',
                     'icon' => 'nullable',
@@ -783,7 +1097,7 @@ class Empresa extends Controller
                     $nombreOriginal = pathinfo($archivo->getClientOriginalName(), PATHINFO_FILENAME);
                     $nombreOriginal = preg_replace('/[^a-zA-Z0-9_-]/', '', $nombreOriginal);
                     $extension = $archivo->getClientOriginalExtension();
-                    $nombreUnico = 'img_' . time() . '_' . uniqid() . $extension;
+                    $nombreUnico = 'img_' . time() . '_' . uniqid() . '.' . $extension;
                     
                     $destino = 'iconos_footer';
                     $rutaDestino = public_path($destino);
@@ -799,45 +1113,170 @@ class Empresa extends Controller
                     return response()->json(['success' => false, 'message' => 'Debe proporcionar un ícono o una imagen'], 422);
                 }
 
-                if (empty($request->id)) {
-                    $maxOrder = FooterSocial::where('column_id', $request->column_id)->max('sort_order') ?? 0;
-                    $social = FooterSocial::create([
+                DB::beginTransaction();
+                try {
+                    $columna = FooterColumn::find($request->column_id);
+                    $nombreColumna = $columna ? $columna->title : "ID {$request->column_id}";
+                    
+                    if (empty($request->id)) {
+                        $maxOrder = FooterSocial::where('column_id', $request->column_id)->max('sort_order') ?? 0;
+                        $social = FooterSocial::create([
+                            'column_id' => $request->column_id,
+                            'name' => $request->name,
+                            'icon' => $iconValue,
+                            'url' => $request->url,
+                            'active' => $active,
+                            'sort_order' => $maxOrder + 1
+                        ]);
+                        $id = $social->id;
+                        
+                        $this->registrarAuditoria(
+                            'Crear',
+                            'footer_social',
+                            $social->id,
+                            $social->name,
+                            null,
+                            null,
+                            "Columna: {$nombreColumna} | URL: {$social->url} | Activo: " . ($active ? 'Sí' : 'No')
+                        );
+                        
+                    } else {
+                        $social = FooterSocial::findOrFail($request->id);
+                        
+                        $valoresAnteriores = [
+                            'name' => $social->name,
+                            'icon' => $social->icon,
+                            'url' => $social->url,
+                            'active' => $social->active,
+                            'sort_order' => $social->sort_order,
+                            'column_id' => $social->column_id
+                        ];
+                        
+                        if ($social->icon && str_starts_with($social->icon, '/iconos_footer/') && $social->icon != $iconValue) {
+                            $oldPath = public_path($social->icon);
+                            if (file_exists($oldPath)) {
+                                unlink($oldPath);
+                            }
+                        }
+                        
+                        $valoresNuevos = [
+                            'name' => $request->name,
+                            'icon' => $iconValue,
+                            'url' => $request->url,
+                            'active' => $active
+                        ];
+                        
+                        $social->update($valoresNuevos);
+                        $id = $social->id;
+                        
+                        $cambioIcono = ($valoresAnteriores['icon'] != $iconValue);
+                        
+                        $detalleExtra = [];
+                        if ($cambioIcono) {
+                            $detalleExtra[] = "Ícono actualizado";
+                        }
+                        
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'footer_social',
+                            $social->id,
+                            $social->name,
+                            $valoresAnteriores,
+                            $valoresNuevos,
+                            !empty($detalleExtra) ? implode(' | ', $detalleExtra) : null
+                        );
+                    }
+                    
+                    DB::commit();
+                    ConfiguracionHelper::clearFooterCache();
+                    
+                    return response()->json(['success' => true, 'id' => $id]);
+                    
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Error al guardar red social de footer: ' . $e->getMessage(), [
                         'column_id' => $request->column_id,
-                        'name' => $request->name,
-                        'icon' => $iconValue,
-                        'url' => $request->url,
-                        'active' => $active,
-                        'sort_order' => $maxOrder + 1
+                        'trace' => $e->getTraceAsString()
                     ]);
-                    $id = $social->id;
-                } else {
-                    $social = FooterSocial::findOrFail($request->id);
-                    $social->update([
-                        'name' => $request->name,
-                        'icon' => $iconValue,
-                        'url' => $request->url,
-                        'active' => $active
-                    ]);
-                    $id = $social->id;
+                    
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Error al guardar: ' . $e->getMessage()
+                    ], 500);
                 }
-                ConfiguracionHelper::clearFooterCache();
-                return response()->json(['success' => true, 'id' => $id]);
                 break;
 
             case 'EliminarFooterSocial':
-                $social = FooterSocial::find($request->input('id'));
-                if ($social) {
+                $validator = Validator::make($request->all(), [
+                    'id' => 'required|integer|exists:footer_social,id'
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'ID de red social no válido',
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+
+                DB::beginTransaction();
+                try {
+                    $social = FooterSocial::find($request->input('id'));
+                    
+                    if (!$social) {
+                        return response()->json([
+                            'success' => false, 
+                            'message' => 'Red social no encontrada'
+                        ], 404);
+                    }
+                    
+                    $id = $social->id;
+                    $nombre = $social->name;
+                    $url = $social->url;
                     $icon = $social->icon;
+                    $columnId = $social->column_id;
+                    $columna = FooterColumn::find($columnId);
+                    $nombreColumna = $columna ? $columna->title : "ID {$columnId}";
+                    
                     if ($icon && str_starts_with($icon, '/iconos_footer/')) {
                         $filePath = public_path($icon);
                         if (file_exists($filePath)) {
                             unlink($filePath);
                         }
                     }
+                    
                     $social->delete();
+                    
+                    $this->registrarAuditoria(
+                        'Eliminar',
+                        'footer_social',
+                        $id,
+                        $nombre,
+                        null,
+                        null,
+                        "Columna: {$nombreColumna} | URL: {$url}"
+                    );
+                    
+                    DB::commit();
+                    ConfiguracionHelper::clearFooterCache();
+                    
+                    return response()->json([
+                        'success' => true, 
+                        'message' => 'Red social eliminada correctamente'
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Error al eliminar red social de footer: ' . $e->getMessage(), [
+                        'id' => $request->input('id'),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Error al eliminar: ' . $e->getMessage()
+                    ], 500);
                 }
-                ConfiguracionHelper::clearFooterCache();
-                return response()->json(['success' => true]);
                 break;
 
             case 'ObtenerFooterLink':
@@ -850,36 +1289,149 @@ class Empresa extends Controller
                 return response()->json(['success' => true, 'data' => $social]);
                 break;
             case 'LimpiarIconoFooterColumn':
-                $column = FooterColumn::find($request->input('id'));
-                if ($column) {
-                    if ($column->icon && str_starts_with($column->icon, '/iconos_footer/')) {
-                        $filePath = public_path($column->icon);
+                $validator = Validator::make($request->all(), [
+                    'id' => 'required|integer|exists:footer_columns,id'
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'ID de columna no válido',
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+
+                DB::beginTransaction();
+                try {
+                    $column = FooterColumn::find($request->input('id'));
+                    
+                    if (!$column) {
+                        return response()->json([
+                            'success' => false, 
+                            'message' => 'Columna no encontrada'
+                        ], 404);
+                    }
+                    
+                    $id = $column->id;
+                    $titulo = $column->title;
+                    $iconoAnterior = $column->icon;
+                    $teniaIcono = !is_null($iconoAnterior);
+            
+                    if ($iconoAnterior && str_starts_with($iconoAnterior, '/iconos_footer/')) {
+                        $filePath = public_path($iconoAnterior);
                         if (file_exists($filePath)) {
                             unlink($filePath);
                         }
                     }
+                    
                     $column->icon = null;
                     $column->save();
-                    return response()->json(['success' => true]);
+                    
+                    if ($teniaIcono) {
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'footer_columns',
+                            $id,
+                            $titulo,
+                            ['icon' => $iconoAnterior],
+                            ['icon' => null],
+                            "Ícono de columna eliminado"
+                        );
+                    }
+                    
+                    DB::commit();
+                    ConfiguracionHelper::clearFooterCache();
+                    
+                    return response()->json([
+                        'success' => true, 
+                        'message' => 'Ícono eliminado correctamente'
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Error al limpiar ícono de columna de footer: ' . $e->getMessage(), [
+                        'id' => $request->input('id'),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Error al eliminar el ícono: ' . $e->getMessage()
+                    ], 500);
                 }
-                ConfiguracionHelper::clearFooterCache();
-                return response()->json(['success' => false, 'message' => 'Columna no encontrada']);
                 break;
+
             case 'LimpiarIconoFooterLink':
-                $link = FooterLink::find($request->input('id'));
-                if ($link) {
-                    if ($link->icon && str_starts_with($link->icon, '/iconos_footer/')) {
-                        $filePath = public_path($link->icon);
+                $validator = Validator::make($request->all(), [
+                    'id' => 'required|integer|exists:footer_links,id'
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'ID de enlace no válido',
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+
+                DB::beginTransaction();
+                try {
+                    $link = FooterLink::find($request->input('id'));
+                    
+                    if (!$link) {
+                        return response()->json([
+                            'success' => false, 
+                            'message' => 'Enlace no encontrado'
+                        ], 404);
+                    }
+                    
+                    $id = $link->id;
+                    $texto = $link->text;
+                    $iconoAnterior = $link->icon;
+                    $teniaIcono = !is_null($iconoAnterior);
+                
+                    if ($iconoAnterior && str_starts_with($iconoAnterior, '/iconos_footer/')) {
+                        $filePath = public_path($iconoAnterior);
                         if (file_exists($filePath)) {
                             unlink($filePath);
                         }
                     }
+                    
                     $link->icon = null;
                     $link->save();
-                    return response()->json(['success' => true]);
+                    
+                    if ($teniaIcono) {
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'footer_links',
+                            $id,
+                            $texto,
+                            ['icon' => $iconoAnterior],
+                            ['icon' => null],
+                            "Ícono de enlace eliminado"
+                        );
+                    }
+                    
+                    DB::commit();
+                    ConfiguracionHelper::clearFooterCache();
+                    
+                    return response()->json([
+                        'success' => true, 
+                        'message' => 'Ícono eliminado correctamente'
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Error al limpiar ícono de enlace de footer: ' . $e->getMessage(), [
+                        'id' => $request->input('id'),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Error al eliminar el ícono: ' . $e->getMessage()
+                    ], 500);
                 }
-                ConfiguracionHelper::clearFooterCache();
-                return response()->json(['success' => false, 'message' => 'Enlace no encontrado']);
                 break;
 
                 default:
@@ -930,49 +1482,101 @@ class Empresa extends Controller
                         return response()->json($data, 422);
                     }
 
-                    $configuracion = ConfiguracionCorreo::first();
-                    $valoresAnteriores = $configuracion ? $configuracion->toArray() : [];
-                    $cambiosContraseña = false;
+                    DB::beginTransaction();
+                    try {
+                        $configuracion = ConfiguracionCorreo::first();
+                        $esCreacion = is_null($configuracion);
+                        
+                        $valoresAnteriores = $configuracion ? [
+                            'servidor_correo' => $configuracion->servidor_correo,
+                            'puerto' => $configuracion->puerto,
+                            'nombre_acceso' => $configuracion->nombre_acceso,
+                            'seguridad' => $configuracion->seguridad,
+                            'activo' => $configuracion->activo,
+                            'contraseña' => '***OCULTA***'  
+                        ] : null;
 
-                    $datosActualizar = $request->only([
-                        'servidor_correo',
-                        'puerto',
-                        'nombre_acceso',
-                        'seguridad',
-                        'activo'
-                    ]);
+                        $datosActualizar = $request->only([
+                            'servidor_correo',
+                            'puerto',
+                            'nombre_acceso',
+                            'seguridad',
+                            'activo'
+                        ]);
+                        
+                        $datosActualizar['activo'] = filter_var($request->input('activo', false), FILTER_VALIDATE_BOOLEAN);
 
-                    // Manejar contraseña (solo actualizar si se proporciona)
-                    if ($request->filled('contraseña')) {
-                        $datosActualizar['contraseña'] = $request->input('contraseña');
-                        $cambiosContraseña = true;
-                    }
+                        $cambiosContraseña = false;
+                        if ($request->filled('contraseña')) {
+                            $datosActualizar['contraseña'] = Crypt::encryptString($request->input('contraseña'));
+                            $cambiosContraseña = true;
+                        }
 
-                    if ($configuracion) {
-                        // Si se activa esta configuración, desactivar las demás
-                        if ($request->input('activo', false)) {
-                            ConfiguracionCorreo::where('id', '!=', $configuracion->id)
-                                ->update(['activo' => false]);
+                        if ($configuracion) {
+                            if ($datosActualizar['activo']) {
+                                ConfiguracionCorreo::where('id', '!=', $configuracion->id)
+                                    ->update(['activo' => false]);
+                            }
+                            
+                            $configuracion->update($datosActualizar);
+                            
+                            $valoresNuevos = [
+                                'servidor_correo' => $configuracion->servidor_correo,
+                                'puerto' => $configuracion->puerto,
+                                'nombre_acceso' => $configuracion->nombre_acceso,
+                                'seguridad' => $configuracion->seguridad,
+                                'activo' => $configuracion->activo,
+                                'contraseña' => $cambiosContraseña ? '***ACTUALIZADA***' : '***SIN CAMBIOS***'
+                            ];
+                            
+                            $detalleExtra = [];
+                            if ($cambiosContraseña) {
+                                $detalleExtra[] = "Contraseña actualizada";
+                            }
+                            
+                            $this->registrarAuditoria(
+                                'Actualizar',
+                                'configuracion_correo',
+                                $configuracion->id,
+                                "Configuración de correo",
+                                $valoresAnteriores,
+                                $valoresNuevos,
+                                !empty($detalleExtra) ? implode(' | ', $detalleExtra) : null
+                            );
+                            
+                        } else {
+                            if ($request->filled('contraseña')) {
+                                $datosActualizar['contraseña'] = Crypt::encryptString($request->input('contraseña'));
+                            }
+                            
+                            $configuracion = ConfiguracionCorreo::create($datosActualizar);
+                            
+                            $this->registrarAuditoria(
+                                'Crear',
+                                'configuracion_correo',
+                                $configuracion->id,
+                                "Configuración de correo",
+                                null,
+                                null,
+                                "Servidor: {$configuracion->servidor_correo} | Puerto: {$configuracion->puerto}"
+                            );
                         }
                         
-                        $configuracion->update($datosActualizar);
-                        $accion = 'actualizar';
-                    } else {
-                        $configuracion = ConfiguracionCorreo::create($datosActualizar);
-                        $accion = 'crear';
-                    }
+                        DB::commit();
 
-                    // Auditoría detallada
-                    $descripcion = "Configuración de correo actualizada. ";
-                    if ($cambiosContraseña) {
-                        $descripcion .= "Contraseña actualizada. ";
+                        $data->success = true;
+                        $data->message = 'Configuración de correo guardada correctamente';
+                        $data->data = $configuracion;
+                        
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        \Log::error('Error al guardar configuración de correo: ' . $e->getMessage(), [
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        
+                        $data->success = false;
+                        $data->message = 'Error al guardar: ' . $e->getMessage();
                     }
-                    
-                    $this->registrarAuditoria($accion, 'configuracion_correo', $configuracion->id, $descripcion);
-
-                    $data->success = true;
-                    $data->message = 'Configuración de correo guardada correctamente';
-                    $data->data = $configuracion;
                     break;
 
                 case 'ProbarConexion':
@@ -1033,8 +1637,6 @@ class Empresa extends Controller
                                     ->subject('Prueba de conexión SMTP')
                                     ->html($this->generarContenidoEmailPrueba());
                         });
-
-                        $this->registrarAuditoria('probar', 'configuracion_correo', null, "Prueba de conexión SMTP enviada a: $email");
 
                         $data->success = true;
                         $data->message = 'Email de prueba enviado correctamente';

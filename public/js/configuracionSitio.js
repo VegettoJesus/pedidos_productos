@@ -968,45 +968,64 @@ function actualizarOrdenVisual() {
 }
 
 function validarFormulario() {
-        let isValid = true;
-        
-        const requiredFields = ['titulo_site', 'abreviatura_titulo', 'descripcion_corta', 'email_admin', 'max_entradas_home'];
-        
-        requiredFields.forEach(field => {
-            const element = $(`#${field}`);
-            if (!element.val() || !element.val().trim()) {
-                element.addClass('is-invalid');
-                isValid = false;
-            } else {
-                element.removeClass('is-invalid');
-            }
-        });
-
-        const email = $('#email_admin').val().trim();
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            $('#email_admin').addClass('is-invalid');
-            $('#email_admin').siblings('.invalid-feedback').text('Por favor ingrese un email válido');
-            isValid = false;
-        }
-
-        const maxEntradas = parseInt($('#max_entradas_home').val());
-        if (maxEntradas < 1 || maxEntradas > 50 || isNaN(maxEntradas)) {
-            $('#max_entradas_home').addClass('is-invalid');
-            isValid = false;
-        }
-
-        if (!isValid) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Formulario incompleto',
-                text: 'Por favor complete todos los campos requeridos correctamente',
-                confirmButtonText: 'Entendido'
-            });
-        }
-
-        return isValid;
+    let isValid = true;
+    
+    let descripcionHtml = '';
+    let descripcionTexto = '';
+    if (typeof tinymce !== 'undefined' && tinymce.get('descripcion_corta')) {
+        descripcionHtml = tinymce.get('descripcion_corta').getContent();
+        descripcionTexto = tinymce.get('descripcion_corta').getContent({ format: 'text' });
+    } else {
+        descripcionHtml = $('#descripcion_corta').val();
+        descripcionTexto = descripcionHtml;
     }
+    
+    $('#descripcion_corta').val(descripcionHtml);
+    
+    const requiredFields = ['titulo_site', 'abreviatura_titulo', 'email_admin', 'max_entradas_home'];
+    requiredFields.forEach(field => {
+        const element = $(`#${field}`);
+        if (!element.val() || !element.val().trim()) {
+            element.addClass('is-invalid');
+            isValid = false;
+        } else {
+            element.removeClass('is-invalid');
+        }
+    });
+    
+    if (!descripcionTexto.trim()) {
+        $('#descripcion_corta').addClass('is-invalid');
+        isValid = false;
+    } else {
+        $('#descripcion_corta').removeClass('is-invalid');
+    }
+    
+    // Validar email
+    const email = $('#email_admin').val().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        $('#email_admin').addClass('is-invalid');
+        $('#email_admin').siblings('.invalid-feedback').text('Por favor ingrese un email válido');
+        isValid = false;
+    }
+    
+    // Validar max_entradas_home
+    const maxEntradas = parseInt($('#max_entradas_home').val());
+    if (maxEntradas < 1 || maxEntradas > 50 || isNaN(maxEntradas)) {
+        $('#max_entradas_home').addClass('is-invalid');
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Formulario incompleto',
+            text: 'Por favor complete todos los campos requeridos correctamente',
+            confirmButtonText: 'Entendido'
+        });
+    }
+    return isValid;
+}
 
 function guardarConfiguracion() {
     if (!validarFormulario()) {  
@@ -1459,7 +1478,180 @@ $(document).ready(function() {
     function llenarFormulario(data) {
         $('#titulo_site').val(data.titulo_site || '');
         $('#abreviatura_titulo').val(data.abreviatura_titulo || '');
-        $('#descripcion_corta').val(data.descripcion_corta || '');
+        if (typeof tinymce !== 'undefined') {
+            if (tinymce.get('descripcion_corta')) {
+                tinymce.get('descripcion_corta').remove();
+            }
+            
+            tinymce.init({
+                selector: '#descripcion_corta',
+                language: 'es_MX',
+                height: 400,
+                menubar: false,
+                license_key: 'gpl',
+                base_url: '/assets/tinymce',
+                suffix: '.min',
+                plugins: ['lists', 'link', 'autolink', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'media', 'table', 'wordcount'],
+                toolbar: 'undo redo | styles forecolor | bold italic | alignleft aligncenter alignright alignjustify',
+                content_style: `
+                @font-face {
+                    font-family: 'default';
+                    src: url('/fonts/Poppins-Light.ttf');
+                }
+                body {
+                    font-family: 'default', Poppins, sans-serif;
+                    font-size: 14px;
+                }
+                `,
+                statusbar: false,
+                forced_root_block: 'p',
+                convert_urls: false,
+                remove_script_host: false,
+                paste_data_images: false,
+                setup: function(editor) {
+                    let limiteAlcanzado = false;
+                    
+                    // Función para actualizar contador y estado del límite
+                    function actualizarContador() {
+                        let textoPlano = editor.getContent({ format: 'text' });
+                        let longitud = textoPlano.length;
+                        let max = 500;
+                        let contadorSpan = $('#contadorDescripcion');
+                        contadorSpan.text(longitud + '/' + max);
+                        
+                        if (longitud >= max) {
+                            contadorSpan.css('color', 'red');
+                            if (!limiteAlcanzado) {
+                                limiteAlcanzado = true;
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'Límite alcanzado',
+                                    text: `Has alcanzado el máximo de ${max} caracteres. No puedes escribir más.`,
+                                    toast: true,
+                                    position: 'top-end',
+                                    showConfirmButton: false,
+                                    timer: 3000,
+                                    timerProgressBar: true
+                                });
+                            }
+                        } else {
+                            contadorSpan.css('color', '');
+                            if (longitud >= max * 0.9) {
+                                contadorSpan.css('color', 'orange');
+                            }
+                            limiteAlcanzado = false;
+                        }
+                    }
+                    
+                    // Función para verificar si se puede insertar texto
+                    function permitirInsercion(event) {
+                        let textoPlano = editor.getContent({ format: 'text' });
+                        let longitud = textoPlano.length;
+                        let max = 500;
+                        // Si ya alcanzó o superó el límite, bloquear inserción
+                        if (longitud >= max) {
+                            // Permitir teclas de control: backspace, delete, flechas, Ctrl, etc.
+                            let teclasPermitidas = [8, 46, 37, 38, 39, 40, 16, 17, 18, 20, 9, 27, 33, 34, 35, 36];
+                            if (event.keyCode && teclasPermitidas.includes(event.keyCode)) {
+                                return true;
+                            }
+                            // Si es una tecla que añade carácter (letras, números, espacio, etc.)
+                            // Prevenir evento
+                            event.preventDefault();
+                            event.stopPropagation();
+                            // Mostrar toast de advertencia una sola vez
+                            if (!window.bloqueoAdvertido) {
+                                window.bloqueoAdvertido = true;
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'Límite excedido',
+                                    text: `No puedes añadir más caracteres (${longitud}/${max}). Elimina algo primero.`,
+                                    toast: true,
+                                    position: 'top-end',
+                                    showConfirmButton: false,
+                                    timer: 2000,
+                                    timerProgressBar: true,
+                                    didClose: () => { window.bloqueoAdvertido = false; }
+                                });
+                                setTimeout(() => { window.bloqueoAdvertido = false; }, 2000);
+                            }
+                            return false;
+                        }
+                        return true;
+                    }
+                    
+                    // Evento al cargar el contenido inicial
+                    editor.on('init', function() {
+                        editor.setContent(data.descripcion_corta || '');
+                        actualizarContador();
+                    });
+                    
+                    // Evento de teclado antes de insertar
+                    editor.on('KeyDown', function(e) {
+                        if (!permitirInsercion(e)) {
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                            return false;
+                        }
+                    });
+                    
+                    // Evento de pegado (paste)
+                    editor.on('Paste', function(e) {
+                        let textoPlano = editor.getContent({ format: 'text' });
+                        let longitud = textoPlano.length;
+                        let max = 500;
+                        if (longitud >= max) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Límite alcanzado',
+                                text: 'No puedes pegar texto porque has superado el límite de 500 caracteres.',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 2000
+                            });
+                            return false;
+                        }
+                        // Si hay espacio, se permite el pegado, pero después actualizamos
+                        setTimeout(actualizarContador, 10);
+                    });
+                    
+                    // También bloquear comandos que inserten contenido (por ejemplo, deshacer podría traer más texto)
+                    editor.on('BeforeExecCommand', function(e) {
+                        if (e.command === 'mceInsertContent' || e.command === 'InsertUnorderedList' || e.command === 'InsertOrderedList') {
+                            if (!permitirInsercion(e)) {
+                                e.preventDefault();
+                                return false;
+                            }
+                        }
+                    });
+                    
+                    // Actualizar contador después de cualquier cambio
+                    editor.on('KeyUp Change SetContent', function() {
+                        actualizarContador();
+                    });
+                }
+            });
+        } else {
+            $('#descripcion_corta').val(data.descripcion_corta || '');
+
+            // Función contador para textarea común
+            function actualizarTextareaContador() {
+                let contenido = $('#descripcion_corta').val();
+                let longitud = contenido.length;
+                let max = 500;
+                $('#contadorDescripcion').text(longitud + '/' + max);
+                if (longitud > max) {
+                    $('#descripcion_corta').val(contenido.substring(0, max));
+                    $('#contadorDescripcion').text(max + '/' + max);
+                }
+            }
+
+            actualizarTextareaContador(); // inicializar
+            $('#descripcion_corta').on('input keyup', actualizarTextareaContador);
+        }
         $('#email_admin').val(data.email_admin || '');
         $('#icono_site').val(data.icono_site || '');
         if (data.icono_site) {
@@ -2326,8 +2518,8 @@ function renderizarEnlaces(enlaces) {
             <div class="list-group-item d-flex justify-content-between align-items-center" data-id="${link.id}">
                 <div>
                     ${iconHtml}
-                    <strong>${escapeHtml(link.text)}</strong><br>
-                    <small class="text-muted">${escapeHtml(link.url)}</small>
+                    <strong>${escapeHtml(link.text || link.url || 'Sin título')}</strong><br>
+                    ${link.url ? `<small class="text-muted">${escapeHtml(link.url)}</small>` : '<small class="text-muted">(sin URL)</small>'}
                     ${!link.active ? '<span class="badge bg-secondary ms-2">Inactivo</span>' : ''}
                 </div>
                 <div>
@@ -2557,8 +2749,8 @@ function editarEnlace(id) {
                     preConfirm: () => {
                         const text = $('#link-text').val();
                         const url = $('#link-url').val();
-                        if (!text || !url) {
-                            Swal.showValidationMessage('Texto y URL son obligatorios');
+                        if (!text && !url) {
+                            Swal.showValidationMessage('Debes proporcionar al menos texto o URL');
                             return false;
                         }
                         let iconValue = '';
@@ -2872,7 +3064,7 @@ $('#btnNuevoEnlace').click(function() {
         preConfirm: () => {
             const text = $('#link-text').val();
             const url = $('#link-url').val();
-            if (!text || !url) {
+            if (!text && !url) {
                 Swal.showValidationMessage('Texto y URL son obligatorios');
                 return false;
             }
@@ -3253,7 +3445,7 @@ function renderizarRedesSociales(redes) {
             <div class="list-group-item d-flex justify-content-between align-items-center" data-id="${red.id}">
                 <div>
                     ${iconHtml}
-                    <strong>${escapeHtml(red.name)}</strong><br>
+                    ${red.name ? `<strong>${escapeHtml(red.name)}</strong><br>` : ''}
                     <small class="text-muted">${escapeHtml(red.url)}</small>
                     ${!red.active ? '<span class="badge bg-secondary ms-2">Inactivo</span>' : ''}
                 </div>
@@ -3500,8 +3692,8 @@ function editarRedSocial(id) {
                         const url = $('#red-url').val();
                         let iconValue = '';
 
-                        if (!name || !url) {
-                            Swal.showValidationMessage('Nombre y URL son obligatorios');
+                        if (!url) {
+                            Swal.showValidationMessage('La URL es obligatoria');
                             return false;
                         }
 
@@ -3829,8 +4021,8 @@ $('#btnNuevaRedSocial').click(function() {
             const url = $('#red-url').val();
             let iconValue = '';
 
-            if (!name || !url) {
-                Swal.showValidationMessage('Nombre y URL son obligatorios');
+            if (!url) {
+                Swal.showValidationMessage('La URL es obligatoria');
                 return false;
             }
 

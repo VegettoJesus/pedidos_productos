@@ -139,10 +139,29 @@ async function abrirModalAgrupado(producto) {
     setupMiniaturaEventsAgrupado();
     setupBusquedaHijosAgrupado();
     setupProductoRelacionadoSearchAgrupado('#agrupado_crosssells', 'crosssells');
+    configurarPestanasAgrupado();
     
     // Mostrar modal
     const modal = new bootstrap.Modal(document.getElementById('modalProductoAgrupado'));
     modal.show();
+}
+
+function configurarPestanasAgrupado() {
+    const $modal = $('#modalProductoAgrupado');
+    if (!$modal.length) return;
+    $modal.find('.nav-link').removeClass('active');
+    $modal.find('.tab-pane').removeClass('show active');
+    const inventarioTab = $modal.find('.nav-link[data-bs-target="#agrupado-inventario"]');
+    const inventarioContent = $modal.find('#agrupado-inventario');
+    inventarioTab.addClass('active');
+    inventarioContent.addClass('show active');
+    setTimeout(() => {
+        inventarioContent.addClass('show active');
+    }, 10);
+    
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        $modal.find('[data-bs-toggle="tooltip"]').tooltip();
+    }
 }
 
 // Renderizar productos hijos

@@ -144,6 +144,37 @@ class ConfiguracionHelper
     }
 
     /**
+     * Obtener el texto a mostrar para un enlace (usa text si existe, si no la URL)
+     */
+    public static function getLinkDisplayText($link)
+    {
+        if (!empty($link->text)) {
+            return e($link->text);
+        }
+        if (!empty($link->url)) {
+            return e($link->url);
+        }
+        return 'Enlace'; // Fallback (no debería ocurrir porque validas al menos uno)
+    }
+
+    /**
+     * Renderizar un enlace del footer (con o sin URL)
+     */
+    public static function renderFooterLink($link)
+    {
+        $iconHtml = self::renderFooterIcon($link->icon);
+        $displayText = self::getLinkDisplayText($link);
+
+        if (empty($link->url)) {
+            // Sin URL: solo texto plano
+            return '<span class="footer-link-text">' . $iconHtml . $displayText . '</span>';
+        }
+
+        $url = self::normalizeUrl($link->url);
+        return '<a href="' . $url . '" class="footer-link" target="_blank" rel="noopener noreferrer">' . $iconHtml . $displayText . '</a>';
+    }
+
+    /**
      * Obtener contacto de una columna mixta
      */
     public static function getFooterContact($columnId)
@@ -174,12 +205,27 @@ class ConfiguracionHelper
         if (empty($icon)) {
             return '';
         }
-        // Si es una ruta de imagen (comienza con /iconos_footer/ o cualquier /)
+        
         if (str_starts_with($icon, '/') || preg_match('/\.(ico|png|jpg|jpeg|gif|svg|webp)$/i', $icon)) {
-            return '<img src="' . asset($icon) . '" alt="icono" style="width: 20px; height: 20px; object-fit: contain; margin-right: 8px;">';
+            $filename = pathinfo($icon, PATHINFO_FILENAME);
+            $largeSuffixes = ['_link', '_email', '_phone', '_address'];
+            $useLarge = false;
+            
+            foreach ($largeSuffixes as $suffix) {
+                if (str_ends_with($filename, $suffix)) {
+                    $useLarge = true;
+                    break;
+                }
+            }
+            
+            $sizeStyle = $useLarge
+                ? 'width: 1.7rem; height: 1.7rem; object-fit: contain;'
+                : 'width: 20px; height: 20px; object-fit: contain;';
+            
+            return '<img src="' . asset($icon) . '" alt="icono" style="' . $sizeStyle . '">';
         }
-        // Asumimos clase CSS estilo Bootstrap Icons
-        return '<i class="' . e($icon) . '" style="margin-right: 8px;"></i>';
+        
+        return '<i class="' . e($icon) . '"></i>';
     }
 
     public static function normalizeUrl($url)

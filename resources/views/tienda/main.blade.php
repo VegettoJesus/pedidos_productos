@@ -1,7 +1,7 @@
 <div class="inicio-full-container">
     <h1>Bienvenido a <span class="highlight">{{ $titulo_site ?: 'EMPRESA' }}</span></h1>
         @if(!empty($descripcion_corta))
-            <p>{{ $descripcion_corta }}</p>
+            {!! $descripcion_corta !!}
         @else
             <p>Tu destino preferido para la tecnología más avanzada e innovadora. Ofrecemos los mejores productos tecnológicos, desde dispositivos inteligentes hasta componentes de última generación, con la calidad y soporte que mereces.</p>
             <p>Explora nuestro catálogo y descubre las últimas novedades en el mundo de la tecnología. En esta empresa nos dedicamos a brindar soluciones inteligentes para un futuro conectado.</p>

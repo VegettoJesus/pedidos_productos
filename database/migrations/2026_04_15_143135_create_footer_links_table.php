@@ -11,8 +11,8 @@ class CreateFooterLinksTable extends Migration
         Schema::create('footer_links', function (Blueprint $table) {
             $table->id();
             $table->foreignId('column_id')->constrained('footer_columns')->onDelete('cascade');
-            $table->string('text', 100);
-            $table->string('url', 255);
+            $table->string('text', 100)->nullable();
+            $table->string('url', 255)->nullable();
             $table->string('icon', 255)->nullable();
             $table->integer('sort_order')->default(0);
             $table->boolean('active')->default(true);

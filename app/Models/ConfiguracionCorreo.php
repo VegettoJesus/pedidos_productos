@@ -29,24 +29,31 @@ class ConfiguracionCorreo extends Model
         'puerto' => 'integer',
         'activo' => 'boolean',
     ];
-    
+
     /**
      * Encriptar contraseña al guardar
      */
     public function setContraseñaAttribute($value)
     {
-        $this->attributes['contraseña'] = Crypt::encryptString($value);
+        if (!empty($value)) {
+            $this->attributes['contraseña'] = Crypt::encryptString($value);
+        }
     }
     
     /**
-     * Desencriptar contraseña al leer
+     * Desencriptar contraseña al leer (para usar en envío de correos)
      */
     public function getContraseñaAttribute($value)
     {
+        if (empty($value)) {
+            return null;
+        }
+        
         try {
-            return $value ? Crypt::decryptString($value) : null;
+            return Crypt::decryptString($value);
         } catch (\Exception $e) {
-            return $value; // Si no se puede desencriptar, devolver el valor original
+            \Log::error('Error al desencriptar contraseña de correo: ' . $e->getMessage());
+            return null;
         }
     }
     

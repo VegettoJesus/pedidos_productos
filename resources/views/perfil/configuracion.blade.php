@@ -346,34 +346,6 @@
                             <i class="bi bi-geo-alt"></i> Dirección
                         </div>
 
-                        @php
-                            $direccionCompleta = $usuario->datos->direccion ?? '';
-                            $calle = '';
-                            $numero = '';
-                            $otros = '';
-                            $codigoPostal = '';
-                            
-                            if ($direccionCompleta) {
-                                $partes = explode(',', $direccionCompleta);
-                                $ultimaParte = trim(end($partes));
-                                if (preg_match('/(\d{5})$/', $ultimaParte, $matches)) {
-                                    $codigoPostal = $matches[1];
-                                    $partes[count($partes) - 1] = trim(str_replace($codigoPostal, '', $ultimaParte));
-                                }
-                                
-                                if (isset($partes[0])) {
-                                    $primeraParte = trim($partes[0]);
-                                    $partesCalle = explode(' ', $primeraParte);
-                                    $numero = array_pop($partesCalle);
-                                    $calle = implode(' ', $partesCalle);
-                                }
-                                
-                                if (isset($partes[1])) {
-                                    $otros = trim($partes[1]);
-                                }
-                            }
-                        @endphp
-
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label for="departamento_id" class="form-label">Departamento</label>
@@ -403,22 +375,22 @@
                             <div class="col-md-5">
                                 <label for="direccion" class="form-label">Calle/Av.</label>
                                 <input type="text" class="form-control" id="direccion" name="direccion" 
-                                       value="{{ $calle }}" placeholder="Av. Ejemplo" required>
+                                       value="{{ $usuario->datos->calle ?? '' }}" placeholder="Av. Ejemplo" required>
                             </div>
                             <div class="col-md-2">
                                 <label for="num_calle" class="form-label">N°</label>
                                 <input type="text" class="form-control" id="num_calle" name="num_calle" 
-                                       value="{{ $numero }}" placeholder="123" required>
+                                       value="{{ $usuario->datos->numero ?? '' }}" placeholder="123" required>
                             </div>
                             <div class="col-md-3">
                                 <label for="dir_otros" class="form-label">Piso/Dpto</label>
                                 <input type="text" class="form-control" id="dir_otros" name="dir_otros" 
-                                       value="{{ $otros }}" placeholder="Piso 1, Dpto 101">
+                                       value="{{ $usuario->datos->dir_otros ?? '' }}" placeholder="Piso 1, Dpto 101">
                             </div>
                             <div class="col-md-2">
                                 <label for="cod_postal" class="form-label">Código Postal</label>
                                 <input type="text" class="form-control" id="cod_postal" name="cod_postal" 
-                                       value="{{ $codigoPostal }}" placeholder="15074">
+                                       value="{{ $usuario->datos->cod_postal ?? '' }}" placeholder="15074">
                             </div>
                         </div>
                     </div>

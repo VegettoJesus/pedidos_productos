@@ -47,8 +47,8 @@ async function abrirModalVariable(producto) {
                     stock: v.stock || 0,
                     price_normal: v.precio_regular || '',
                     price_sale: v.precio_rebajado || '',
-                    sale_start: v.fecha_inicio_rebaja || '',
-                    sale_end: v.fecha_fin_rebaja || '',
+                    sale_start: v.fecha_inicio_rebaja ? v.fecha_inicio_rebaja.substring(0,10) : '',  
+                    sale_end: v.fecha_fin_rebaja ? v.fecha_fin_rebaja.substring(0,10) : '',
                     weight: v.peso || '',
                     weight_type: v.peso_unidad || 'kg',
                     length: v.longitud || '',
@@ -56,7 +56,7 @@ async function abrirModalVariable(producto) {
                     height: v.altura || '',
                     description: v.descripcion || '',
                     backorder: v.backorders ? 'yes' : 'no',
-                    atributos: atributosCompletos, // Array completo con todos los atributos
+                    atributos: atributosCompletos,
                     images: (v.imagenes || []).map(img => ({
                         id: img.id,
                         url: '/' + img.imagen_path,
@@ -1540,23 +1540,19 @@ function agregarVariacionManualVariable() {
     renderVariacionesVariable();
 }
 
-// ============================================
-// CONFIGURACIÓN DE PESTAÑAS
-// ============================================
-
 function configurarPestanasVariable() {
-    // Activar primera pestaña por defecto
-    $('#variable-inventario').addClass('show active');
-    
-    // Inicializar tooltips de Bootstrap si existen
+    $('#modalProductoVariable .nav-link').removeClass('active');
+    $('#modalProductoVariable .tab-pane').removeClass('show active');
+    const inventarioTab = $('#modalProductoVariable .nav-link[data-bs-target="#variable-inventario"]');
+    inventarioTab.addClass('active');
+    $('#modalProductoVariable #variable-inventario').addClass('show active');
+    setTimeout(() => {
+        $('#modalProductoVariable #variable-inventario').addClass('show active');
+    }, 10);
     if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-        $('[data-bs-toggle="tooltip"]').tooltip();
+        $('#modalProductoVariable [data-bs-toggle="tooltip"]').tooltip();
     }
 }
-
-// ============================================
-// GUARDAR PRODUCTO VARIABLE
-// ============================================
 
 $(document).on('click', '#btnGuardarVariable', function(e) {
     e.preventDefault();
@@ -1638,7 +1634,7 @@ async function guardarProductoVariable() {
     if (editState.productoActual.atributos?.length > 0) {
         const atributosParaEnviar = editState.productoActual.atributos.map(attr => ({
             atributo_id: attr.id,
-            valores: attr.valoresSeleccionados?.map(v => v.id) || [], 
+            valores: (attr.terminos || []).map(v => v.id), // ← usa terminos, no valoresSeleccionados
             visible: attr.visible ?? true,
             variacion: attr.variacion ?? false
         }));
@@ -1652,18 +1648,18 @@ async function guardarProductoVariable() {
         const variacionesParaEnviar = editState.variaciones.map((variacion, index) => {
             const variacionData = {
                 id: variacion.id || null,
-                sku: variacion.sku || '',
-                stock: variacion.stock || 0,
-                price_normal: variacion.price_normal || '',
-                price_sale: variacion.price_sale || '',
-                sale_start: variacion.sale_start || '',
-                sale_end: variacion.sale_end || '',
-                weight: variacion.weight || '',
+                sku: variacion.sku || null,
+                stock: variacion.stock !== undefined && variacion.stock !== '' ? Number(variacion.stock) : 0,
+                price_normal: variacion.price_normal ? Number(variacion.price_normal) : 0,
+                price_sale: variacion.price_sale ? Number(variacion.price_sale) : 0,
+                sale_start: variacion.sale_start || null,
+                sale_end: variacion.sale_end || null,
+                weight: variacion.weight ? Number(variacion.weight) : null,
                 weight_type: variacion.weight_type || 'kg',
-                length: variacion.length || '',
-                width: variacion.width || '',
-                height: variacion.height || '',
-                description: variacion.description || '',
+                length: variacion.length ? Number(variacion.length) : null,
+                width: variacion.width ? Number(variacion.width) : null,
+                height: variacion.height ? Number(variacion.height) : null,
+                description: variacion.description || null,
                 backorder: variacion.backorder || 'no',
                 atributos: variacion.atributos || []
             };

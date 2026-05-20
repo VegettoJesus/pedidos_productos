@@ -654,9 +654,28 @@ function abrirModalSimple(producto) {
   // 🔹 ATRIBUTOS
   renderAtributosSimpleUI();
 
+  configurarPestanasSimple();
+
   // Mostrar modal
   const modal = new bootstrap.Modal(document.getElementById('modalProductoSimple'));
   modal.show();
+}
+
+function configurarPestanasSimple() {
+    const $modal = $('#modalProductoSimple');
+    if (!$modal.length) return;
+    $modal.find('.nav-link').removeClass('active');
+    $modal.find('.tab-pane').removeClass('show active');
+    const generalTab = $modal.find('.nav-link[data-bs-target="#simple-general"]');
+    const generalContent = $modal.find('#simple-general');
+    generalTab.addClass('active');
+    generalContent.addClass('show active');
+    setTimeout(() => {
+        generalContent.addClass('show active');
+    }, 10);
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        $modal.find('[data-bs-toggle="tooltip"]').tooltip();
+    }
 }
 
 function setupInventarioFields(producto) {
