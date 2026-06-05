@@ -393,7 +393,7 @@ class Catalogo extends Controller
                             'stock_minimo', 'max_stock'
                         ];
 
-                        // Si es simple o agrupado → sí necesita precios y stock
+                        // Si es simple → sí necesita precios y stock
                         if ($request->input('tipo_producto') === 'simple') {
                             $productoBaseFields = array_merge($productoBaseFields, [
                                 'precio_regular', 'precio_rebajado',
@@ -408,7 +408,7 @@ class Catalogo extends Controller
                         $productoData['gestion_inventario'] = $request->boolean('gestion_inventario');
                         $productoData['vendido_individualmente'] = $request->boolean('vendido_individualmente');
                         $productoData['permite_valoraciones'] = $request->boolean('permite_valoraciones');
-                        $productoData['backorders'] = $request->input('backorders') === 'yes';
+                        $productoData['backorders'] = $request->input('backorders');
                         $productoData['stock'] = intval($request->input('stock') ?? 0);
                         $producto = Producto::create($productoData);
 
@@ -1618,6 +1618,7 @@ class Catalogo extends Controller
                             'estado' => $producto->estado,
                             'gestion_inventario' => $producto->gestion_inventario,
                             'stock' => $producto->stock,
+                            'backorders' => $producto->backorders,
                             'vendido_individualmente' => $producto->vendido_individualmente,
                             'permite_valoraciones' => $producto->permite_valoraciones,
                             'peso' => $producto->peso,
@@ -1638,6 +1639,7 @@ class Catalogo extends Controller
                             'estado' => $request->input('estado'),
                             'gestion_inventario' => $request->boolean('gestion_inventario'),
                             'stock' => intval($request->input('stock') ?? 0),
+                            'backorders' => $request->boolean('backorders'),
                             'vendido_individualmente' => $request->boolean('vendido_individualmente'),
                             'permite_valoraciones' => $request->boolean('permite_valoraciones'),
                             'peso' => $request->input('peso'),
@@ -2556,11 +2558,11 @@ class Catalogo extends Controller
         $idsMantener = [];
         
         foreach ($variacionesData as $index => $vData) {
-            // 🔹 NORMALIZAR CAMPOS NUMÉRICOS Y FECHAS
             $normalized = [
                 'sku'                => !empty($vData['sku']) ? $vData['sku'] : null,
                 'precio_regular'     => !empty($vData['price_normal']) ? floatval($vData['price_normal']) : 0,
                 'precio_rebajado'    => !empty($vData['price_sale']) ? floatval($vData['price_sale']) : 0,
+                'gestion_inventario' => filter_var($vData['gestion_inventario'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'stock'              => isset($vData['stock']) && $vData['stock'] !== '' ? intval($vData['stock']) : 0,
                 'fecha_inicio_rebaja'=> !empty($vData['sale_start']) ? $vData['sale_start'] : null,
                 'fecha_fin_rebaja'   => !empty($vData['sale_end']) ? $vData['sale_end'] : null,

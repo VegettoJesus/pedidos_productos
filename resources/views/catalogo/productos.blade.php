@@ -219,7 +219,7 @@
                   <button type="button" id="btnAddTag" class="btn btn-primary">Añadir</button>
                 </div>
 
-                <div class="note-small mb-2">Selecciona de la lista o crea una etiqueta nueva. Las seleccionadas aparecerán como chips.</div>
+                <div class="note-small mb-2">Selecciona de la lista o crea una etiqueta nueva.</div>
 
                 <div id="availableTags" class="mb-2" style="max-height:120px; overflow:auto;">
                   <!-- Lista de etiquetas disponibles (checkboxes) -->
@@ -297,32 +297,34 @@
                     </label>
                     <input type="text" name="sku" class="form-control">
                   </div>
-
+                  <div class="note-small mb-2">Identificador único del producto.</div>
                   <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" id="checkGestion" name="gestion_inventario">
                     <label class="form-check-label" for="checkGestion" data-bs-toggle="tooltip" title="Activa control de stock por unidad">
                       Gestionar inventario
                     </label>
                   </div>
-
+                  <div class="note-small mb-2">Activar para controlar el stock del producto.</div>
                   <div id="invExtra" class="d-none">
                     <div class="mb-3">
                       <label class="form-label">Cantidad en inventario</label>
                       <input type="number" name="stock" class="form-control">
                     </div>
+                    <div class="note-small mb-2">Cantidad disponible actualmente.</div>
                     <div class="mb-3">
                       <label class="form-label" data-bs-toggle="tooltip" title="Permite realizar compras sin stock disponible">
                         ¿Permitir reservas?
                       </label>
                       <div class="form-check">
-                        <input type="radio" class="form-check-input" name="backorders" value="no" checked>
+                        <input type="radio" class="form-check-input" name="backorders" value="0" checked>
                         <label class="form-check-label">No permitir</label>
                       </div>
                       <div class="form-check">
-                        <input type="radio" class="form-check-input" name="backorders" value="sí">
+                        <input type="radio" class="form-check-input" name="backorders" value="1">
                         <label class="form-check-label">Permitir</label>
                       </div>
                     </div>
+                    <div class="note-small mb-2">Permitir que los clientes realicen pedidos aunque no haya stock.</div>
                   </div>
 
                   <div class="mb-3">
@@ -350,6 +352,7 @@
                       Limitar compras a 1 artículo por pedido
                     </label>
                   </div>
+                  <div class="note-small mb-2">El cliente solo podrá agregar una unidad de este producto por pedido.</div>
                 </div>
 
                 <div class="tab-pane fade p-3" id="tab-envio">
@@ -611,7 +614,7 @@
                 </div>
 
                 <div class="note-small mb-2">
-                  Selecciona de la lista o crea una etiqueta nueva. Las seleccionadas aparecerán como chips.
+                  Selecciona de la lista o crea una etiqueta nueva.
                 </div>
 
                 <div id="simple_availableTags" class="mb-2" style="max-height:120px; overflow:auto;">
@@ -986,6 +989,19 @@
                                     <input type="number" name="stock" id="variable_stock" class="form-control" min="0" value="0">
                                     <div class="form-text small">Stock general del producto (opcional)</div>
                                  </div>
+                                 <div class="mb-3">
+                                    <label class="form-label" data-bs-toggle="tooltip" title="Permite realizar compras sin stock disponible">
+                                      ¿Permitir reservas?
+                                    </label>
+                                    <div class="form-check">
+                                      <input type="radio" class="form-check-input" name="backorders" id="variable_backorders_no" value="0" checked>
+                                      <label class="form-check-label">No permitir</label>
+                                    </div>
+                                    <div class="form-check">
+                                      <input type="radio" class="form-check-input" name="backorders" id="variable_backorders_si" value="1">
+                                      <label class="form-check-label">Permitir</label>
+                                    </div>
+                                  </div>
                               </div>
                            </div>
                            <div class="form-check mb-3">
@@ -1071,6 +1087,9 @@
                                  <button type="button" id="variable_btnGenerateManual" class="btn btn-outline-secondary btn-sm">
                                  <i class="bi bi-plus-square me-1"></i> Agregar manual
                                  </button>
+                                 <button type="button" id="variable_btnDeleteAllVariations" class="btn btn-outline-danger btn-sm shadow-sm">
+                                    <i class="bi bi-trash me-1"></i> Eliminar todas
+                                </button>
                               </div>
                               <div id="variable_variacionesContainer" class="mb-3"></div>
                            </div>

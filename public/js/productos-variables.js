@@ -7,6 +7,11 @@ editState.variaciones = [];
 editState.variacionesAEliminar = [];
 editState.variacionesImagenesEliminar = [];
 
+function refreshVariaciones(resetPage = true) {
+    if (resetPage) editState.variacionesPage = 1;
+    renderVariacionesVariable();
+}
+
 // Función principal para abrir el modal de producto variable
 async function abrirModalVariable(producto) {
     try {
@@ -16,6 +21,7 @@ async function abrirModalVariable(producto) {
         editState.imagenesNuevas = [];
         editState.imagenesAEliminar = [];
         editState.variaciones = [];
+        editState.variacionesPage = 1;
         editState.variacionesAEliminar = [];
         editState.variacionesImagenesEliminar = [];
         editState.upsells = [];
@@ -56,6 +62,7 @@ async function abrirModalVariable(producto) {
                     height: v.altura || '',
                     description: v.descripcion || '',
                     backorder: v.backorders ? 'yes' : 'no',
+                    gestion_inventario: !!v.gestion_inventario,
                     atributos: atributosCompletos,
                     images: (v.imagenes || []).map(img => ({
                         id: img.id,
@@ -146,6 +153,25 @@ async function abrirModalVariable(producto) {
         
         // Configurar pestañas
         configurarPestanasVariable();
+
+        ensureMassActionsPanelVariable();
+        clearMassActionsPanelVariable();
+
+        const applyBtn = document.getElementById('varBtnApplyMassActions');
+        const clearBtn = document.getElementById('varBtnClearMassActions');
+        if (applyBtn) applyBtn.onclick = applyMassActionsVariable;
+        if (clearBtn) clearBtn.onclick = clearMassActionsPanelVariable;
+
+        const priceNormalAction = document.getElementById('varMassPriceNormalAction');
+        const priceNormalVal = document.getElementById('varMassPriceNormalValue');
+        const priceSaleAction = document.getElementById('varMassPriceSaleAction');
+        const priceSaleVal = document.getElementById('varMassPriceSaleValue');
+        if (priceNormalAction && priceNormalVal) {
+            priceNormalAction.onchange = () => priceNormalVal.disabled = (priceNormalAction.value === 'none');
+        }
+        if (priceSaleAction && priceSaleVal) {
+            priceSaleAction.onchange = () => priceSaleVal.disabled = (priceSaleAction.value === 'none');
+        }
 
         // Renderizar variaciones
         renderVariacionesVariable();
@@ -880,6 +906,11 @@ function configurarInventarioVariable(producto) {
     $('#variable_sku').val(producto.sku || '');
     $('#variable_gestion_inventario').prop('checked', !!producto.gestion_inventario);
     $('#variable_stock').val(producto.stock || 0);
+    if (producto.backorders == 1) {
+        $('#variable_backorders_si').prop('checked', true);
+    } else {
+        $('#variable_backorders_no').prop('checked', true);
+    }  
     $('#variable_vendido_individualmente').prop('checked', !!producto.vendido_individualmente);
 
     toggleInventarioDetallesVariable(!!producto.gestion_inventario);
@@ -1126,6 +1157,9 @@ function renderVariacionesVariable() {
     const container = document.getElementById('variable_variacionesContainer');
     if (!container) return;
 
+    const panel = document.getElementById('massActionsPanelVariable');
+    if (panel) panel.style.display = editState.variaciones.length ? 'block' : 'none'; 
+
     container.innerHTML = '';
 
     if (!editState.variaciones?.length) {
@@ -1133,14 +1167,68 @@ function renderVariacionesVariable() {
         return;
     }
 
-    editState.variaciones.forEach((variacion, index) => {
-        const variacionRow = createVariacionRowVariable(variacion, index);
+    const start = (editState.variacionesPage - 1) * editState.variacionesPerPage;
+    const end = start + editState.variacionesPerPage;
+    const pageVariaciones = editState.variaciones.slice(start, end);
+
+    pageVariaciones.forEach((variacion, localIndex) => {
+        const globalIndex = start + localIndex;
+        const variacionRow = createVariacionRowVariable(variacion, globalIndex);
         container.appendChild(variacionRow);
     });
 
-    // Botones de generación
-    $('#variable_btnGenerateVariations').off('click').on('click', () => generarVariacionesVariable());
-    $('#variable_btnGenerateManual').off('click').on('click', () => agregarVariacionManualVariable());
+    renderPaginationControls(container);
+
+    const btnGenerate = document.getElementById('variable_btnGenerateVariations');
+    const btnManual = document.getElementById('variable_btnGenerateManual');
+    if (btnGenerate) btnGenerate.onclick = () => generarVariacionesVariable();
+    if (btnManual) btnManual.onclick = () => agregarVariacionManualVariable();
+    const deleteAllBtn = document.getElementById('variable_btnDeleteAllVariations');
+    if (deleteAllBtn) deleteAllBtn.onclick = deleteAllVariacionesVariable;
+}
+
+function renderPaginationControls(container) {
+    const totalVariaciones = editState.variaciones.length;
+    const totalPages = Math.ceil(totalVariaciones / editState.variacionesPerPage);
+    if (totalPages <= 1) return;
+
+    const paginationDiv = document.createElement('div');
+    paginationDiv.className = 'd-flex justify-content-between align-items-center mt-3 pt-2 border-top';
+    paginationDiv.innerHTML = `
+        <div>
+            <span class="small text-muted">
+                Mostrando ${(editState.variacionesPage - 1) * editState.variacionesPerPage + 1} - 
+                ${Math.min(editState.variacionesPage * editState.variacionesPerPage, totalVariaciones)} 
+                de ${totalVariaciones} variaciones
+            </span>
+        </div>
+        <div>
+            <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="variacionesPrevBtn" ${editState.variacionesPage === 1 ? 'disabled' : ''}>
+                <i class="bi bi-chevron-left"></i> Anterior
+            </button>
+            <span class="small mx-2">Página ${editState.variacionesPage} de ${totalPages}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="variacionesNextBtn" ${editState.variacionesPage === totalPages ? 'disabled' : ''}>
+                Siguiente <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    `;
+
+    const prevBtn = paginationDiv.querySelector('#variacionesPrevBtn');
+    const nextBtn = paginationDiv.querySelector('#variacionesNextBtn');
+    if (prevBtn) prevBtn.addEventListener('click', () => {
+        if (editState.variacionesPage > 1) {
+            editState.variacionesPage--;
+            renderVariacionesVariable();
+        }
+    });
+    if (nextBtn) nextBtn.addEventListener('click', () => {
+        if (editState.variacionesPage < totalPages) {
+            editState.variacionesPage++;
+            renderVariacionesVariable();
+        }
+    });
+
+    container.appendChild(paginationDiv);
 }
 
 function createVariacionRowVariable(variacion, index) {
@@ -1239,21 +1327,34 @@ function createVariacionRowVariable(variacion, index) {
                 </div>
 
                 <!-- Stock y Backorder -->
-                <div class="row g-2 mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label small mb-1">Cantidad en inventario</label>
-                        <input type="number" class="form-control form-control-sm variation-stock" value="${variacion.stock || 0}">
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input gestion-inventario-check" 
+                            id="gestion_inventario_${index}" ${variacion.gestion_inventario ? 'checked' : ''}>
+                        <label class="form-check-label small fw-bold" for="gestion_inventario_${index}">
+                            Gestionar inventario para esta variación
+                        </label>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label small mb-1 d-block">¿Permitir reservas?</label>
-                        <div class="d-flex gap-2">
-                            <div class="form-check">
-                                <input class="form-check-input allow-backorder" type="radio" name="backorder_${index}" value="no" ${variacion.backorder !== 'yes' ? 'checked' : ''}>
-                                <label class="form-check-label small">No</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input allow-backorder" type="radio" name="backorder_${index}" value="yes" ${variacion.backorder === 'yes' ? 'checked' : ''}>
-                                <label class="form-check-label small">Sí</label>
+                </div>
+
+                <!-- Contenedor que se muestra/oculta según el checkbox -->
+                <div class="inventario-detalles-variacion" style="display: ${variacion.gestion_inventario ? 'block' : 'none'};">
+                    <div class="row g-2 mb-3 justify-content-between">
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1">Cantidad en inventario</label>
+                            <input type="number" class="form-control form-control-sm variation-stock" value="${variacion.stock || 0}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1 d-block">¿Permitir reservas?</label>
+                            <div class="d-flex gap-2">
+                                <div class="form-check">
+                                    <input class="form-check-input allow-backorder" type="radio" name="backorder_${index}" value="no" ${variacion.backorder !== 'yes' ? 'checked' : ''}>
+                                    <label class="form-check-label small">No</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input allow-backorder" type="radio" name="backorder_${index}" value="yes" ${variacion.backorder === 'yes' ? 'checked' : ''}>
+                                    <label class="form-check-label small">Sí</label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1313,7 +1414,11 @@ function createVariacionRowVariable(variacion, index) {
             editState.variacionesAEliminar.push(variacion.id);
         }
         editState.variaciones.splice(index, 1);
-        renderVariacionesVariable();
+        if (editState.variaciones.length > 0 && 
+            (editState.variacionesPage - 1) * editState.variacionesPerPage >= editState.variaciones.length) {
+            editState.variacionesPage--;
+        }
+        refreshVariaciones(false);
     });
 
     // Guardar cambios en tiempo real
@@ -1383,6 +1488,20 @@ function createVariacionRowVariable(variacion, index) {
         radio.addEventListener('change', () => variacionActual.backorder = radio.value);
     });
 
+    const chkGestion = wrapper.querySelector('.gestion-inventario-check');
+    const detallesDivInventario = wrapper.querySelector('.inventario-detalles-variacion');
+    if (chkGestion && detallesDivInventario) {
+        // Sincronizar estado inicial (por si el valor de variacion.gestion_inventario cambió)
+        chkGestion.checked = variacionActual.gestion_inventario;
+        detallesDivInventario.style.display = variacionActual.gestion_inventario ? 'block' : 'none';
+
+        chkGestion.addEventListener('change', (e) => {
+            variacionActual.gestion_inventario = e.target.checked;
+            detallesDivInventario.style.display = e.target.checked ? 'block' : 'none';
+        });
+    }
+
+
     // Imágenes
     const imgInput = wrapper.querySelector('.variation-image-input');
     const imgPreview = wrapper.querySelector('.image-preview');
@@ -1447,6 +1566,249 @@ function createVariacionRowVariable(variacion, index) {
     return wrapper;
 }
 
+function ensureMassActionsPanelVariable() {
+    // Buscar el contenedor de variaciones
+    const container = document.getElementById('variable_variacionesContainer');
+    if (!container) return;
+    
+    // Verificar si el panel ya existe
+    if (document.getElementById('massActionsPanelVariable')) return;
+    
+    // Crear el panel HTML (con IDs únicos para evitar conflictos con el otro modal)
+    const panel = document.createElement('div');
+    panel.id = 'massActionsPanelVariable';
+    panel.className = 'card border-0 mb-4';
+    panel.style.display = 'none';
+    panel.style.background = '#fff';
+    panel.innerHTML = `
+        <div class="card-header bg-white border-0 fw-bold py-3" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+            <i class="bi bi-lightning-charge-fill text-primary me-2"></i> Acciones masivas sobre todas las variaciones
+        </div>
+        <div class="card-body">
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold"><i class="bi bi-tag me-1 text-primary"></i> Precio normal</label>
+                    <select id="varMassPriceNormalAction" class="form-select mb-2">
+                        <option value="none">Sin cambios</option>
+                        <option value="inc_fixed">Incrementar (fijo)</option>
+                        <option value="inc_percent">Incrementar (%)</option>
+                        <option value="dec_fixed">Reducir (fijo)</option>
+                        <option value="dec_percent">Reducir (%)</option>
+                    </select>
+                    <input type="number" id="varMassPriceNormalValue" class="form-control" placeholder="Valor" disabled>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold"><i class="bi bi-percent me-1 text-success"></i> Precio rebajado</label>
+                    <select id="varMassPriceSaleAction" class="form-select mb-2">
+                        <option value="none">Sin cambios</option>
+                        <option value="set">Establecer (fijo)</option>
+                        <option value="inc_fixed">Incrementar (fijo)</option>
+                        <option value="inc_percent">Incrementar (%)</option>
+                        <option value="dec_fixed">Reducir (fijo)</option>
+                        <option value="dec_percent">Reducir (%)</option>
+                    </select>
+                    <input type="number" id="varMassPriceSaleValue" class="form-control" placeholder="Valor" disabled>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold"><i class="bi bi-calendar-week me-1 text-warning"></i> Periodo de rebaja</label>
+                    <input type="date" id="varMassSaleStart" class="form-control mb-2" placeholder="Desde">
+                    <input type="date" id="varMassSaleEnd" class="form-control" placeholder="Hasta">
+                </div>
+            </div>
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold"><i class="bi bi-box-seam me-1 text-info"></i> Gestión inventario</label>
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" id="varMassEnableInventory" class="form-check-input" style="cursor: pointer;">
+                        <label class="form-check-label">Activar gestión</label>
+                    </div>
+                    <label class="form-label fw-semibold"><i class="bi bi-database me-1"></i> Establecer stock</label>
+                    <input type="number" id="varMassStock" class="form-control" placeholder="Cantidad">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold"><i class="bi bi-arrow-left-right me-1"></i> Largo (cm)</label>
+                    <input type="number" id="varMassLength" class="form-control mb-2" placeholder="Largo">
+                    <label class="form-label fw-semibold"><i class="bi bi-arrows-angle-expand me-1"></i> Ancho (cm)</label>
+                    <input type="number" id="varMassWidth" class="form-control" placeholder="Ancho">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold"><i class="bi bi-arrow-up me-1"></i> Alto (cm)</label>
+                    <input type="number" id="varMassHeight" class="form-control mb-3" placeholder="Alto">
+                    <label class="form-label fw-semibold"><i class="bi bi-weight-scale me-1"></i> Peso</label>
+                    <div class="input-group">
+                        <input type="number" id="varMassWeight" class="form-control" placeholder="Valor">
+                        <select id="varMassWeightUnit" class="form-select" style="max-width: 80px;">
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="mg">mg</option>
+                            <option value="lb">lb</option>
+                            <option value="oz">oz</option>
+                            <option value="ton">ton</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-md-12">
+                    <button type="button" id="varBtnApplyMassActions" class="btn btn-primary w-100 shadow-sm"><i class="bi bi-check2-circle me-1"></i> Aplicar a todas</button>
+                </div>
+                <div class="col-12 col-md-12">
+                    <button type="button" id="varBtnClearMassActions" class="btn btn-outline-secondary w-100 shadow-sm"><i class="bi bi-arrow-repeat me-1"></i> Limpiar</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Insertar el panel justo antes del contenedor de variaciones
+    container.parentNode.insertBefore(panel, container);
+}
+
+// Eliminar todas las variaciones
+function deleteAllVariacionesVariable() {
+    if (!editState.variaciones.length) return;
+    Swal.fire({
+        title: '¿Eliminar todas las variaciones?',
+        text: `Se eliminarán ${editState.variaciones.length} variaciones. Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            editState.variaciones = [];
+            editState.variacionesPage = 1;
+            renderVariacionesVariable();
+            showAlert('success', 'Eliminadas', 'Todas las variaciones han sido eliminadas.');
+        }
+    });
+}
+
+// Aplicar acciones masivas
+function applyMassActionsVariable() {
+    if (!editState.variaciones.length) {
+        showAlert('warning', 'Sin variaciones', 'No hay variaciones para modificar.');
+        return;
+    }
+
+    // Obtener valores
+    const priceNormalAction = document.getElementById('varMassPriceNormalAction')?.value || 'none';
+    const priceNormalValue = parseFloat(document.getElementById('varMassPriceNormalValue')?.value);
+    const priceSaleAction = document.getElementById('varMassPriceSaleAction')?.value || 'none';
+    const priceSaleValue = parseFloat(document.getElementById('varMassPriceSaleValue')?.value);
+    const saleStart = document.getElementById('varMassSaleStart')?.value;
+    const saleEnd = document.getElementById('varMassSaleEnd')?.value;
+    const enableInventory = document.getElementById('varMassEnableInventory')?.checked;
+    const massStock = document.getElementById('varMassStock')?.value;
+    const massLength = document.getElementById('varMassLength')?.value;
+    const massWidth = document.getElementById('varMassWidth')?.value;
+    const massHeight = document.getElementById('varMassHeight')?.value;
+    const massWeight = document.getElementById('varMassWeight')?.value;
+    const massWeightUnit = document.getElementById('varMassWeightUnit')?.value;
+
+    let changesApplied = false;
+
+    for (let variacion of editState.variaciones) {
+        // Precio normal
+        if (priceNormalAction !== 'none' && !isNaN(priceNormalValue)) {
+            let current = parseFloat(variacion.price_normal) || 0;
+            let newValue = current;
+            switch (priceNormalAction) {
+                case 'inc_fixed': newValue = current + priceNormalValue; break;
+                case 'inc_percent': newValue = current * (1 + priceNormalValue / 100); break;
+                case 'dec_fixed': newValue = current - priceNormalValue; break;
+                case 'dec_percent': newValue = current * (1 - priceNormalValue / 100); break;
+            }
+            variacion.price_normal = Math.max(0, newValue).toFixed(2);
+            changesApplied = true;
+        }
+
+        // Precio rebajado
+        if (priceSaleAction !== 'none' && !isNaN(priceSaleValue)) {
+            let current = parseFloat(variacion.price_sale) || 0;
+            let newValue = current;
+            switch (priceSaleAction) {
+                case 'set': newValue = priceSaleValue; break;
+                case 'inc_fixed': newValue = current + priceSaleValue; break;
+                case 'inc_percent': newValue = current * (1 + priceSaleValue / 100); break;
+                case 'dec_fixed': newValue = current - priceSaleValue; break;
+                case 'dec_percent': newValue = current * (1 - priceSaleValue / 100); break;
+            }
+            variacion.price_sale = Math.max(0, newValue).toFixed(2);
+            changesApplied = true;
+        }
+
+        // Fechas rebaja
+        if (saleStart) {
+            variacion.sale_start = saleStart;
+            changesApplied = true;
+        }
+        if (saleEnd) {
+            variacion.sale_end = saleEnd;
+            changesApplied = true;
+        }
+
+        // Gestión inventario
+        if (enableInventory) {
+            variacion.gestion_inventario = true;
+            changesApplied = true;
+        }
+
+        // Stock
+        if (massStock !== undefined && massStock !== '') {
+            variacion.stock = Number(massStock);
+            changesApplied = true;
+        }
+
+        // Dimensiones
+        if (massLength !== undefined && massLength !== '') {
+            variacion.length = Number(massLength);
+            changesApplied = true;
+        }
+        if (massWidth !== undefined && massWidth !== '') {
+            variacion.width = Number(massWidth);
+            changesApplied = true;
+        }
+        if (massHeight !== undefined && massHeight !== '') {
+            variacion.height = Number(massHeight);
+            changesApplied = true;
+        }
+        // Peso y unidad
+        if (massWeight !== undefined && massWeight !== '') {
+            variacion.weight = Number(massWeight);
+            variacion.weight_type = massWeightUnit;
+            changesApplied = true;
+        }
+    }
+
+    clearMassActionsPanelVariable();
+
+    if (changesApplied) {
+        renderVariacionesVariable(); // refresca vista
+        showAlert('success', 'Actualización masiva', 'Se han modificado todas las variaciones.');
+    } else {
+        showAlert('info', 'Sin cambios', 'No se seleccionó ninguna acción o valores inválidos.');
+    }
+}
+
+// Limpiar panel de acciones
+function clearMassActionsPanelVariable() {
+    document.getElementById('varMassPriceNormalAction').value = 'none';
+    document.getElementById('varMassPriceSaleAction').value = 'none';
+    document.getElementById('varMassPriceNormalValue').disabled = true;
+    document.getElementById('varMassPriceSaleValue').disabled = true;
+    document.getElementById('varMassPriceNormalValue').value = '';
+    document.getElementById('varMassPriceSaleValue').value = '';
+    document.getElementById('varMassSaleStart').value = '';
+    document.getElementById('varMassSaleEnd').value = '';
+    document.getElementById('varMassStock').value = '';
+    document.getElementById('varMassLength').value = '';
+    document.getElementById('varMassWidth').value = '';
+    document.getElementById('varMassHeight').value = '';
+    document.getElementById('varMassWeight').value = '';
+    document.getElementById('varMassWeightUnit').value = 'kg';
+    document.getElementById('varMassEnableInventory').checked = false;
+}
+
 function generarVariacionesVariable() {
     const attrs = (editState.productoActual.atributos || []).filter(a => a.variacion && a.terminos?.length);
     
@@ -1482,6 +1844,7 @@ function generarVariacionesVariable() {
     const nuevasVariaciones = combos.map(combo => ({
         atributos: combo.map(c => ({ atrId: c.atrId, termId: c.termId })),
         sku: '',
+        gestion_inventario: false,
         stock: 0,
         price_normal: '',
         price_sale: '',
@@ -1522,6 +1885,7 @@ function agregarVariacionManualVariable() {
             termId: null // null = "Cualquier valor"
         })),
         sku: '',
+        gestion_inventario: false,
         stock: 0,
         price_normal: '',
         price_sale: '',
@@ -1649,6 +2013,7 @@ async function guardarProductoVariable() {
             const variacionData = {
                 id: variacion.id || null,
                 sku: variacion.sku || null,
+                gestion_inventario: variacion.gestion_inventario ? 1 : 0,
                 stock: variacion.stock !== undefined && variacion.stock !== '' ? Number(variacion.stock) : 0,
                 price_normal: variacion.price_normal ? Number(variacion.price_normal) : 0,
                 price_sale: variacion.price_sale ? Number(variacion.price_sale) : 0,

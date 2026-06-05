@@ -30,8 +30,20 @@
     upsells: [],
     crosssells: [],
     variaciones: [],
-    relacionados: []
+    relacionados: [],
+    variacionesPage: 1,
+    variacionesPerPage: 10,
   };
+
+  function getCurrentPageVariaciones() {
+    const start = (state.variacionesPage - 1) * state.variacionesPerPage;
+    return state.variaciones.slice(start, start + state.variacionesPerPage);
+  }
+
+  function resetVariacionesPagination() {
+      state.variacionesPage = 1;
+      renderVariacionesUI();
+  }
 
   function initTipoProductoSystem(){
     const sel = qs('#tipoProductoSelect');
@@ -50,14 +62,212 @@
   }
 
   function clearOnTipoChange(nuevoTipo){
-    const tipoSelect = qs('#tipoProductoSelect');
-    const keepTipo = nuevoTipo;
-    if(tipoSelect) tipoSelect.value = keepTipo;
-
+    console.log(`🔄 Limpiando todo antes de cambiar a: ${nuevoTipo}`);
+    
+    // NO reseteamos el formulario completo aquí porque eso cambiaría el select
+    // Solo limpiamos los estados específicos
+    
+    // ===== 1. LIMPIAR ESTADO PRINCIPAL =====
     state.productoAtributos = [];
     state.variaciones = [];
+    state.upsells = [];
+    state.crosssells = [];
+    state.relacionados = [];
+    state.imageFiles = [];
+    state.selectedTags.clear();
+    state.miniaturaFile = null;
+    state.variacionesPage = 1;
+    state.isSubmitting = false;
+    
+    // ===== 2. LIMPIAR TINYMCE =====
+    if (typeof tinymce !== 'undefined' && tinymce.get('descripcionLarga')) {
+        tinymce.get('descripcionLarga').setContent('');
+    }
+    
+    // ===== 3. LIMPIAR CONTENEDORES VISUALES =====
+    const atributosBlocks = qs('#atributosBlocks');
+    if (atributosBlocks) atributosBlocks.innerHTML = '';
+    
+    const variationsContainer = qs('#variationsContainer');
+    if (variationsContainer) variationsContainer.innerHTML = '';
+    
+    const previewContainer = qs('#previewContainer');
+    if (previewContainer) previewContainer.innerHTML = '';
+    
+    // ===== 4. LIMPIAR TAGS DE RELACIONADOS =====
+    const tagContainers = document.querySelectorAll('.tag-container');
+    tagContainers.forEach(container => {
+        if (container) container.innerHTML = '';
+    });
+    
+    // ===== 5. LIMPIAR INPUTS DE BÚSQUEDA =====
+    const searchInputs = ['#inputUpsells', '#inputCrosssells', '#inputRelacionados'];
+    searchInputs.forEach(selector => {
+        const input = qs(selector);
+        if (input) input.value = '';
+    });
+    
+    // ===== 6. LIMPIAR MINIATURA =====
+    const miniImg = qs('#miniImg');
+    const miniPlaceholder = qs('#miniPlaceholder');
+    const removeMiniBtn = qs('#removeMiniBtn');
+    if (miniImg) {
+        if (miniImg.src) URL.revokeObjectURL(miniImg.src);
+        miniImg.src = '';
+        miniImg.style.display = 'none';
+    }
+    if (miniPlaceholder) miniPlaceholder.style.display = 'flex';
+    if (removeMiniBtn) removeMiniBtn.classList.add('d-none');
+    
+    const miniInput = qs('#miniaturaInput');
+    if (miniInput) miniInput.value = '';
+    
+    // ===== 7. LIMPIAR CATEGORÍA Y SUBCATEGORÍA =====
+    const catSelect = qs('#categoriaSelect');
+    if (catSelect) catSelect.value = '';
+    
+    const subList = qs('#subcategoriaList');
+    if (subList) subList.innerHTML = '<div class="text-muted text-center py-3">Selecciona una categoría primero</div>';
+    
+    // Limpiar radio buttons de subcategoría
+    const subcatRadios = document.querySelectorAll('input[name="id_subCategorias"]');
+    subcatRadios.forEach(radio => radio.checked = false);
+    
+    // ===== 8. LIMPIAR ETIQUETAS =====
+    // Limpiar checkboxes de etiquetas disponibles
+    const tagCheckboxes = document.querySelectorAll('.tag-available');
+    tagCheckboxes.forEach(checkbox => {
+        if (checkbox) checkbox.checked = false;
+    });
+    
+    // Limpiar etiquetas seleccionadas
+    const selectedTagsContainer = qs('#selectedTags');
+    if (selectedTagsContainer) selectedTagsContainer.innerHTML = '';
+    
+    const tagInput = qs('#tagInput');
+    if (tagInput) tagInput.value = '';
+    
+    // ===== 9. LIMPIAR CHECKBOXES Y RADIOS ESPECÍFICOS =====
+    // Programar rebaja
+    const checkRebaja = qs('#checkRebaja');
+    const rebajaFechas = qs('#rebajaFechas');
+    if (checkRebaja) {
+        checkRebaja.checked = false;
+        if (rebajaFechas) rebajaFechas.classList.add('d-none');
+    }
+    
+    // Gestión de inventario
+    const checkGestion = qs('#checkGestion');
+    const invExtra = qs('#invExtra');
+    if (checkGestion) {
+        checkGestion.checked = false;
+        if (invExtra) invExtra.classList.add('d-none');
+    }
+    
+    // ===== 10. LIMPIAR CAMPOS DE INVENTARIO =====
+    const stockInput = qs('input[name="stock"]');
+    if (stockInput) stockInput.value = '';
+    
+    const skuInput = qs('input[name="sku"]');
+    if (skuInput) skuInput.value = '';
+    
+    const backordersRadios = document.querySelectorAll('input[name="backorders"]');
+    backordersRadios.forEach(radio => radio.checked = false);
+    if (backordersRadios.length > 0) backordersRadios[0].checked = true;
+    
+    // Estado de inventario
+    const estadoInvRadios = document.querySelectorAll('input[name="estado_inv"]');
+    estadoInvRadios.forEach(radio => radio.checked = false);
+    const primerEstadoInv = document.querySelector('input[name="estado_inv"][value="existe"]');
+    if (primerEstadoInv) primerEstadoInv.checked = true;
+    
+    // ===== 11. LIMPIAR CAMPOS DE PRECIOS =====
+    const precioRegular = qs('input[name="precio_regular"]');
+    if (precioRegular) precioRegular.value = '';
+    
+    const precioRebajado = qs('input[name="precio_rebajado"]');
+    if (precioRebajado) precioRebajado.value = '';
+    
+    const fechaInicio = qs('input[name="fecha_inicio_rebaja"]');
+    const fechaFin = qs('input[name="fecha_fin_rebaja"]');
+    if (fechaInicio) fechaInicio.value = '';
+    if (fechaFin) fechaFin.value = '';
+    
+    // ===== 12. LIMPIAR CAMPOS DE ENVÍO =====
+    const peso = qs('input[name="peso"]');
+    if (peso) peso.value = '';
+    
+    const pesoUnidad = qs('select[name="peso_unidad"]');
+    if (pesoUnidad) pesoUnidad.value = 'kg';
+    
+    const longitud = qs('input[name="longitud"]');
+    const anchura = qs('input[name="anchura"]');
+    const altura = qs('input[name="altura"]');
+    if (longitud) longitud.value = '';
+    if (anchura) anchura.value = '';
+    if (altura) altura.value = '';
+    
+    // ===== 13. LIMPIAR CAMPOS AVANZADOS =====
+    const notaInterna = qs('textarea[name="nota_interna"]');
+    if (notaInterna) notaInterna.value = '';
+    
+    const permiteValoraciones = qs('input[name="permite_valoraciones"]');
+    if (permiteValoraciones) permiteValoraciones.checked = true;
+    
+    const vendidoIndividualmente = qs('input[name="vendido_individualmente"]');
+    if (vendidoIndividualmente) vendidoIndividualmente.checked = false;
+    
+    // ===== 14. LIMPIAR IMÁGENES PRINCIPALES =====
+    const imagenesInput = qs('#imagenesInput');
+    if (imagenesInput) imagenesInput.value = '';
+    
+    // Liberar URLs de objetos
+    state.imageFiles.forEach(img => {
+        if (img.url) URL.revokeObjectURL(img.url);
+    });
+    
+    // ===== 15. RESETEAR CHECKBOXES DE ATRIBUTOS DE VARIACIÓN =====
+    const chkVariaciones = document.querySelectorAll('.chk-variacion');
+    chkVariaciones.forEach(chk => {
+        if (chk) {
+            chk.checked = false;
+            // Ocultar si es necesario
+            const formCheck = chk.closest('.form-check');
+            if (formCheck) formCheck.classList.add('d-none');
+        }
+    });
+    
+    // ===== 16. RE-RENDERIZAR COMPONENTES =====
     renderAtributoBlocks();
-    renderVariacionesUI(); 
+    renderVariacionesUI();
+    renderSelectedTags();
+    updateImageStatus();
+    
+    // ===== 17. LIMPIAR VARIABLES DE PAGINACIÓN =====
+    state.variacionesPage = 1;
+    
+    console.log(`✅ Todo limpiado correctamente para tipo: ${nuevoTipo}`);
+  }
+
+  function initNewProductButton() {
+    const btnNuevo = qs('#btnNuevo');
+    if (btnNuevo) {
+        btnNuevo.addEventListener('click', function() {
+            console.log('Botón Nuevo clickeado - limpiando todo');
+            resetForm(false); // Reset completo
+            
+            // Resetear tipo de producto a simple
+            const tipoSelect = qs('#tipoProductoSelect');
+            if (tipoSelect) {
+                tipoSelect.value = 'simple';
+                applyTipoUI('simple');
+            }
+            
+            // Limpiar campos ocultos
+            const idInput = qs('#idProducto');
+            if (idInput) idInput.value = '';
+        });
+    }
   }
 
   function applyTipoUI(tipo){
@@ -75,90 +285,177 @@
     ensureVariacionesTab();
 
     if(tipo === 'simple'){
+      // Mostrar todas las pestañas normalmente
       toggleNavByTarget('#tab-general', true);
       togglePane('#tab-general', true);
-
       toggleNavByTarget('#tab-inventario', true);
       togglePane('#tab-inventario', true);
-      showInventoryMode('simple');
-      renderRelacionadosDefault();
-
       toggleNavByTarget('#tab-envio', true);
       togglePane('#tab-envio', true);
-
       toggleNavByTarget('#tab-relacionados', true);
       togglePane('#tab-relacionados', true);
-
       toggleNavByTarget('#tab-atributos', true);
       togglePane('#tab-atributos', true);
-
       toggleNavByTarget('#tab-avanzado', true);
       togglePane('#tab-avanzado', true);
-
       toggleNavByTarget('#tab-variaciones', false);
       togglePane('#tab-variaciones', false);
-
+      
+      // Habilitar campos de precios en general
+      enablePriceFields(true);
       toggleAtributoVariacionCheckbox(false);
-
-      showTab('#tab-general');
+      showTab('#tab-general');  // Para simple: mostrar pestaña General
 
     } else if(tipo === 'variable'){
+      // Ocultar pestaña general (precios van en variaciones)
       toggleNavByTarget('#tab-general', false);
       togglePane('#tab-general', false);
-
+      
       toggleNavByTarget('#tab-inventario', true);
       togglePane('#tab-inventario', true);
-      showInventoryMode('variable');
-      renderRelacionadosDefault();
-
       toggleNavByTarget('#tab-envio', true);
       togglePane('#tab-envio', true);
-
       toggleNavByTarget('#tab-relacionados', true);
       togglePane('#tab-relacionados', true);
-
       toggleNavByTarget('#tab-atributos', true);
       togglePane('#tab-atributos', true);
-
       toggleNavByTarget('#tab-avanzado', true);
       togglePane('#tab-avanzado', true);
-
       toggleNavByTarget('#tab-variaciones', true);
       togglePane('#tab-variaciones', true);
-
+      
+      // Configurar inventario para variable
+      showInventoryMode('variable');
+      // Deshabilitar campos de precio en general (no aplican para variable)
+      enablePriceFields(false);
       toggleAtributoVariacionCheckbox(true);
-
-      showTab('#tab-variaciones');
-
-      renderVariacionesUI();
+      
+      // *** CAMBIO AQUÍ: Mostrar pestaña de Inventario en lugar de Variaciones ***
+      showTab('#tab-inventario');  // Antes era '#tab-variaciones'
+      
+      renderVariacionesUI(); // Aunque no se muestre la pestaña, se renderizan por si el usuario cambia
 
     } else if(tipo === 'agrupado'){
       toggleNavByTarget('#tab-general', false);
       togglePane('#tab-general', false);
-
       toggleNavByTarget('#tab-inventario', true);
       togglePane('#tab-inventario', true);
-      showInventoryMode('agrupado');
-      renderRelacionadosAgrupado();
       toggleNavByTarget('#tab-envio', false);
       togglePane('#tab-envio', false);
-
       toggleNavByTarget('#tab-relacionados', true);
       togglePane('#tab-relacionados', true);
-
       toggleNavByTarget('#tab-atributos', true);
       togglePane('#tab-atributos', true);
-
       toggleNavByTarget('#tab-avanzado', true);
       togglePane('#tab-avanzado', true);
-
       toggleNavByTarget('#tab-variaciones', false);
       togglePane('#tab-variaciones', false);
-
+      
+      showInventoryMode('agrupado');
       toggleAtributoVariacionCheckbox(false);
-
       showFirstVisibleTab(navContainer);
     }
+  }
+
+// Función auxiliar para habilitar/deshabilitar campos de precio
+function enablePriceFields(enable) {
+    const precioRegular = qs('input[name="precio_regular"]');
+    const precioRebajado = qs('input[name="precio_rebajado"]');
+    const checkRebaja = qs('#checkRebaja');
+    const rebajaFechas = qs('#rebajaFechas');
+    
+    if (precioRegular) {
+        precioRegular.disabled = !enable;
+        if (!enable) precioRegular.value = '';
+    }
+    if (precioRebajado) {
+        precioRebajado.disabled = !enable;
+        if (!enable) precioRebajado.value = '';
+    }
+    if (checkRebaja) {
+        checkRebaja.disabled = !enable;
+        if (!enable) {
+            checkRebaja.checked = false;
+            if (rebajaFechas) rebajaFechas.classList.add('d-none');
+        }
+    }
+}
+
+function showInventoryMode(mode){
+    const invPane = qs('#tab-inventario');
+    if(!invPane) return;
+
+    // Primero mostrar todos los elementos
+    qsa('#tab-inventario .mb-3, #tab-inventario .form-check').forEach(el => {
+        el.classList.remove('d-none');
+    });
+
+    if(mode === 'simple'){
+        // Mostrar todo para simple
+        // No ocultar nada adicional
+        
+        // Asegurar que los campos de precio están habilitados
+        enablePriceFields(true);
+
+    } else if(mode === 'variable'){
+        // Para variable: ocultar estado de inventario
+        const estadoInv = invPane.querySelector('[name="estado_inv"]');
+        if(estadoInv) {
+            const estadoInvGroup = estadoInv.closest('.mb-3, .form-check');
+            if(estadoInvGroup) estadoInvGroup.classList.add('d-none');
+        }
+        
+        // Mostrar tooltip informativo sobre inventario en variaciones
+        showInventoryInfoMessage(true);
+        
+        // Deshabilitar campos de precio (se manejan en variaciones)
+        enablePriceFields(false);
+
+    } else if(mode === 'agrupado'){
+        // Para agrupado: solo SKU
+        const elementosAOcultar = ['gestion_inventario', 'stock', 'backorders', 'estado_inv', 'vendido_individualmente'];
+        elementosAOcultar.forEach(campo => {
+            const elemento = invPane.querySelector(`[name="${campo}"]`);
+            if(elemento) {
+                const grupo = elemento.closest('.mb-3, .form-check');
+                if(grupo) grupo.classList.add('d-none');
+            }
+        });
+        
+        // Mostrar mensaje informativo
+        showInventoryInfoMessage(false);
+    }
+}
+
+// Función para mostrar mensajes informativos en inventario
+function showInventoryInfoMessage(isVariable) {
+    const invPane = qs('#tab-inventario');
+    if(!invPane) return;
+    
+    // Eliminar mensaje existente
+    const existingMsg = invPane.querySelector('.inventory-info-message');
+    if(existingMsg) existingMsg.remove();
+    
+    // Crear nuevo mensaje
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'alert alert-info inventory-info-message mt-3';
+    msgDiv.style.fontSize = '0.9rem';
+    
+    if(isVariable) {
+        msgDiv.innerHTML = `
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <strong>Nota:</strong> Para productos variables, el inventario y los precios se gestionan a nivel de cada variación.
+            Completa los atributos y genera las variaciones para configurar SKU, stock y precios individuales.
+        `;
+    } else {
+        msgDiv.innerHTML = `
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <strong>Nota:</strong> Los productos agrupados no gestionan inventario propio.
+            El stock se calcula automáticamente basado en los productos que lo componen.
+        `;
+    }
+    
+    invPane.appendChild(msgDiv);
   }
 
   // ---- Helpers adicionales ----
@@ -171,17 +468,17 @@
       const hasGestion = el.querySelector('[name="gestion_inventario"]');
       const hasLimit = el.querySelector('[name="vendido_individualmente"]');
       const hasStock = el.querySelector('[name="stock"]');
-
+      const hasEstado_inv = el.querySelector('[name="estado_inv"]');
+      
       if(mode === 'simple'){
         // Mostrar todo
         el.classList.remove('d-none');
 
       } else if(mode === 'variable'){
-        // Solo SKU, gestionar inventario y limitar compras
-        if (hasSku || hasGestion || hasLimit || hasStock) {
-          el.classList.remove('d-none');
-        } else {
+        if (hasEstado_inv) {
           el.classList.add('d-none');
+        } else {
+          el.classList.remove('d-none');
         }
 
       } else if(mode === 'agrupado'){
@@ -264,15 +561,102 @@
       pane.className = 'tab-pane fade p-3 d-none';
       pane.innerHTML = `
         <div class="mb-3">
-          <div class="d-flex gap-2 mb-3">
-            <button type="button" id="btnGenerateVariations" class="btn btn-outline-primary btn-sm"><i class="bi bi-gear-wide-connected me-1"></i> Generar variaciones</button>
-            <button type="button" id="btnGenerateManualVariation" class="btn btn-outline-secondary btn-sm"><i class="bi bi-plus-square me-1"></i> Generar manual</button>
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            <button type="button" id="btnGenerateVariations" class="btn btn-outline-primary shadow-sm"><i class="bi bi-gear-wide-connected me-1"></i> Generar variaciones</button>
+            <button type="button" id="btnGenerateManualVariation" class="btn btn-outline-secondary shadow-sm"><i class="bi bi-plus-square me-1"></i> Generar manual</button>
+            <button type="button" id="btnDeleteAllVariations" class="btn btn-outline-danger shadow-sm"><i class="bi bi-trash me-1"></i> Eliminar todas</button>
           </div>
+
+          <!-- Panel de acciones masivas (oculto inicialmente) -->
+          <div id="massActionsPanel" class="card border-0 mb-4" style="display: none; background: #fff;">
+            <div class="card-header bg-white border-0 fw-bold py-3" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+              <i class="bi bi-lightning-charge-fill text-primary me-2"></i> Acciones masivas sobre todas las variaciones
+            </div>
+            <div class="card-body">
+              <!-- Primera fila: precios -->
+              <div class="row g-4 mb-4">
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold"><i class="bi bi-tag me-1 text-primary"></i> Precio normal</label>
+                  <select id="massPriceNormalAction" class="form-select mb-2">
+                    <option value="none">Sin cambios</option>
+                    <option value="inc_fixed">Incrementar (fijo)</option>
+                    <option value="inc_percent">Incrementar (%)</option>
+                    <option value="dec_fixed">Reducir (fijo)</option>
+                    <option value="dec_percent">Reducir (%)</option>
+                  </select>
+                  <input type="number" id="massPriceNormalValue" class="form-control" placeholder="Valor" disabled>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold"><i class="bi bi-percent me-1 text-success"></i> Precio rebajado</label>
+                  <select id="massPriceSaleAction" class="form-select mb-2">
+                    <option value="none">Sin cambios</option>
+                    <option value="set">Establecer (fijo)</option>
+                    <option value="inc_fixed">Incrementar (fijo)</option>
+                    <option value="inc_percent">Incrementar (%)</option>
+                    <option value="dec_fixed">Reducir (fijo)</option>
+                    <option value="dec_percent">Reducir (%)</option>
+                  </select>
+                  <input type="number" id="massPriceSaleValue" class="form-control" placeholder="Valor" disabled>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold"><i class="bi bi-calendar-week me-1 text-warning"></i> Periodo de rebaja</label>
+                  <input type="date" id="massSaleStart" class="form-control mb-2" placeholder="Desde">
+                  <input type="date" id="massSaleEnd" class="form-control" placeholder="Hasta">
+                </div>
+              </div>
+
+              <!-- Segunda fila: inventario y dimensiones -->
+              <div class="row g-4 mb-4">
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold"><i class="bi bi-box-seam me-1 text-info"></i> Gestión inventario</label>
+                  <div class="form-check form-switch mb-3">
+                    <input type="checkbox" id="massEnableInventory" class="form-check-input" style="cursor: pointer;">
+                    <label class="form-check-label">Activar gestión</label>
+                  </div>
+                  <label class="form-label fw-semibold"><i class="bi bi-database me-1"></i> Establecer stock</label>
+                  <input type="number" id="massStock" class="form-control" placeholder="Cantidad">
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold"><i class="bi bi-arrow-left-right me-1"></i> Largo (cm)</label>
+                  <input type="number" id="massLength" class="form-control mb-2" placeholder="Largo">
+                  <label class="form-label fw-semibold"><i class="bi bi-arrows-angle-expand me-1"></i> Ancho (cm)</label>
+                  <input type="number" id="massWidth" class="form-control" placeholder="Ancho">
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold"><i class="bi bi-arrow-up me-1"></i> Alto (cm)</label>
+                  <input type="number" id="massHeight" class="form-control mb-3" placeholder="Alto">
+                  <label class="form-label fw-semibold"><i class="bi bi-weight-scale me-1"></i> Peso</label>
+                  <div class="input-group">
+                    <input type="number" id="massWeight" class="form-control" placeholder="Valor">
+                    <select id="massWeightUnit" class="form-select" style="max-width: 80px;">
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="mg">mg</option>
+                      <option value="lb">lb</option>
+                      <option value="oz">oz</option>
+                      <option value="ton">ton</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="row g-4 mb-4">
+                  <div class="col-12 col-md-12">
+                    <button type="button" id="btnApplyMassActions" class="btn btn-primary w-100 shadow-sm"><i class="bi bi-check2-circle me-1"></i> Aplicar a todas</button>
+                  </div>
+                  <div class="col-12 col-md-12">
+                    <button type="button" id="btnClearMassActions" class="btn btn-outline-secondary w-100 shadow-sm"><i class="bi bi-arrow-repeat me-1"></i> Limpiar</button>
+                  </div>
+              </div>
+            </div>
+          </div>
+
           <div id="variationsContainer" class="mb-3"></div>
         </div>
       `;
       const tabContent = qs('.tab-content');
       if(tabContent) tabContent.appendChild(pane);
+      
+      // Eventos de los botones
       document.addEventListener('click', (e) => {
         if(e.target && e.target.id === 'btnGenerateVariations') {
           generateVariationsFromAtributos();
@@ -280,6 +664,50 @@
         if(e.target && e.target.id === 'btnGenerateManualVariation') {
           addManualVariationRow();
         }
+        if(e.target && e.target.id === 'btnDeleteAllVariations') {
+          deleteAllVariations();
+        }
+        if(e.target && e.target.id === 'btnApplyMassActions') {
+          applyMassActions();
+        }
+      });
+
+      // Botón para limpiar acciones masivas
+      document.getElementById('btnClearMassActions')?.addEventListener('click', () => {
+        // Resetear selects
+        document.getElementById('massPriceNormalAction').value = 'none';
+        document.getElementById('massPriceSaleAction').value = 'none';
+        // Deshabilitar inputs de valor
+        document.getElementById('massPriceNormalValue').disabled = true;
+        document.getElementById('massPriceSaleValue').disabled = true;
+        // Limpiar valores numéricos y fechas
+        document.getElementById('massPriceNormalValue').value = '';
+        document.getElementById('massPriceSaleValue').value = '';
+        document.getElementById('massSaleStart').value = '';
+        document.getElementById('massSaleEnd').value = '';
+        document.getElementById('massStock').value = '';
+        document.getElementById('massLength').value = '';
+        document.getElementById('massWidth').value = '';
+        document.getElementById('massHeight').value = '';
+        document.getElementById('massWeight').value = '';
+        document.getElementById('massWeightUnit').value = 'kg';
+        // Desmarcar checkbox
+        document.getElementById('massEnableInventory').checked = false;
+        // Mostrar alerta opcional
+        showAlert('info', 'Panel limpiado', 'Se han restablecido todas las acciones masivas.', 1200, false);
+      });
+      
+      // Habilitar/deshabilitar inputs según selección
+      const priceNormalAction = document.getElementById('massPriceNormalAction');
+      const priceNormalVal = document.getElementById('massPriceNormalValue');
+      const priceSaleAction = document.getElementById('massPriceSaleAction');
+      const priceSaleVal = document.getElementById('massPriceSaleValue');
+      
+      priceNormalAction.addEventListener('change', () => {
+        priceNormalVal.disabled = (priceNormalAction.value === 'none');
+      });
+      priceSaleAction.addEventListener('change', () => {
+        priceSaleVal.disabled = (priceSaleAction.value === 'none');
       });
     }
   }
@@ -318,15 +746,106 @@
       bsTab.show();
     }
   }
-
+  
   // ---- Variaciones: generación y UI ----
-  function renderVariacionesUI(){
+  function renderVariacionesUI() {
     const container = qs('#variationsContainer');
-    if(!container) return;
+    if (!container) return;
     container.innerHTML = '';
-    state.variaciones.forEach((v, idx) => {
-      container.appendChild(createVariationRow(v, idx));
+
+    const massPanel = document.getElementById('massActionsPanel');
+    if (massPanel) {
+        massPanel.style.display = state.variaciones.length ? 'block' : 'none';
+    }
+
+    // Verificar si hay atributos marcados como variación
+    const atributosVariacion = state.productoAtributos.filter(a => a.variacion && a.valores && a.valores.length);
+    
+    if (!state.variaciones.length) {
+        if (atributosVariacion.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-warning text-center py-4">
+                    <i class="bi bi-exclamation-triangle-fill fs-4 d-block mb-2"></i>
+                    <strong>No hay variaciones</strong>
+                    <p class="mb-0 mt-2">Para generar variaciones, primero debes:</p>
+                    <ol class="text-start mt-2">
+                        <li>Ir a la pestaña <strong>Atributos</strong></li>
+                        <li>Agregar un atributo (ej: Talla, Color)</li>
+                        <li>Seleccionar sus valores</li>
+                        <li>Marcar el atributo como <strong>Variación</strong></li>
+                        <li>Volver aquí y hacer clic en <strong>Generar variaciones</strong></li>
+                    </ol>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="text-muted text-center py-4">
+                    <i class="bi bi-lightbulb fs-2 d-block mb-2"></i>
+                    <strong>No hay variaciones generadas</strong>
+                    <p class="mb-0 mt-2">Haz clic en "Generar variaciones" para crear todas las combinaciones posibles</p>
+                </div>
+            `;
+        }
+        return;
+    }
+
+    // Resto del código para mostrar variaciones...
+    const startIndex = (state.variacionesPage - 1) * state.variacionesPerPage;
+    const pageVariaciones = state.variaciones.slice(startIndex, startIndex + state.variacionesPerPage);
+
+    pageVariaciones.forEach((variacion, localIdx) => {
+        const globalIdx = startIndex + localIdx;
+        const row = createVariationRow(variacion, globalIdx);
+        container.appendChild(row);
     });
+
+    renderPaginationControls(container);
+  }
+
+  function renderPaginationControls(container) {
+    const totalPages = Math.ceil(state.variaciones.length / state.variacionesPerPage);
+    if (totalPages <= 1) return;
+
+    const paginationDiv = document.createElement('div');
+    paginationDiv.className = 'd-flex justify-content-between align-items-center mt-3';
+    paginationDiv.innerHTML = `
+        <div>
+            <span class="small text-muted">Mostrando ${state.variacionesPerPage * (state.variacionesPage - 1) + 1} - ${Math.min(state.variacionesPerPage * state.variacionesPage, state.variaciones.length)} de ${state.variaciones.length} variaciones</span>
+        </div>
+        <div>
+            <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="variacionesPrevBtn" ${state.variacionesPage === 1 ? 'disabled' : ''}>
+                <i class="bi bi-chevron-left"></i> Anterior
+            </button>
+            <span class="small mx-2">Página ${state.variacionesPage} de ${totalPages}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="variacionesNextBtn" ${state.variacionesPage === totalPages ? 'disabled' : ''}>
+                Siguiente <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    `;
+
+    // Eventos de los botones (usando event delegation o listeners directos)
+    const prevBtn = paginationDiv.querySelector('#variacionesPrevBtn');
+    const nextBtn = paginationDiv.querySelector('#variacionesNextBtn');
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (state.variacionesPage > 1) {
+                state.variacionesPage--;
+                renderVariacionesUI();
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (state.variacionesPage < totalPages) {
+                state.variacionesPage++;
+                renderVariacionesUI();
+            }
+        });
+    }
+
+    container.appendChild(paginationDiv);
   }
 
   function createVariationRow(variation, idx) {
@@ -405,24 +924,37 @@
           </div>
 
           <!-- Stock y Backorder -->
-          <div class="row g-2 mb-3">
-            <div class="col-md-4">
-              <label class="form-label small mb-1">Cantidad</label>
-              <input type="number" name="variation_stock_${idx}" class="form-control form-control-sm variation-stock" value="${variation?.stock != null ? variation.stock : ''}">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small mb-1 d-block">¿Permitir reservas?</label>
-              <div class="d-flex gap-2">
-                <div class="form-check">
-                  <input class="form-check-input allow-backorder" type="radio" name="variation_backorder_${idx}" value="no" ${variation?.backorder !== 'yes' ? 'checked' : ''}>
-                  <label class="form-check-label small">No permitir</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input allow-backorder" type="radio" name="variation_backorder_${idx}" value="yes" ${variation?.backorder === 'yes' ? 'checked' : ''}>
-                  <label class="form-check-label small">Permitir</label>
-                </div>
+          <div class="mb-3">
+              <div class="form-check">
+                  <input type="checkbox" class="form-check-input gestion-inventario-check" 
+                        id="gestion_inventario_${idx}" ${variation.gestion_inventario ? 'checked' : ''}>
+                  <label class="form-check-label small fw-bold" for="gestion_inventario_${idx}">
+                      Gestionar inventario para esta variación
+                  </label>
               </div>
-            </div>
+          </div>
+
+          <!-- Contenedor que se muestra/oculta (stock y backorder) -->
+          <div class="inventario-detalles-variacion" style="display: ${variation.gestion_inventario ? 'block' : 'none'};">
+              <div class="row g-2 mb-3">
+                  <div class="col-md-4">
+                      <label class="form-label small mb-1">Cantidad en inventario</label>
+                      <input type="number" name="variation_stock_${idx}" class="form-control form-control-sm variation-stock" value="${variation?.stock != null ? variation.stock : ''}">
+                  </div>
+                  <div class="col-md-4">
+                      <label class="form-label small mb-1 d-block">¿Permitir reservas?</label>
+                      <div class="d-flex gap-2">
+                          <div class="form-check">
+                              <input class="form-check-input allow-backorder" type="radio" name="variation_backorder_${idx}" value="no" ${variation?.backorder !== 'yes' ? 'checked' : ''}>
+                              <label class="form-check-label small">No permitir</label>
+                          </div>
+                          <div class="form-check">
+                              <input class="form-check-input allow-backorder" type="radio" name="variation_backorder_${idx}" value="yes" ${variation?.backorder === 'yes' ? 'checked' : ''}>
+                              <label class="form-check-label small">Permitir</label>
+                          </div>
+                      </div>
+                  </div>
+              </div>
           </div>
 
           <!-- Peso y dimensiones -->
@@ -473,7 +1005,7 @@
     // Eliminar variación
     wrapper.querySelector('.btn-remove-variation').addEventListener('click', () => {
       state.variaciones.splice(idx, 1);
-      renderVariacionesUI();
+      resetVariacionesPagination();
     });
 
     // ===== Guardar cambios en todos los campos =====
@@ -532,6 +1064,19 @@
     wrapper.querySelectorAll('.allow-backorder').forEach(radio => {
       radio.addEventListener('change', () => variacionActual.backorder = radio.value);
     });
+
+    const chkGestion = wrapper.querySelector('.gestion-inventario-check');
+    const detallesDiv = wrapper.querySelector('.inventario-detalles-variacion');
+    if (chkGestion && detallesDiv) {
+        // Asegurar estado inicial (por si viene de edición)
+        chkGestion.checked = variacionActual.gestion_inventario;
+        detallesDiv.style.display = variacionActual.gestion_inventario ? 'block' : 'none';
+
+        chkGestion.addEventListener('change', (e) => {
+            variacionActual.gestion_inventario = e.target.checked;
+            detallesDiv.style.display = e.target.checked ? 'block' : 'none';
+        });
+    }
 
     // ===== Imágenes =====
     const imgInput = wrapper.querySelector('.variation-image-input');
@@ -616,6 +1161,7 @@
     state.variaciones = combos.map(combo => ({
         atributos: combo.map(c => ({ atrId: c.atrId, termId: c.termId })),
         sku: '',
+        gestion_inventario: false,
         stock: 0,
         price_normal: '',
         price_sale: '',
@@ -649,6 +1195,7 @@
         termId: null // null = "Cualquier valor"
       })),
       sku: '',
+      gestion_inventario: false,
       stock: 0,
       price_normal: '',
       price_sale: '',
@@ -665,7 +1212,148 @@
     });
 
     renderVariacionesUI();
-}
+  }
+
+    // Eliminar todas las variaciones
+    function deleteAllVariations() {
+      if (!state.variaciones.length) return;
+      Swal.fire({
+        title: '¿Eliminar todas las variaciones?',
+        text: `Se eliminarán ${state.variaciones.length} variaciones. Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          state.variaciones = [];
+          renderVariacionesUI();
+          showAlert('success', 'Eliminadas', 'Todas las variaciones han sido eliminadas.');
+        }
+      });
+    }
+
+    // Aplicar acciones masivas
+    function applyMassActions() {
+    if (!state.variaciones.length) {
+      showAlert('warning', 'Sin variaciones', 'No hay variaciones para modificar.');
+      return;
+    }
+
+    // Obtener valores
+    const priceNormalAction = document.getElementById('massPriceNormalAction')?.value || 'none';
+    const priceNormalValue = parseFloat(document.getElementById('massPriceNormalValue')?.value);
+    const priceSaleAction = document.getElementById('massPriceSaleAction')?.value || 'none';
+    const priceSaleValue = parseFloat(document.getElementById('massPriceSaleValue')?.value);
+    const saleStart = document.getElementById('massSaleStart')?.value;
+    const saleEnd = document.getElementById('massSaleEnd')?.value;
+    const enableInventory = document.getElementById('massEnableInventory')?.checked;
+    const massStock = document.getElementById('massStock')?.value;
+    const massLength = document.getElementById('massLength')?.value;
+    const massWidth = document.getElementById('massWidth')?.value;
+    const massHeight = document.getElementById('massHeight')?.value;
+    const massWeight = document.getElementById('massWeight')?.value;
+    const massWeightUnit = document.getElementById('massWeightUnit')?.value;
+
+    let changesApplied = false;
+
+    for (let variacion of state.variaciones) {
+      // Precio normal
+      if (priceNormalAction !== 'none' && !isNaN(priceNormalValue)) {
+        let current = parseFloat(variacion.price_normal) || 0;
+        let newValue = current;
+        switch (priceNormalAction) {
+          case 'inc_fixed': newValue = current + priceNormalValue; break;
+          case 'inc_percent': newValue = current * (1 + priceNormalValue / 100); break;
+          case 'dec_fixed': newValue = current - priceNormalValue; break;
+          case 'dec_percent': newValue = current * (1 - priceNormalValue / 100); break;
+        }
+        variacion.price_normal = Math.max(0, newValue).toFixed(2);
+        changesApplied = true;
+      }
+
+      // Precio rebajado
+      if (priceSaleAction !== 'none' && !isNaN(priceSaleValue)) {
+        let current = parseFloat(variacion.price_sale) || 0;
+        let newValue = current;
+        switch (priceSaleAction) {
+          case 'set': newValue = priceSaleValue; break;
+          case 'inc_fixed': newValue = current + priceSaleValue; break;
+          case 'inc_percent': newValue = current * (1 + priceSaleValue / 100); break;
+          case 'dec_fixed': newValue = current - priceSaleValue; break;
+          case 'dec_percent': newValue = current * (1 - priceSaleValue / 100); break;
+        }
+        variacion.price_sale = Math.max(0, newValue).toFixed(2);
+        changesApplied = true;
+      }
+
+      // Fechas rebaja
+      if (saleStart) {
+        variacion.sale_start = saleStart;
+        changesApplied = true;
+      }
+      if (saleEnd) {
+        variacion.sale_end = saleEnd;
+        changesApplied = true;
+      }
+
+      // Gestión inventario
+      if (enableInventory) {
+        variacion.gestion_inventario = true;
+        changesApplied = true;
+      }
+
+      // Stock
+      if (massStock !== undefined && massStock !== '') {
+        variacion.stock = Number(massStock);
+        changesApplied = true;
+      }
+
+      // Dimensiones
+      if (massLength !== undefined && massLength !== '') {
+        variacion.length = Number(massLength);
+        changesApplied = true;
+      }
+      if (massWidth !== undefined && massWidth !== '') {
+        variacion.width = Number(massWidth);
+        changesApplied = true;
+      }
+      if (massHeight !== undefined && massHeight !== '') {
+        variacion.height = Number(massHeight);
+        changesApplied = true;
+      }
+      // Peso y unidad
+      if (massWeight !== undefined && massWeight !== '') {
+        variacion.weight = Number(massWeight);
+        variacion.weight_type = massWeightUnit;
+        changesApplied = true;
+      }
+    }
+
+    if (changesApplied) {
+      renderVariacionesUI(); // refresca vista
+      showAlert('success', 'Actualización masiva', 'Se han modificado todas las variaciones.');
+
+      // ** Limpiar todos los campos del panel de acciones **
+      document.getElementById('massPriceNormalAction').value = 'none';
+      document.getElementById('massPriceSaleAction').value = 'none';
+      document.getElementById('massPriceNormalValue').disabled = true;
+      document.getElementById('massPriceSaleValue').disabled = true;
+      document.getElementById('massPriceNormalValue').value = '';
+      document.getElementById('massPriceSaleValue').value = '';
+      document.getElementById('massSaleStart').value = '';
+      document.getElementById('massSaleEnd').value = '';
+      document.getElementById('massStock').value = '';
+      document.getElementById('massLength').value = '';
+      document.getElementById('massWidth').value = '';
+      document.getElementById('massHeight').value = '';
+      document.getElementById('massWeight').value = '';
+      document.getElementById('massWeightUnit').value = 'kg';
+      document.getElementById('massEnableInventory').checked = false;
+    } else {
+      showAlert('info', 'Sin cambios', 'No se seleccionó ninguna acción o valores inválidos.');
+    }
+  }
 
   function initRelacionadosInputs() {
     setupProductSearch('#inputUpsells', 'upsells');
@@ -771,8 +1459,28 @@
         crearAtributo: new bootstrap.Modal(qs('#modalCrearAtributo')),
         crearValor: new bootstrap.Modal(qs('#modalCrearValor'))
     };
+    
     const modalElement = qs('#modalProducto');
     if (modalElement) {
+        // Limpiar cuando se abre el modal (reset completo)
+        modalElement.addEventListener('show.bs.modal', function () {
+            console.log('Modal abriendo - limpiando formulario');
+            resetForm(false); // false = resetear tipo también
+        });
+        
+        // Limpiar cuando se cierra el modal (reset completo)
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            console.log('Modal cerrado - limpieza adicional');
+            resetForm(false); // false = resetear tipo también
+            
+            // Resetear active tabs a la primera
+            const firstTab = document.querySelector('.nav-link');
+            if (firstTab && typeof bootstrap !== 'undefined') {
+                const bsTab = new bootstrap.Tab(firstTab);
+                bsTab.show();
+            }
+        });
+        
         modalElement.addEventListener('shown.bs.modal', function () {
             if (typeof tinymce !== 'undefined' && !tinymce.get('descripcionLarga')) {
                 tinymce.init({
@@ -781,14 +1489,9 @@
                     height: 400,
                     menubar: false,
                     license_key: 'gpl',
-                    base_url: '/assets/tinymce',  
-                    suffix: '.min',
-                    plugins: [
-                        'lists', 'link', 'autolink', 'charmap', 'preview',
-                        'anchor', 'searchreplace', 'visualblocks', 'code',
-                        'fullscreen', 'insertdatetime', 'media', 'table',
-                        'wordcount'
-                    ],
+                    plugins: ['lists', 'link', 'autolink', 'charmap', 'preview',
+                              'anchor', 'searchreplace', 'visualblocks', 'code',
+                              'fullscreen', 'insertdatetime', 'media', 'table', 'wordcount'],
                     toolbar: 'undo redo | styles forecolor | bold italic | alignleft aligncenter alignright alignjustify',
                     content_style: `
                       @font-face {
@@ -802,9 +1505,7 @@
                     `,
                     statusbar: false,
                     forced_root_block: 'p',
-                    convert_urls: false,
-                    remove_script_host: false,
-                    paste_data_images: false
+                    convert_urls: false
                 });
             }
         });
@@ -1271,23 +1972,36 @@
     const container = qs('#availableTags');
     if (!container) return;
     
+    // Guardar qué etiquetas están actualmente seleccionadas
+    const selectedTagIds = new Set();
+    state.selectedTags.forEach((tag, slug) => {
+        if (tag.id) selectedTagIds.add(tag.id);
+    });
+    
     container.innerHTML = '';
     
     if (!ETIQUETAS.length) {
-      container.innerHTML = '<div class="text-muted py-2 text-center">No hay etiquetas disponibles</div>';
-      return;
+        container.innerHTML = '<div class="text-muted py-2 text-center">No hay etiquetas disponibles</div>';
+        return;
     }
     
     ETIQUETAS.forEach(tag => {
-      const id = `tag_av_${tag.id}`;
-      const wrapper = document.createElement('div');
-      wrapper.className = 'form-check';
-      wrapper.innerHTML = `
-        <input class="form-check-input tag-available" type="checkbox" id="${id}" 
-               data-id="${tag.id}" data-name="${tag.nombre}">
-        <label class="form-check-label" for="${id}">${tag.nombre}</label>
-      `;
-      container.appendChild(wrapper);
+        const id = `tag_av_${tag.id}`;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'form-check';
+        wrapper.innerHTML = `
+            <input class="form-check-input tag-available" type="checkbox" id="${id}" 
+                   data-id="${tag.id}" data-name="${tag.nombre}"
+                   ${selectedTagIds.has(tag.id) ? 'checked' : ''}>
+            <label class="form-check-label" for="${id}">${tag.nombre}</label>
+        `;
+        container.appendChild(wrapper);
+    });
+    
+    // Re-conectar los event listeners para los nuevos checkboxes
+    container.querySelectorAll('.tag-available').forEach(checkbox => {
+        checkbox.removeEventListener('change', handleTagCheckboxChange);
+        checkbox.addEventListener('change', handleTagCheckboxChange);
     });
   }
 
@@ -1330,52 +2044,77 @@
     if (!val) return;
 
     try {
-      const { data } = await axios.post('productos', {
-        opcion: 'CrearEtiqueta',
-        nombre: val
-      });
-
-      if (data.respuesta === 'ok') {
-        const nueva = data.etiqueta;
-        ETIQUETAS.push(nueva);
-
-        renderAvailableTags();
-
-        const newCheckbox = document.querySelector(`input.tag-available[data-id="${nueva.id}"]`);
-        if (newCheckbox) {
-          newCheckbox.checked = true;
-        }
-
-        state.selectedTags.set(nueva.slug, { 
-          id: nueva.id, 
-          name: nueva.nombre 
+        const { data } = await axios.post('productos', {
+            opcion: 'CrearEtiqueta',
+            nombre: val
         });
-        renderSelectedTags();
 
-        tagInput.value = '';
+        if (data.respuesta === 'ok') {
+            const nueva = data.etiqueta;
+            
+            // Agregar la nueva etiqueta al array global
+            ETIQUETAS.push(nueva);
+            
+            // Agregar la nueva etiqueta al DOM sin regenerar todo
+            const container = qs('#availableTags');
+            if (container) {
+                const id = `tag_av_${nueva.id}`;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'form-check';
+                wrapper.innerHTML = `
+                    <input class="form-check-input tag-available" type="checkbox" id="${id}" 
+                           data-id="${nueva.id}" data-name="${nueva.nombre}"
+                           checked>
+                    <label class="form-check-label" for="${id}">${escapeHtml(nueva.nombre)}</label>
+                `;
+                container.appendChild(wrapper);
+                
+                // Conectar el evento change
+                const checkbox = wrapper.querySelector('.tag-available');
+                checkbox.addEventListener('change', handleTagCheckboxChange);
+            }
+            
+            // Agregar al estado seleccionado
+            const newSlug = nueva.nombre.toLowerCase().replace(/\s+/g, '-');
+            state.selectedTags.set(newSlug, { 
+                id: nueva.id, 
+                name: nueva.nombre 
+            });
+            
+            // Actualizar la visualización de etiquetas seleccionadas
+            renderSelectedTags();
+            
+            // Limpiar el input
+            tagInput.value = '';
 
-        showAlert('success', 'Etiqueta creada', `"${nueva.nombre}" fue agregada correctamente`, 1800, false);
-      } else {
-        showAlert('error', 'Oops...', data.mensaje);
-      }
+            showAlert('success', 'Etiqueta creada', `"${nueva.nombre}" fue agregada correctamente`, 1800, false);
+        } else {
+            showAlert('error', 'Oops...', data.mensaje);
+        }
     } catch (error) {
-      showAlert('error', 'Error de servidor', 'No se pudo crear la etiqueta');
+        console.error('Error al crear etiqueta:', error);
+        showAlert('error', 'Error de servidor', 'No se pudo crear la etiqueta');
     }
   }
 
   function handleTagCheckboxChange(e) {
-    if (!e.target.classList.contains('tag-available')) return;
+    // Asegurarse de que estamos manejando el evento correctamente
+    const checkbox = e.target;
+    if (!checkbox.classList.contains('tag-available')) return;
     
-    const id = e.target.dataset.id;
-    const name = e.target.dataset.name;
+    const id = checkbox.dataset.id;
+    const name = checkbox.dataset.name;
     const slug = name.toLowerCase().replace(/\s+/g, '-');
     
-    if (e.target.checked) {
-      state.selectedTags.set(slug, { id, name });
+    if (checkbox.checked) {
+        // Agregar la etiqueta seleccionada
+        state.selectedTags.set(slug, { id, name });
     } else {
-      state.selectedTags.delete(slug);
+        // Remover la etiqueta deseleccionada
+        state.selectedTags.delete(slug);
     }
     
+    // Actualizar la visualización de etiquetas seleccionadas
     renderSelectedTags();
   }
 
@@ -1781,17 +2520,18 @@
     if (state.variaciones && state.variaciones.length) {
         const variacionesParaEnviar = state.variaciones.map((variacion, index) => {
             const variacionData = {
-              sku: variacion.sku || null,                  // null si vacío
+              sku: variacion.sku || null,
+              gestion_inventario: variacion.gestion_inventario ? 1 : 0,
               stock: variacion.stock !== undefined && variacion.stock !== '' ? Number(variacion.stock) : 0,
               price_normal: variacion.price_normal ? Number(variacion.price_normal) : 0,
               price_sale: variacion.price_sale ? Number(variacion.price_sale) : 0,
               sale_start: variacion.sale_start || null,
               sale_end: variacion.sale_end || null,
-              weight: variacion.weight ? Number(variacion.weight) : null,     // 🔥 clave
+              weight: variacion.weight ? Number(variacion.weight) : null,     
               weight_type: variacion.weight_type || 'kg',
-              length: variacion.length ? Number(variacion.length) : null,     // 🔥 clave
-              width: variacion.width ? Number(variacion.width) : null,        // 🔥 clave
-              height: variacion.height ? Number(variacion.height) : null,     // 🔥 clave
+              length: variacion.length ? Number(variacion.length) : null,    
+              width: variacion.width ? Number(variacion.width) : null,       
+              height: variacion.height ? Number(variacion.height) : null,     
               description: variacion.description || null,
               backorder: variacion.backorder || 'no',
               atributos: (variacion.atributos || []).map(attr => ({
@@ -1842,18 +2582,37 @@
 
   // ---- Reset System ----
   function initResetSystem() {
-    qsa('#modalProducto .btn-close, #modalProducto [data-bs-dismiss="modal"]').forEach(btn => {
-      btn.addEventListener('click', resetForm);
+    // Para botones de cerrar
+    const closeButtons = document.querySelectorAll('#modalProducto .btn-close, #modalProducto [data-bs-dismiss="modal"]');
+    closeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            console.log('Cerrando modal - limpiando');
+            resetForm(false); // Reset completo
+        });
     });
+    
+    // También para el botón de cancelar
+    const cancelBtn = qs('#modalProducto .btn-secondary');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            console.log('Cancelar click - limpiando');
+            resetForm(false); // Reset completo
+        });
+    }
   }
 
-  function resetForm() {
+  function resetForm(keepType = false) {
     const form = qs('#formProducto');
     if (form) {
-      form.reset();
+        form.reset();
     }
 
-    // Reset state
+    // Limpiar TinyMCE si existe
+    if (typeof tinymce !== 'undefined' && tinymce.get('descripcionLarga')) {
+        tinymce.get('descripcionLarga').setContent('');
+    }
+
+    // Reset state completo
     state.imageFiles = [];
     state.selectedTags.clear();
     state.productoAtributos = [];
@@ -1862,35 +2621,125 @@
     state.variaciones = [];
     state.isSubmitting = false;
     state.relacionados = [];
+    state.miniaturaFile = null;
+    state.variacionesPage = 1;
 
-    const relacionadosContainer = qs('#inputRelacionados')?.nextElementSibling;
-    if (relacionadosContainer && relacionadosContainer.classList.contains('tag-container')) {
-      relacionadosContainer.innerHTML = '';
+    // Guardar el tipo actual si keepType es true
+    let currentType = null;
+    if (keepType) {
+        const tipoSelect = qs('#tipoProductoSelect');
+        if (tipoSelect) currentType = tipoSelect.value;
     }
 
+    // Limpiar contenedores de tags
+    const tagContainers = document.querySelectorAll('.tag-container');
+    tagContainers.forEach(container => container.innerHTML = '');
 
-    // Reset UI
+    // Limpiar preview de imágenes
     const previewContainer = qs('#previewContainer');
-    if (previewContainer) {
-      previewContainer.innerHTML = '';
-    }
-    updateImageStatus();
+    if (previewContainer) previewContainer.innerHTML = '';
+    
+    // Limpiar miniatura
+    const miniImg = qs('#miniImg');
+    const miniPlaceholder = qs('#miniPlaceholder');
+    const removeMiniBtn = qs('#removeMiniBtn');
+    if (miniImg) miniImg.src = '';
+    if (miniImg) miniImg.style.display = 'none';
+    if (miniPlaceholder) miniPlaceholder.style.display = 'flex';
+    if (removeMiniBtn) removeMiniBtn.classList.add('d-none');
+    
+    const miniInput = qs('#miniaturaInput');
+    if (miniInput) miniInput.value = '';
 
-    handleRemoveMiniatura();
+    // Limpiar inputs de imágenes
+    const imagenesInput = qs('#imagenesInput');
+    if (imagenesInput) imagenesInput.value = '';
+
+    // Limpiar radio buttons de subcategoría
+    const subcatRadios = document.querySelectorAll('input[name="id_subCategorias"]');
+    subcatRadios.forEach(radio => radio.checked = false);
+
+    // Limpiar select de categoría
+    const catSelect = qs('#categoriaSelect');
+    if (catSelect) catSelect.value = '';
+
+    // Limpiar subcategorías
+    const subList = qs('#subcategoriaList');
+    if (subList) subList.innerHTML = '<div class="text-muted text-center py-3">Selecciona una categoría primero</div>';
+
+    // Resetear selects y checkboxes específicos
+    const checkRebaja = qs('#checkRebaja');
+    const rebajaFechas = qs('#rebajaFechas');
+    if (checkRebaja) {
+        checkRebaja.checked = false;
+        if (rebajaFechas) rebajaFechas.classList.add('d-none');
+    }
+
+    const checkGestion = qs('#checkGestion');
+    const invExtra = qs('#invExtra');
+    if (checkGestion) {
+        checkGestion.checked = false;
+        if (invExtra) invExtra.classList.add('d-none');
+    }
+
+    // Limpiar campos de inventario
+    const stockInput = qs('input[name="stock"]');
+    if (stockInput) stockInput.value = '';
+    
+    const backordersRadios = document.querySelectorAll('input[name="backorders"]');
+    backordersRadios.forEach(radio => radio.checked = false);
+    if (backordersRadios.length > 0) backordersRadios[0].checked = true;
+
+    // Limpiar campos de precios
+    const precioRegular = qs('input[name="precio_regular"]');
+    if (precioRegular) precioRegular.value = '';
+    
+    const precioRebajado = qs('input[name="precio_rebajado"]');
+    if (precioRebajado) precioRebajado.value = '';
+    
+    const fechaInicio = qs('input[name="fecha_inicio_rebaja"]');
+    const fechaFin = qs('input[name="fecha_fin_rebaja"]');
+    if (fechaInicio) fechaInicio.value = '';
+    if (fechaFin) fechaFin.value = '';
+
+    // Limpiar campos de envío
+    const peso = qs('input[name="peso"]');
+    if (peso) peso.value = '';
+    
+    const longitud = qs('input[name="longitud"]');
+    const anchura = qs('input[name="anchura"]');
+    const altura = qs('input[name="altura"]');
+    if (longitud) longitud.value = '';
+    if (anchura) anchura.value = '';
+    if (altura) altura.value = '';
+
+    // Limpiar campos avanzados
+    const notaInterna = qs('textarea[name="nota_interna"]');
+    if (notaInterna) notaInterna.value = '';
+    
+    const permiteValoraciones = qs('input[name="permite_valoraciones"]');
+    if (permiteValoraciones) permiteValoraciones.checked = true;
+
+    // SOLO resetear tipo de producto si NO estamos manteniendo el tipo
+    const tipoSelect = qs('#tipoProductoSelect');
+    if (tipoSelect && !keepType) {
+        tipoSelect.value = 'simple';
+    } else if (tipoSelect && keepType && currentType) {
+        tipoSelect.value = currentType;
+    }
+
+    // Resetear atributos UI
     renderSelectedTags();
     renderAtributoBlocks();
     renderVariacionesUI();
+    updateImageStatus();
 
-    // Limpiar contenedores de tags
-    const upsellContainer = qs('#inputUpsells')?.nextElementSibling;
-    const crosssellContainer = qs('#inputCrosssells')?.nextElementSibling;
+    // Limpiar URLs de objetos creados
+    state.imageFiles.forEach(img => {
+        if (img.url) URL.revokeObjectURL(img.url);
+    });
 
-    if (upsellContainer && upsellContainer.classList.contains('tag-container')) {
-      upsellContainer.innerHTML = '';
-    }
-    if (crosssellContainer && crosssellContainer.classList.contains('tag-container')) {
-      crosssellContainer.innerHTML = '';
-    }
+    console.log('Formulario completamente reiniciado' + (keepType ? ' (manteniendo tipo)' : ''));
   }
 
   // ---- Toggle Systems ----
@@ -1953,6 +2802,7 @@
     initToggleSystems();
     initTipoProductoSystem();
     initRelacionadosInputs();
+    initNewProductButton();
   }
 
   // Start the application
@@ -2045,7 +2895,9 @@ const editState = {
   imagenes: [],
   imagenesNuevas: [],
   upsells: [],
-  crosssells: []
+  crosssells: [],
+  variacionesPage: 1,
+  variacionesPerPage: 10
 };
 
 async function obtenerProducto(id) {

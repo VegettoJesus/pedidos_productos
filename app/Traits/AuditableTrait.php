@@ -183,6 +183,32 @@ trait AuditableTrait
     }
 
     /**
+     * Normaliza un valor a número (para campos numéricos)
+     * Convierte null, '', 'NULL' a 0
+     */
+    protected function normalizarANumero($valor)
+    {
+        if (is_null($valor)) {
+            return 0;
+        }
+        
+        if ($valor === '' || $valor === 'NULL' || $valor === 'null') {
+            return 0;
+        }
+        
+        if (is_numeric($valor)) {
+            return floatval($valor);
+        }
+        
+        // Si es string numérico
+        if (is_string($valor) && is_numeric(trim($valor))) {
+            return floatval(trim($valor));
+        }
+        
+        return 0;
+    }
+
+    /**
      * Normaliza un valor a string para comparación
      */
     protected function normalizarAString($valor)

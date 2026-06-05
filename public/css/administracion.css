@@ -1205,6 +1205,38 @@ p {
     height: 1rem;
     border-width: 0.2em;
 }
+/* Panel de acciones masivas - estilo mejorado */
+#massActionsPanel .card-body {
+  background-color: #ffffff;
+  border-radius: 0 0 1rem 1rem;
+}
+#massActionsPanel .form-control, 
+#massActionsPanel .form-select {
+  border-radius: 0.6rem;
+  transition: all 0.2s ease;
+  border: 1px solid #dee2e6;
+}
+
+#massActionsPanel .btn {
+  border-radius: 0.6rem;
+  font-weight: 500;
+}
+#massActionsPanel .btn-primary {
+  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+  border: none;
+}
+#massActionsPanel .btn-outline-secondary:hover {
+  background-color: #6c757d;
+  color: white;
+}
+@media (max-width: 768px) {
+  #massActionsPanel .card-body {
+    padding: 1rem;
+  }
+  #massActionsPanel .input-group {
+    flex-wrap: nowrap;
+  }
+}
 @media (max-width: 767.98px) {
 	#modalPermisos .modal-content {
 		border-radius: 12px !important;
