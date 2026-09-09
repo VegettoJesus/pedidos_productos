@@ -24,4 +24,12 @@ class Atributo extends Model
                     ->withPivot('visible', 'variacion')
                     ->withTimestamps();
     }
+    
+    public function getTerminosArrayAttribute()
+    {
+        if ($this->relationLoaded('terminos')) {
+            return $this->terminos->toArray();
+        }
+        return $this->terminos()->get()->toArray();
+    }
 }

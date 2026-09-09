@@ -120,90 +120,17 @@ return new class extends Migration
             $table->unique(['atributo_id', 'slug']);
         });
 
-        DB::table('atributos')->insert([
-            'nombre' => 'Color',
-            'slug' => 'color',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $atributoId = DB::table('atributos')->where('slug', 'color')->value('id');
-
-        $colores = [
-            // Rojos
-            ['nombre' => 'Rojo', 'slug' => 'rojo'],
-            ['nombre' => 'Burdeos', 'slug' => 'burdeos'],
-            ['nombre' => 'Carmesí', 'slug' => 'carmesi'],
-            
-            // Azules
-            ['nombre' => 'Azul', 'slug' => 'azul'],
-            ['nombre' => 'Celeste', 'slug' => 'celeste'],
-            ['nombre' => 'Índigo', 'slug' => 'indigo'],
-            ['nombre' => 'Azul Acero', 'slug' => 'azul_acero'],
-            
-            // Verdes
-            ['nombre' => 'Verde', 'slug' => 'verde'],
-            ['nombre' => 'Menta', 'slug' => 'menta'],
-            ['nombre' => 'Oliva', 'slug' => 'oliva'],
-            ['nombre' => 'Esmeralda', 'slug' => 'esmeralda'],
-            
-            // Amarillos / Naranjas
-            ['nombre' => 'Amarillo', 'slug' => 'amarillo'],
-            ['nombre' => 'Mostaza', 'slug' => 'mostaza'],
-            ['nombre' => 'Naranja', 'slug' => 'naranja'],
-            
-            // Violetas / Purpuras
-            ['nombre' => 'Morado', 'slug' => 'morado'],
-            ['nombre' => 'Lavanda', 'slug' => 'lavanda'],
-            ['nombre' => 'Violeta', 'slug' => 'violeta'],
-            
-            // Rosas
-            ['nombre' => 'Rosa', 'slug' => 'rosa'],
-            ['nombre' => 'Fucsia', 'slug' => 'fucsia'],
-            ['nombre' => 'Salmón', 'slug' => 'salmon'],
-            
-            // Marrones / Tierra
-            ['nombre' => 'Marrón', 'slug' => 'marron'],
-            ['nombre' => 'Caqui', 'slug' => 'caqui'],
-            ['nombre' => 'Terracota', 'slug' => 'terracota'],
-            
-            // Neutros / Metálicos
-            ['nombre' => 'Negro', 'slug' => 'negro'],
-            ['nombre' => 'Blanco', 'slug' => 'blanco'],
-            ['nombre' => 'Gris', 'slug' => 'gris'],
-            ['nombre' => 'Plateado', 'slug' => 'plateado'],
-            ['nombre' => 'Dorado', 'slug' => 'dorado'],
-            ['nombre' => 'Bronce', 'slug' => 'bronce'],
-            ['nombre' => 'Crema', 'slug' => 'crema'],
-            ['nombre' => 'Marfil', 'slug' => 'marfil'],
-            
-            // Otros populares
-            ['nombre' => 'Turquesa', 'slug' => 'turquesa'],
-            ['nombre' => 'Coral', 'slug' => 'coral'],
-            ['nombre' => 'Lila', 'slug' => 'lila'],
-            ['nombre' => 'Beige', 'slug' => 'beige'],
-        ];
-
-        foreach ($colores as $color) {
-            DB::table('atributo_terminos')->insert([
-                'atributo_id' => $atributoId,
-                'nombre' => $color['nombre'],
-                'slug' => $color['slug'],
-                'descripcion' => null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
-
         // Tabla pivote producto_atributo
         Schema::create('producto_atributo', function (Blueprint $table) {
             $table->id();
             $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade');
             $table->foreignId('atributo_id')->constrained('atributos')->onDelete('cascade');
             
-            // AÑADIR: Configuración específica por producto
+            // Configuración específica por producto
             $table->boolean('visible')->default(true);
             $table->boolean('variacion')->default(false);
+            $table->enum('tipo', ['Default', 'Label', 'Color', 'Image'])->default('Default');
+            $table->enum('shape', ['Default', 'Square', 'Rounded Corner', 'Circle'])->default('Default');
             
             $table->timestamps();
             
@@ -214,6 +141,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('producto_atributo_id')->constrained('producto_atributo')->onDelete('cascade');
             $table->foreignId('termino_id')->constrained('atributo_terminos')->onDelete('cascade');
+            $table->string('valor_extra')->nullable(); // Aquí se guardará el color o la URL de la imagen
             $table->timestamps();
             
             $table->unique(['producto_atributo_id', 'termino_id'], 'prod_attr_val_unique');

@@ -20,9 +20,9 @@ return new class extends Migration
             $table->string('propietario_apellido', 255);
             $table->text('direccion');
             $table->string('ubigeo', 6);
-            $table->foreignId('departamento_id')->constrained('departamentos');
-            $table->foreignId('provincia_id')->constrained('provincias');
-            $table->foreignId('distrito_id')->constrained('distritos');
+            $table->foreignId('departamento_id')->unique()->constrained('departamentos');
+            $table->foreignId('provincia_id')->unique()->constrained('provincias');
+            $table->foreignId('distrito_id')->unique()->constrained('distritos');
             $table->text('maps_url')->nullable();
             $table->string('telefono', 20)->nullable();
             $table->string('celular', 20)->nullable();

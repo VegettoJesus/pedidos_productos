@@ -7,6 +7,7 @@
                 @php
                     $phone = \App\Helpers\ConfiguracionHelper::getPhone();
                     $email = \App\Helpers\ConfiguracionHelper::getEmail();
+                    $authUser = Auth::check() && Auth::user()->id_rol == 2 ? Auth::user() : null;
                 @endphp
                 @if($phone)
                 <a href="tel:{{ preg_replace('/[^0-9+]/', '', $phone) }}" class="contact-item">
@@ -20,10 +21,61 @@
                     <span>{{ e($email) }}</span>
                 </a>
                 @endif
-                <button class="login-btn" onclick="window.location.href='{{ route('login') }}'">
-                    <i class="bi bi-person"></i>
-                    <span>Iniciar Sesión</span>
-                </button>
+                
+                <div class="dropdown account-dropdown">
+                    <button class="btn dropdown-toggle account-btn text-white" type="button" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="accountName">
+                            @if($authUser)
+                                {{ $authUser->nombres }}
+                            @else
+                                Mi cuenta
+                            @endif
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown" id="accountMenu">
+                        @if($authUser)
+                            <!-- Usuario logueado -->
+                            <li class="dropdown-item-text text-muted small">
+                                <i class="bi bi-envelope me-1"></i> {{ $authUser->email }}
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('perfil.configuracion') }}">
+                                    <i class="bi bi-person-gear me-2"></i> Mi perfil
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    <i class="bi bi-box-seam me-2"></i> Mis pedidos
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    <i class="bi bi-geo-alt me-2"></i> Dirección de entrega
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button class="dropdown-item text-danger" id="logoutBtnHeader">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
+                                </button>
+                            </li>
+                        @else
+                            <!-- Usuario NO logueado -->
+                            <li>
+                                <button class="dropdown-item" id="openLoginModalBtn">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i> Iniciar sesión
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item" id="openRegisterModalBtn">
+                                    <i class="bi bi-person-plus me-2"></i> Registrarse
+                                </button>
+                            </li>
+                        @endif
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -47,10 +99,10 @@
             </div>
                 
             <div class="action-icons">
-                <button class="action-btn" title="Favoritos">
-                    <i class="bi bi-heart"></i>
-                    <span class="badge">3</span>
-                </button>
+                <a href="{{ route('perfil.mis-valoraciones') }}" class="action-btn" title="Mis valoraciones" id="valoracionesBtn">
+                    <i class="bi bi-star"></i>
+                    <span class="badge" id="valoracionesCount">0</span>
+                </a>
                 <button class="action-btn" title="Carrito de compras">
                     <i class="bi bi-cart3"></i>
                     <span class="badge">5</span>
@@ -176,42 +228,66 @@
                 @endforeach
             </ul>
             <div class="mobile-footer">
-                <button class="login-btn" onclick="window.location.href='{{ route('login') }}'">
-                    <i class="bi bi-person"></i> Iniciar Sesión
-                </button>
-                <div class="contact-info">
-                    @if($phone)
-                    <a href="tel:{{ preg_replace('/[^0-9+]/', '', $phone) }}" class="contact-item">
-                        <i class="bi bi-phone contact-icon"></i>
-                        <span>{{ e($phone) }}</span>
+    <!-- 🔥 Botón de cuenta móvil (usando el mismo sistema que desktop) -->
+    <div class="dropdown account-dropdown">
+        <button class="login-btn dropdown-toggle" type="button" id="mobileAccountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-person-circle me-1"></i>
+            <span id="mobileAccountName">
+                @if($authUser)
+                    {{ $authUser->nombres }}
+                @else
+                    Mi cuenta
+                @endif
+            </span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="mobileAccountDropdown" id="mobileAccountMenu">
+            @if($authUser)
+                <!-- Usuario logueado -->
+                <li class="dropdown-item-text text-muted small">
+                    <i class="bi bi-envelope me-1"></i> {{ $authUser->email }}
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item" href="{{ route('perfil.configuracion') }}">
+                        <i class="bi bi-person-gear me-2"></i> Mi perfil
                     </a>
-                    @endif
-                    @if($email)
-                    <a href="mailto:{{ $email }}" class="contact-item">
-                        <i class="bi bi-envelope contact-icon"></i>
-                        <span>{{ e($email) }}</span>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#">
+                        <i class="bi bi-box-seam me-2"></i> Mis pedidos
                     </a>
-                    @endif
-
-                    <div class="login-btn-container">
-                        @if(isset($authUser) && $authUser)
-                            <div class="dropdown">
-                                <button class="login-btn dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    <img src="{{ $authUser['foto'] }}" style="width:28px; height:28px; border-radius:50%; object-fit:cover; margin-right:8px;">
-                                    <span>{{ $authUser['nombres'] }} {{ $authUser['apellidos'] }}</span>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" href="#" id="logoutBtnHeader">Cerrar sesión</a></li>
-                                </ul>
-                            </div>
-                        @else
-                            <button class="login-btn" id="openAuthModalBtn">
-                                <i class="bi bi-person"></i> <span>Iniciar Sesión</span>
-                            </button>
-                        @endif
-                    </div>
-                </div>
-            </div>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#">
+                        <i class="bi bi-geo-alt me-2"></i> Dirección de entrega
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{{ route('perfil.mis-valoraciones') }}">
+                        <i class="bi bi-star me-2"></i> Mis valoraciones
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <button class="dropdown-item text-danger" id="mobileLogoutBtn">
+                        <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
+                    </button>
+                </li>
+            @else
+                <!-- Usuario NO logueado -->
+                <li>
+                    <button class="dropdown-item" id="mobileOpenLoginModalBtn">
+                        <i class="bi bi-box-arrow-in-right me-2"></i> Iniciar sesión
+                    </button>
+                </li>
+                <li>
+                    <button class="dropdown-item" id="mobileOpenRegisterModalBtn">
+                        <i class="bi bi-person-plus me-2"></i> Registrarse
+                    </button>
+                </li>
+            @endif
+        </ul>
+    </div>
         </div>
         
         <!-- Pantallas dinámicas de subcategorías (generadas con JS o aquí directamente) -->

@@ -59,6 +59,27 @@
     border-radius: 20px;
     font-size: 0.85rem;
   }
+  #config_etiquetas_container .etiqueta-preview {
+    transition: all 0.3s ease;
+    min-width: 80px;
+    text-align: center;
+  }
+
+  #config_etiquetas_container .etiqueta-color-input {
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      padding: 0;
+      height: 38px;
+  }
+
+  #config_etiquetas_container .etiqueta-color-input::-webkit-color-swatch-wrapper {
+      padding: 0;
+  }
+
+  #config_etiquetas_container .etiqueta-color-input::-webkit-color-swatch {
+      border: none;
+      border-radius: 4px;
+  }
 </style>
 <div class="container-fluid px-2 pb-3" style="display: inline-grid">
   <div class="card text-center text-white bg-dark">
@@ -444,6 +465,164 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="modalConfiguracionProducto" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-gear-wide-connected me-2"></i> Configuración Avanzada</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="config_producto_id">
+
+                <!-- Pestañas de Navegación -->
+                <ul class="nav nav-tabs mb-3" id="configTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-limites-stock" data-bs-toggle="tab" data-bs-target="#panel-limites-stock" type="button" role="tab">Límites de Stock</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-movimientos-stock" data-bs-toggle="tab" data-bs-target="#panel-movimientos-stock" type="button" role="tab">Historial de Stock</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-atributos-config" data-bs-toggle="tab" data-bs-target="#panel-atributos-config" type="button" role="tab">Atributos</button>
+                    </li>
+                    <li class="nav-item" role="presentation" id="tab-variaciones-stock-nav" style="display:none;">
+                        <button class="nav-link" id="tab-variaciones-stock" data-bs-toggle="tab" data-bs-target="#panel-variaciones-stock" type="button" role="tab">
+                            <i class="bi bi-diagram-3 me-1"></i> Stock por Variación
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-etiquetas-config" data-bs-toggle="tab" data-bs-target="#panel-etiquetas-config" type="button" role="tab">Etiquetas</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- PANEL: LÍMITES DE STOCK -->
+                    <div class="tab-pane fade show active" id="panel-limites-stock" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Stock Mínimo</label>
+                                <input type="number" id="config_stock_minimo" class="form-control" min="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Stock Máximo</label>
+                                <input type="number" id="config_max_stock" class="form-control" min="0">
+                            </div>
+                        </div>
+                        <button type="button" id="btnGuardarLimitesStock" class="btn btn-primary mt-3">Guardar Límites</button>
+                    </div>
+
+                    <!-- PANEL: MOVIMIENTOS DE STOCK -->
+                    <div class="tab-pane fade" id="panel-movimientos-stock" role="tabpanel">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Añadir Stock</label>
+                                <input type="number" id="config_add_stock" class="form-control" min="1" placeholder="Cantidad">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Quitar Stock</label>
+                                <input type="number" id="config_remove_stock" class="form-control" min="1" placeholder="Cantidad">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Motivo</label>
+                                <input type="text" id="config_motivo_movimiento" class="form-control" placeholder="Ej: Ajuste manual, Venta #123">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button type="button" id="btnAddStock" class="btn btn-success">Añadir Stock</button>
+                            </div>
+                            <div class="col-md-6">
+                                <button type="button" id="btnRemoveStock" class="btn btn-danger">Quitar Stock</button>
+                            </div>
+                        </div>
+                        <hr>
+                        <h6>Historial de Movimientos</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Anterior</th>
+                                        <th>Nuevo</th>
+                                        <th>Diferencia</th>
+                                        <th>Motivo</th>
+                                        <th>Usuario</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="config_historial_table_body">
+                                    <tr><td colspan="6" class="text-center text-muted">Cargando historial...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- PANEL: ATRIBUTOS -->
+                    <div class="tab-pane fade" id="panel-atributos-config" role="tabpanel">
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Orden de atributos:</strong> Arrastra los atributos para cambiar su prioridad de visualización.
+                            <br><small>El orden se guarda automáticamente al mover un atributo.</small>
+                        </div>
+                        <div id="config_atributos_container">
+                            <!-- Los atributos se renderizarán aquí con manejadores de arrastre -->
+                        </div>
+                        <button type="button" id="btnGuardarAtributosConfig" class="btn btn-primary mt-3">
+                            <i class="bi bi-save me-1"></i> Guardar Atributos
+                        </button>
+                    </div>
+
+                    <!-- PANEL: STOCK VARIACIONES -->
+                    <div class="tab-pane fade" id="panel-variaciones-stock" role="tabpanel">
+                      <div class="alert alert-info mb-3">
+                          <i class="bi bi-info-circle me-2"></i>
+                          <strong>Gestión de stock por variación:</strong> Aquí puedes gestionar el inventario de cada variación del producto.
+                          Realiza todos los cambios necesarios y luego haz clic en <strong>"Guardar todos los cambios"</strong> para aplicarlos.
+                          <br><small>Solo se muestran las variaciones que tienen activada la gestión de inventario.</small>
+                      </div>
+                      
+                      <!-- Barra de acciones rápidas -->
+                      <div class="d-flex flex-wrap gap-2 mb-3">
+                          <button type="button" id="btnGuardarCambiosStockVariaciones" class="btn btn-success">
+                              <i class="bi bi-save me-1"></i> Guardar todos los cambios
+                          </button>
+                          <button type="button" id="btnDescartarCambiosStockVariaciones" class="btn btn-outline-secondary">
+                              <i class="bi bi-arrow-counterclockwise me-1"></i> Descartar cambios
+                          </button>
+                          <button type="button" id="btnResetearStockVariaciones" class="btn btn-outline-danger">
+                              <i class="bi bi-arrow-repeat me-1"></i> Resetear stock
+                          </button>
+                          <span class="badge ms-auto align-self-center" id="badgeCambiosPendientes">Sin cambios pendientes</span>
+                      </div>
+
+                      <div id="variaciones-stock-container">
+                          <!-- DataTables se renderizará aquí -->
+                          <div class="text-center text-muted py-4">
+                              <i class="bi bi-hourglass-split fs-2 d-block mb-2"></i>
+                              Cargando variaciones...
+                          </div>
+                      </div>
+                  </div>
+
+                    <div class="tab-pane fade" id="panel-etiquetas-config" role="tabpanel">
+                      <div class="alert alert-info mb-3">
+                          <i class="bi bi-info-circle me-2"></i>
+                          Cambia el color de las etiquetas asociadas a este producto. Los cambios se aplican en tiempo real.
+                      </div>
+                      <div id="config_etiquetas_container">
+                          <div class="text-muted text-center py-4">Cargando etiquetas...</div>
+                      </div>
+                  </div>
+                </div>
+                
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- Modal: Crear Atributo -->
 <div class="modal fade" id="modalCrearAtributo" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog">
@@ -490,7 +669,7 @@
     </form>
   </div>
 </div>
-<div class="modal fade" id="modalProductoSimple" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+<div class="modal fade" id="modalProductoSimple" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <form id="formProductoSimple" enctype="multipart/form-data" class="p-0" onsubmit="return handleGuardarProductoSimple(event)">

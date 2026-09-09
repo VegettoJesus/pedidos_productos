@@ -8,6 +8,8 @@ use App\Models\UsuarioDato;
 use App\Models\Departamento;
 use App\Models\Provincia;
 use App\Models\Distrito;
+use App\Models\ProductoValoracion;
+use App\Models\ConfiguracionSistema;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -15,23 +17,53 @@ use Illuminate\Support\Facades\Validator;
 
 class PerfilController extends Controller
 {
+    private function getBaseConfig()
+    {
+        $config = ConfiguracionSistema::first();
+        $authUser = null;
+        if (Auth::check()) {
+            $user = Auth::user();
+            if ($user->rol && $user->rol->name === 'client') {
+                $authUser = [
+                    'nombres'   => $user->nombres,
+                    'apellidos' => $user->apellidos,
+                    'email'     => $user->email,
+                    'foto'      => asset('img/user.png'),
+                ];
+            }
+        }
+        return [
+            'titulo_site' => $config ? $config->titulo_site : null,
+            'descripcion_corta' => $config ? $config->descripcion_corta : null,
+            'authUser' => $authUser,
+        ];
+    }
+
     public function index()
     {
         $user = Auth::user()->load('datos', 'rol');
         
-        $data = new \stdClass();
-        $data->script = 'js/perfil.js';
-        $data->css = 'css/administracion.css';
-        $data->contenido = 'perfil.configuracion';
-        $data->usuario = $user;
-        $data->departamentos = Departamento::orderBy('nombre')->get();
+        if ($user->id_rol == 2) {
+            return redirect()->route('tienda.home')->with('warning', 'No tienes permisos para acceder a esta página.');
+        }
         
-        return view('layouts.contenido', (array) $data);
+        $base = $this->getBaseConfig();
+        return view('layouts.contenido', array_merge($base, [
+            'contenido' => 'perfil.configuracion',
+            'css' => 'css/administracion.css',
+            'usuario' => $user,
+            'departamentos' => Departamento::orderBy('nombre')->get(),
+            'script' => 'js/perfil.js',
+        ]));
     }
 
     public function obtenerDatos()
     {
         $user = Auth::user()->load('datos', 'rol');
+        
+        if ($user->id_rol == 2) {
+            return response()->json(['success' => false, 'message' => 'No autorizado'], 403);
+        }
         
         if ($user->datos && $user->datos->imagen && 
             file_exists(public_path('perfil_usuario/'.$user->datos->imagen))) {
@@ -48,6 +80,12 @@ class PerfilController extends Controller
 
     public function actualizar(Request $request)
     {
+        $user = Auth::user();
+        
+        if ($user->id_rol == 2) {
+            return response()->json(['success' => false, 'message' => 'No autorizado'], 403);
+        }
+        
         $validator = Validator::make($request->all(), [
             'nombres' => 'required|string|max:150',
             'apellidos' => 'required|string|max:150',
@@ -79,7 +117,6 @@ class PerfilController extends Controller
             ], 422);
         }
 
-        $user = Auth::user();
         $user->nombres = $request->nombres;
         $user->apellidos = $request->apellidos;
         $user->email = $request->email;
@@ -130,6 +167,83 @@ class PerfilController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Perfil actualizado correctamente'
+        ]);
+    }
+
+    public function misValoraciones(Request $request)
+    {
+        $user = Auth::user();
+        
+        if (!$user) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Debes iniciar sesión para ver tus valoraciones.',
+                    'show_modal' => true
+                ], 401);
+            }
+            
+            return view('layouts.contenido2', [
+                'contenido2' => 'tienda.mis-valoraciones',
+                'valoraciones' => collect([]),
+                'show_auth_modal' => true,
+                'auth_modal_message' => 'Debes iniciar sesión para ver tus valoraciones.'
+            ]);
+        }
+        
+        if ($user->id_rol != 2) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'No tienes permisos de cliente.',
+                    'show_modal' => true
+                ], 403);
+            }
+            
+            return view('layouts.contenido2', [
+                'contenido2' => 'tienda.mis-valoraciones',
+                'valoraciones' => collect([]),
+                'show_auth_modal' => true,
+                'auth_modal_message' => 'No tienes permisos de cliente. Por favor, inicia sesión con una cuenta de cliente.'
+            ]);
+        }
+        
+        $valoraciones = ProductoValoracion::with(['producto' => function($q) {
+                $q->with(['imagenes', 'valoraciones']);
+            }])
+            ->where('user_id', $user->id)
+            ->where('aprobado', true)
+            ->orderBy('updated_at', 'desc')
+            ->paginate(12);
+        
+        foreach ($valoraciones as $valoracion) {
+            $producto = $valoracion->producto;
+            if ($producto) {
+                $valoracion->producto_precio = $producto->precio_formateado;
+                $valoracion->producto_imagen = $producto->imagen_miniatura 
+                    ? asset($producto->imagen_miniatura) 
+                    : asset('img/default-product.png');
+                $valoracion->producto_url = route('producto.detalle', $producto->id);
+            }
+        }
+        
+        if ($request->ajax() || $request->route()->getName() === 'perfil.mis-valoraciones.data') {
+            return response()->json([
+                'success' => true,
+                'valoraciones' => $valoraciones->items(),
+                'pagination' => [
+                    'current_page' => $valoraciones->currentPage(),
+                    'last_page' => $valoraciones->lastPage(),
+                    'per_page' => $valoraciones->perPage(),
+                    'total' => $valoraciones->total(),
+                ]
+            ]);
+        }
+        
+        return view('layouts.contenido2', [
+            'contenido2' => 'tienda.mis-valoraciones',
+            'valoraciones' => $valoraciones,
+            'show_auth_modal' => false
         ]);
     }
 }

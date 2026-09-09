@@ -18,6 +18,8 @@ use App\Models\ProductoImagen;
 use App\Models\ProductoVariacion;
 use App\Models\VariacionImagen;
 use App\Services\MenuService;
+use App\Models\HistorialStock;
+use App\Models\AtributoPrioridad;
 use App\Data\Icons;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -2309,6 +2311,8 @@ class Catalogo extends Controller
                         $producto->forceDelete();
 
                         DB::commit();
+                        $data->respuesta = 'ok';
+                        $data->mensaje = 'Producto eliminado correctamente.';
                         
                         // Construir descripción detallada
                             $descripcionAuditoria = "Producto eliminado: {$productoInfo['nombre']} ";
@@ -2515,6 +2519,627 @@ class Catalogo extends Controller
                     $data->mensaje = 'Valor creado';
                     $data->termino = $termino->fresh();
                     break;
+                case 'ObtenerConfiguracion':
+                    $id = $request->input('id');
+
+                    $producto = Producto::with([
+                        'atributos' => function($query) {
+                            $query->wherePivot('variacion', true)
+                                ->withPivot('tipo', 'shape', 'variacion');
+                        },
+                        'etiquetas' 
+                    ])->find($id);
+
+                    if (!$producto) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Producto no encontrado';
+                        break;
+                    }
+
+                    $etiquetasProducto = $producto->etiquetas->map(function($etiqueta) {
+                        return [
+                            'id' => $etiqueta->id,
+                            'nombre' => $etiqueta->nombre,
+                            'color' => $etiqueta->color ?? '#3498db',
+                            'slug' => $etiqueta->slug
+                        ];
+                    });
+
+                    $historialStock = HistorialStock::where('producto_id', $producto->id)
+                        ->orderBy('created_at', 'desc')
+                        ->limit(50)
+                        ->with('usuario:id,nombres,apellidos')
+                        ->get();
+
+                    $prioridades = AtributoPrioridad::where('producto_id', $id)
+                        ->pluck('prioridad', 'atributo_id')
+                        ->toArray();
+
+                    $atributosConfig = $producto->atributos->map(function ($atributo) use ($producto, $prioridades) {
+                        $productoAtributo = ProductoAtributo::where('producto_id', $producto->id)
+                            ->where('atributo_id', $atributo->id)
+                            ->where('variacion', true)
+                            ->first();
+                        
+                        if (!$productoAtributo) {
+                            return null;
+                        }
+                        
+                        $productoAtributoId = $productoAtributo->id;
+                        
+                        // Obtener los términos registrados
+                        $terminosRegistrados = \DB::table('producto_atributo_valores')
+                            ->where('producto_atributo_id', $productoAtributoId)
+                            ->pluck('termino_id')
+                            ->toArray();
+                        
+                        $terminosFiltrados = $atributo->terminos->filter(function ($termino) use ($terminosRegistrados) {
+                            return in_array($termino->id, $terminosRegistrados);
+                        })->map(function ($termino) use ($productoAtributoId) {
+                            $valorExtra = \DB::table('producto_atributo_valores')
+                                ->where('producto_atributo_id', $productoAtributoId)
+                                ->where('termino_id', $termino->id)
+                                ->value('valor_extra');
+                                
+                            return [
+                                'id' => $termino->id,
+                                'nombre' => $termino->nombre,
+                                'valor_extra' => $valorExtra
+                            ];
+                        })->values();
+
+                        // 🔥 Incluir la prioridad
+                        $prioridad = $prioridades[$atributo->id] ?? null;
+
+                        return [
+                            'id' => $atributo->id,
+                            'nombre' => $atributo->nombre,
+                            'tipo' => $atributo->pivot->tipo ?? 'Default',
+                            'shape' => $atributo->pivot->shape ?? 'Default',
+                            'variacion' => $atributo->pivot->variacion ?? false,
+                            'prioridad' => $prioridad,
+                            'terminos' => $terminosFiltrados
+                        ];
+                    })->filter();
+
+                    $data->respuesta = 'ok';
+                    $data->producto = $producto;
+                    $data->historial_stock = $historialStock;
+                    $data->atributos_config = $atributosConfig;
+                    $data->etiquetas_producto = $etiquetasProducto;
+                    
+                    break;
+                case 'ActualizarColorEtiqueta':
+                    $productoId = $request->input('producto_id');
+                    $etiquetaId = $request->input('etiqueta_id');
+                    $color = $request->input('color');
+
+                    $productoEtiqueta = \DB::table('producto_etiqueta')
+                        ->where('producto_id', $productoId)
+                        ->where('etiqueta_id', $etiquetaId)
+                        ->first();
+
+                    if (!$productoEtiqueta) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'La etiqueta no está asociada a este producto';
+                        break;
+                    }
+
+                    $etiqueta = Etiqueta::find($etiquetaId);
+                    if (!$etiqueta) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Etiqueta no encontrada';
+                        break;
+                    }
+
+                    $etiqueta->color = $color;
+                    $etiqueta->save();
+
+                    $this->registrarAuditoria(
+                        'Actualizar',
+                        'etiquetas',
+                        $etiqueta->id,
+                        $etiqueta->nombre,
+                        null,
+                        null,
+                        "Color de etiqueta actualizado a: {$color}"
+                    );
+
+                    $data->respuesta = 'ok';
+                    $data->mensaje = 'Color de etiqueta actualizado';
+                    $data->color = $color;
+                    $data->etiqueta_id = $etiquetaId;
+                    break;
+
+                case 'GuardarLimitesStock':
+                    $id = $request->input('id');
+                    $producto = Producto::find($id);
+
+                    if (!$producto) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Producto no encontrado';
+                        break;
+                    }
+
+                    $producto->stock_minimo = $request->input('stock_minimo', 0);
+                    $producto->max_stock = $request->input('max_stock');
+                    $producto->save();
+
+                    $this->registrarAuditoria(
+                        'Actualizar',
+                        'productos',
+                        $producto->id,
+                        $producto->nombre,
+                        null,
+                        null,
+                        "Límites de stock actualizados: Mínimo={$producto->stock_minimo}, Máximo={$producto->max_stock}"
+                    );
+
+                    $data->respuesta = 'ok';
+                    $data->mensaje = 'Límites de stock actualizados';
+                    break;
+
+                case 'RegistrarMovimientoStock':
+                    $id = $request->input('id');
+                    $producto = Producto::find($id);
+
+                    if (!$producto) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Producto no encontrado';
+                        break;
+                    }
+
+                    $cantidad = $request->input('cantidad');
+                    $motivo = $request->input('motivo');
+                    $tipoMovimiento = $request->input('tipo_movimiento');
+
+                    if ($tipoMovimiento === 'remove' && $cantidad > $producto->stock) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'No puedes quitar más stock del que existe.';
+                        break;
+                    }
+
+                    $cantidadAnterior = $producto->stock;
+                    $nuevaCantidad = $tipoMovimiento === 'add' 
+                        ? $cantidadAnterior + $cantidad 
+                        : $cantidadAnterior - $cantidad;
+
+                    // Registrar movimiento (ya no usamos stockeable)
+                    HistorialStock::registrarMovimiento(
+                        $producto,
+                        $cantidadAnterior,
+                        $nuevaCantidad,
+                        $motivo,
+                        auth()->id()
+                    );
+
+                    $producto->stock = $nuevaCantidad;
+                    $producto->save();
+
+                    $data->respuesta = 'ok';
+                    $data->mensaje = 'Movimiento de stock registrado';
+                    $data->nuevo_stock = $nuevaCantidad;
+                    break;
+
+                case 'GuardarAtributosConfig':
+                    $id = $request->input('id');
+                    $producto = Producto::find($id);
+
+                    if (!$producto) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Producto no encontrado';
+                        break;
+                    }
+
+                    $atributosConfig = json_decode($request->input('atributos'), true);
+                    
+                    if (!is_array($atributosConfig)) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Formato de atributos inválido';
+                        break;
+                    }
+
+                    $carpetaDestino = public_path('image_termino');
+                    if (!File::exists($carpetaDestino)) {
+                        File::makeDirectory($carpetaDestino, 0755, true);
+                    }
+
+                    $fecha = date('Ymd_His');
+                    $prioridadesParaGuardar = [];
+
+                    foreach ($atributosConfig as $attrConfig) {
+                        if (!isset($attrConfig['id'])) {
+                            continue;
+                        }
+
+                        $productoAtributo = ProductoAtributo::where('producto_id', $producto->id)
+                            ->where('atributo_id', $attrConfig['id'])
+                            ->first();
+
+                        if ($productoAtributo) {
+                            if (isset($attrConfig['prioridad']) && is_numeric($attrConfig['prioridad'])) {
+                                $prioridadesParaGuardar[] = [
+                                    'atributo_id' => $attrConfig['id'],
+                                    'prioridad' => (int) $attrConfig['prioridad']
+                                ];
+                            }
+
+                            $tipoAnterior = $productoAtributo->tipo ?? 'Default';
+                            $nuevoTipo = $attrConfig['tipo'] ?? 'Default';
+                            $tiposConValorExtra = ['Image', 'Color'];
+                            $tipoAnteriorTieneValorExtra = in_array($tipoAnterior, $tiposConValorExtra);
+                            $nuevoTipoTieneValorExtra = in_array($nuevoTipo, $tiposConValorExtra);
+                            
+                            $productoAtributo->tipo = $nuevoTipo;
+                            $productoAtributo->shape = $attrConfig['shape'] ?? 'Default';
+                            $productoAtributo->save();
+
+                            if ($tipoAnteriorTieneValorExtra && !$nuevoTipoTieneValorExtra) {
+                                $valoresActuales = \DB::table('producto_atributo_valores')
+                                    ->where('producto_atributo_id', $productoAtributo->id)
+                                    ->get();
+                                
+                                foreach ($valoresActuales as $valor) {
+                                    if ($tipoAnterior === 'Image' && $valor->valor_extra && File::exists(public_path($valor->valor_extra))) {
+                                        File::delete(public_path($valor->valor_extra));
+                                    }
+                                    
+                                    \DB::table('producto_atributo_valores')
+                                        ->where('id', $valor->id)
+                                        ->update(['valor_extra' => null]);
+                                    
+                                }
+                            } else {
+                                if (isset($attrConfig['terminos']) && is_array($attrConfig['terminos'])) {
+                                    foreach ($attrConfig['terminos'] as $terminoData) {
+                                        if (!isset($terminoData['id'])) {
+                                            continue;
+                                        }
+
+                                        $valorExtra = null;
+                                        
+                                        if (isset($terminoData['valor_extra']) && $terminoData['valor_extra'] === '__FILE__') {
+                                            $archivoKey = "imagen_{$attrConfig['id']}_{$terminoData['id']}";
+                                            
+                                            if ($request->hasFile($archivoKey)) {
+                                                $archivo = $request->file($archivoKey);
+                                                $ext = strtolower($archivo->getClientOriginalExtension());
+                                                if (!in_array($ext, ['jpg', 'jpeg', 'png', 'ico'])) {
+                                                    continue;
+                                                }
+
+                                                $valorActual = \DB::table('producto_atributo_valores')
+                                                    ->where('producto_atributo_id', $productoAtributo->id)
+                                                    ->where('termino_id', $terminoData['id'])
+                                                    ->value('valor_extra');
+
+                                                if ($valorActual && File::exists(public_path($valorActual))) {
+                                                    File::delete(public_path($valorActual));
+                                                }
+
+                                                $aleatorio = Str::random(6);
+                                                $nombreArchivo = "prod_{$producto->id}_attr_{$productoAtributo->atributo_id}_term_{$terminoData['id']}_{$aleatorio}_{$fecha}.{$ext}";
+                                                $archivo->move($carpetaDestino, $nombreArchivo);
+                                                $valorExtra = "image_termino/$nombreArchivo";
+                                            }
+                                        } else if (isset($terminoData['valor_extra']) && $terminoData['valor_extra'] !== null) {
+                                            $valorExtra = $terminoData['valor_extra'];
+                                        } else {
+                                            $valorActual = \DB::table('producto_atributo_valores')
+                                                ->where('producto_atributo_id', $productoAtributo->id)
+                                                ->where('termino_id', $terminoData['id'])
+                                                ->value('valor_extra');
+                                            
+                                            if ($valorActual && $nuevoTipo === 'Image' && File::exists(public_path($valorActual))) {
+                                                File::delete(public_path($valorActual));
+                                            }
+                                        }
+
+                                        if ($nuevoTipoTieneValorExtra) {
+                                            if ($valorExtra !== null) {
+                                                \DB::table('producto_atributo_valores')
+                                                    ->where('producto_atributo_id', $productoAtributo->id)
+                                                    ->where('termino_id', $terminoData['id'])
+                                                    ->update(['valor_extra' => $valorExtra]);
+                                            }
+                                        } else {
+                                            \DB::table('producto_atributo_valores')
+                                                ->where('producto_atributo_id', $productoAtributo->id)
+                                                ->where('termino_id', $terminoData['id'])
+                                                ->update(['valor_extra' => null]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!empty($prioridadesParaGuardar)) {
+                        foreach ($prioridadesParaGuardar as $prioridadData) {
+                            AtributoPrioridad::updateOrCreate(
+                                [
+                                    'producto_id' => $producto->id,
+                                    'atributo_id' => $prioridadData['atributo_id']
+                                ],
+                                [
+                                    'prioridad' => $prioridadData['prioridad']
+                                ]
+                            );
+                        }
+                    }
+
+                    $this->registrarAuditoria(
+                        'Actualizar',
+                        'productos',
+                        $producto->id,
+                        $producto->nombre,
+                        null,
+                        null,
+                        "Configuración de atributos actualizada"
+                    );
+
+                    $data->respuesta = 'ok';
+                    $data->mensaje = 'Configuración de atributos actualizada';
+                    break;
+                case 'ObtenerTipoProducto':
+                    $id = $request->input('id');
+                    $producto = Producto::find($id);
+                    if (!$producto) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Producto no encontrado';
+                        break;
+                    }
+                    $data->respuesta = 'ok';
+                    $data->tipo_producto = $producto->tipo_producto;
+                    break;
+
+                case 'ObtenerVariacionesStock':
+                    $id = $request->input('id');
+                    $producto = Producto::with(['variaciones' => function($query) {
+                        $query->where('gestion_inventario', true)
+                            ->where('activo', true);
+                    }])->find($id);
+
+                    if (!$producto) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Producto no encontrado';
+                        break;
+                    }
+
+                    $variaciones = $producto->variaciones->map(function($variacion) {
+                        // Obtener nombres de atributos
+                        $atributosNombres = $variacion->atributos->map(function($atributo) {
+                            return $atributo->nombre;
+                        })->implode(', ');
+                        
+                        return [
+                            'id' => $variacion->id,
+                            'nombre' => $variacion->nombre,
+                            'sku' => $variacion->sku,
+                            'stock' => $variacion->stock,
+                            'gestion_inventario' => $variacion->gestion_inventario,
+                            'atributos_nombres' => $atributosNombres ?: 'Sin atributos',
+                            'precio_regular' => $variacion->precio_regular,
+                            'precio_rebajado' => $variacion->precio_rebajado,
+                        ];
+                    });
+
+                    $data->respuesta = 'ok';
+                    $data->variaciones = $variaciones;
+                    break;
+
+                case 'GuardarPrioridadAtributos':
+                    $productoId = $request->input('producto_id');
+                    $prioridades = $request->input('prioridades', []);
+                    
+                    if (!$productoId || empty($prioridades)) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Faltan datos requeridos';
+                        break;
+                    }
+                    
+                    try {
+                        foreach ($prioridades as $item) {
+                            $atributoId = $item['atributo_id'];
+                            $prioridad = $item['prioridad'];
+                            
+                            AtributoPrioridad::updateOrCreate(
+                                [
+                                    'producto_id' => $productoId,
+                                    'atributo_id' => $atributoId
+                                ],
+                                [
+                                    'prioridad' => $prioridad
+                                ]
+                            );
+                        }
+                        
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'atributo_prioridad',
+                            $productoId,
+                            'Atributos',
+                            null,
+                            null,
+                            "Prioridades de atributos actualizadas"
+                        );
+                        
+                        $data->respuesta = 'ok';
+                        $data->mensaje = 'Prioridades actualizadas correctamente';
+                        
+                    } catch (\Exception $e) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Error al guardar prioridades: ' . $e->getMessage();
+                    }
+                    break;
+
+                case 'RegistrarMovimientoVariacionStock':
+                    $variacionId = $request->input('variacion_id');
+                    $cantidad = $request->input('cantidad', 0);
+                    $tipoMovimiento = $request->input('tipo_movimiento');
+                    $motivo = $request->input('motivo');
+
+                    $variacion = ProductoVariacion::find($variacionId);
+                    if (!$variacion) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Variación no encontrada';
+                        break;
+                    }
+
+                    if (!$variacion->gestion_inventario) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Esta variación no tiene gestión de inventario activada';
+                        break;
+                    }
+
+                    if ($tipoMovimiento === 'remove' && $cantidad > $variacion->stock) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'No puedes quitar más stock del que existe.';
+                        break;
+                    }
+
+                    $cantidadAnterior = $variacion->stock;
+                    $nuevaCantidad = $tipoMovimiento === 'add' 
+                        ? $cantidadAnterior + $cantidad 
+                        : $cantidadAnterior - $cantidad;
+
+                    // Registrar en historial de stock (usando la misma tabla con relación a producto_padre)
+                    HistorialStock::create([
+                        'producto_id' => $variacion->producto_padre_id,
+                        'variacion_id' => $variacion->id,
+                        'cantidad_anterior' => $cantidadAnterior,
+                        'nueva_cantidad' => $nuevaCantidad,
+                        'diferencia' => $tipoMovimiento === 'add' ? $cantidad : -$cantidad,
+                        'motivo' => $motivo . ' (Variación)',
+                        'usuario_id' => auth()->id(),
+                    ]);
+
+                    $variacion->stock = $nuevaCantidad;
+                    $variacion->save();
+
+                    $data->respuesta = 'ok';
+                    $data->mensaje = 'Stock de variación actualizado';
+                    $data->nuevo_stock = $nuevaCantidad;
+                    break;
+
+                case 'ObtenerHistorialVariacionStock':
+                    $variacionId = $request->input('variacion_id');
+                    
+                    // Buscar el historial para esta variación
+                    // Necesitamos asociar el historial con la variación
+                    // Modificación: agregar columna variacion_id a historial_stock
+                    
+                    $historial = HistorialStock::where('variacion_id', $variacionId)
+                        ->orderBy('created_at', 'desc')
+                        ->limit(50)
+                        ->get()
+                        ->map(function($item) {
+                            return [
+                                'id' => $item->id,
+                                'cantidad_anterior' => $item->cantidad_anterior,
+                                'nueva_cantidad' => $item->nueva_cantidad,
+                                'diferencia' => $item->diferencia,
+                                'motivo' => $item->motivo,
+                                'created_at' => $item->created_at,
+                                'usuario_nombre' => $item->usuario ? 
+                                    ($item->usuario->nombres . ' ' . $item->usuario->apellidos) : 
+                                    'Sistema'
+                            ];
+                        });
+
+                    $data->respuesta = 'ok';
+                    $data->historial = $historial;
+                    break;
+
+                case 'ObtenerStockYLimites':
+                    $id = $request->input('id');
+                    $producto = Producto::find($id);
+                    if (!$producto) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Producto no encontrado';
+                        break;
+                    }
+                    $data->respuesta = 'ok';
+                    $data->stock = $producto->stock;
+                    $data->max_stock = $producto->max_stock;
+                    $data->stock_minimo = $producto->stock_minimo;
+                    break;
+                case 'GuardarCambiosMasivosVariacionesStock':
+                    $productoId = $request->input('producto_id');
+                    $cambios = $request->input('cambios', []);
+                    
+                    if (empty($cambios)) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'No hay cambios para guardar';
+                        break;
+                    }
+                    
+                    $producto = Producto::find($productoId);
+                    if (!$producto) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Producto no encontrado';
+                        break;
+                    }
+                    
+                    $errores = [];
+                    $exitos = 0;
+                    
+                    DB::beginTransaction();
+                    try {
+                        foreach ($cambios as $cambio) {
+                            $variacionId = $cambio['variacion_id'];
+                            $nuevoStock = $cambio['nuevo_stock'];
+                            $motivo = $cambio['motivo'] ?? 'Ajuste manual desde configuración avanzada';
+                            
+                            $variacion = ProductoVariacion::find($variacionId);
+                            if (!$variacion) {
+                                $errores[] = "Variación ID {$variacionId} no encontrada";
+                                continue;
+                            }
+                            
+                            if (!$variacion->gestion_inventario) {
+                                $errores[] = "Variación {$variacion->sku} no tiene gestión de inventario";
+                                continue;
+                            }
+                            
+                            // Validar que el stock no sea negativo
+                            if ($nuevoStock < 0) {
+                                $errores[] = "Stock negativo no permitido para variación {$variacion->sku}";
+                                continue;
+                            }
+                            
+                            $cantidadAnterior = $variacion->stock;
+                            
+                            // Registrar en historial
+                            HistorialStock::create([
+                                'producto_id' => $productoId,
+                                'variacion_id' => $variacion->id,
+                                'cantidad_anterior' => $cantidadAnterior,
+                                'nueva_cantidad' => $nuevoStock,
+                                'diferencia' => $nuevoStock - $cantidadAnterior,
+                                'motivo' => $motivo,
+                                'usuario_id' => auth()->id(),
+                            ]);
+                            
+                            $variacion->stock = $nuevoStock;
+                            $variacion->save();
+                            $exitos++;
+                        }
+                        
+                        DB::commit();
+                        
+                        $data->respuesta = 'ok';
+                        $data->mensaje = "{$exitos} variación(es) actualizada(s) correctamente";
+                        if (!empty($errores)) {
+                            $data->mensaje .= ". Errores: " . implode(', ', $errores);
+                        }
+                        
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Error al guardar los cambios: ' . $e->getMessage();
+                    }
+                    break;
 
                 default:
                     $data->respuesta = 'error';
@@ -2534,22 +3159,84 @@ class Catalogo extends Controller
             return view('layouts.contenido', (array) $data);
         }
     }
+    
     private function syncProductoAtributos(Producto $producto, array $atributosData)
     {
-        // Eliminar relaciones actuales
-        $producto->atributos()->detach();
+        $atributosActuales = $producto->atributos()->pluck('atributo_id')->toArray();
+        $nuevosIds = array_column($atributosData, 'atributo_id');
+        $idsAEliminar = array_diff($atributosActuales, $nuevosIds);
+        $idsAMantener = array_intersect($atributosActuales, $nuevosIds);
         
-        foreach ($atributosData as $attr) {
-            $productoAtributo = ProductoAtributo::create([
-                'producto_id' => $producto->id,
-                'atributo_id' => $attr['atributo_id'],
-                'visible'     => $attr['visible'] ?? true,
-                'variacion'   => $attr['variacion'] ?? false,
-            ]);
+        if (!empty($idsAEliminar)) {
+            $productoAtributosAEliminar = ProductoAtributo::where('producto_id', $producto->id)
+                ->whereIn('atributo_id', $idsAEliminar)
+                ->get();
             
-            if (!empty($attr['valores'])) {
-                $productoAtributo->valores()->sync($attr['valores']);
+            foreach ($productoAtributosAEliminar as $pa) {
+                $pa->valores()->detach();
+                $pa->delete();
             }
+        }
+        
+        $atributosConVariacion = [];
+        $prioridad = 1;
+        
+        foreach ($atributosData as $index => $attr) {
+            $atributoId = $attr['atributo_id'];
+            
+            $productoAtributo = ProductoAtributo::where('producto_id', $producto->id)
+                ->where('atributo_id', $atributoId)
+                ->first();
+            
+            if ($productoAtributo) {
+                $productoAtributo->update([
+                    'visible'   => $attr['visible'] ?? true,
+                    'variacion' => $attr['variacion'] ?? false,
+                ]);
+            } else {
+                $productoAtributo = ProductoAtributo::create([
+                    'producto_id' => $producto->id,
+                    'atributo_id' => $atributoId,
+                    'visible'     => $attr['visible'] ?? true,
+                    'variacion'   => $attr['variacion'] ?? false,
+                ]);
+            }
+            
+            if (isset($attr['valores']) && is_array($attr['valores'])) {
+                $productoAtributo->valores()->sync($attr['valores']);
+            } else {
+                $productoAtributo->valores()->detach();
+            }
+            
+            if (isset($attr['variacion']) && $attr['variacion'] === true) {
+                $atributosConVariacion[] = [
+                    'atributo_id' => $atributoId,
+                    'prioridad' => $prioridad++
+                ];
+            }
+        }
+        
+        $this->syncAtributoPrioridad($producto, $atributosConVariacion);
+    }
+
+    private function syncAtributoPrioridad(Producto $producto, array $atributosConVariacion)
+    {
+        $nuevosIds = array_column($atributosConVariacion, 'atributo_id');
+        
+        AtributoPrioridad::where('producto_id', $producto->id)
+            ->whereNotIn('atributo_id', $nuevosIds)
+            ->delete();
+        
+        foreach ($atributosConVariacion as $item) {
+            AtributoPrioridad::updateOrCreate(
+                [
+                    'producto_id' => $producto->id,
+                    'atributo_id' => $item['atributo_id']
+                ],
+                [
+                    'prioridad' => $item['prioridad']
+                ]
+            );
         }
     }
 

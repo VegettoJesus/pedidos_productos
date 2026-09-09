@@ -1527,7 +1527,7 @@ function createVariacionRowVariable(variacion, index) {
             
             imgWrap.innerHTML = `
                 <img src="${src}" class="img-thumbnail w-100 h-100" style="object-fit: cover;">
-                <button type="button" class="btn-close position-absolute top-0 end-0 btn-remove-img" style="background: #fff; border-radius:50%;"></button>
+                <button type="button" class="btn-close position-absolute top-0 end-0 btn-remove-img" style="border-radius:50%;"></button>
             `;
             
             imgWrap.querySelector('.btn-remove-img').addEventListener('click', () => {

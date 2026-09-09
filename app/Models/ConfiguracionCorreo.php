@@ -11,7 +11,7 @@ class ConfiguracionCorreo extends Model
     use HasFactory;
 
     protected $table = 'configuracion_correo';
-    
+
     protected $fillable = [
         'servidor_correo',
         'puerto',
@@ -20,51 +20,76 @@ class ConfiguracionCorreo extends Model
         'seguridad',
         'activo'
     ];
-    
+
     protected $hidden = [
         'contraseña'
     ];
-    
+
     protected $casts = [
         'puerto' => 'integer',
         'activo' => 'boolean',
     ];
 
     /**
-     * Encriptar contraseña al guardar
+     * Encriptar contraseña antes de guardar.
      */
     public function setContraseñaAttribute($value)
     {
-        if (!empty($value)) {
+        if ($value !== null && $value !== '') {
             $this->attributes['contraseña'] = Crypt::encryptString($value);
         }
     }
-    
+
     /**
-     * Desencriptar contraseña al leer (para usar en envío de correos)
+     * Desencriptar contraseña al obtenerla.
      */
     public function getContraseñaAttribute($value)
     {
-        if (empty($value)) {
+        if ($value === null || $value === '') {
             return null;
         }
-        
+
         try {
             return Crypt::decryptString($value);
-        } catch (\Exception $e) {
-            \Log::error('Error al desencriptar contraseña de correo: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+
+            \Log::error('Error al desencriptar contraseña SMTP', [
+                'error' => $e->getMessage(),
+                'configuracion_id' => $this->id,
+            ]);
+
             return null;
         }
     }
-    
-    /**
-     * Obtener la configuración activa
-     */
+
     public static function getActiva()
     {
         return self::where('activo', true)->first();
     }
-    
+
+    public function validarConfiguracion()
+    {
+        $errors = [];
+
+        if (empty($this->servidor_correo)) {
+            $errors[] = 'Servidor SMTP es requerido';
+        }
+
+        if (empty($this->puerto) || !is_numeric($this->puerto)) {
+            $errors[] = 'Puerto debe ser un número';
+        }
+
+        if (empty($this->nombre_acceso)) {
+            $errors[] = 'Nombre de acceso es requerido';
+        }
+
+        if (empty($this->contraseña)) {
+            $errors[] = 'Contraseña es requerida';
+        }
+
+        return $errors;
+    }
+
     /**
      * Configuraciones predefinidas comunes
      */
@@ -75,7 +100,7 @@ class ConfiguracionCorreo extends Model
                 'servidor_correo' => 'smtp.gmail.com',
                 'puerto' => 587,
                 'seguridad' => 'tls',
-                'descripcion' => 'Gmail (recomendado para pruebas)'
+                'descripcion' => 'Gmail'
             ],
             'outlook' => [
                 'servidor_correo' => 'smtp.office365.com',
@@ -102,31 +127,5 @@ class ConfiguracionCorreo extends Model
                 'descripcion' => 'SendGrid'
             ]
         ];
-    }
-    
-    /**
-     * Validar configuración de conexión
-     */
-    public function validarConfiguracion()
-    {
-        $errors = [];
-        
-        if (empty($this->servidor_correo)) {
-            $errors[] = 'Servidor SMTP es requerido';
-        }
-        
-        if (empty($this->puerto) || !is_numeric($this->puerto)) {
-            $errors[] = 'Puerto debe ser un número';
-        }
-        
-        if (empty($this->nombre_acceso)) {
-            $errors[] = 'Nombre de acceso es requerido';
-        }
-        
-        if (empty($this->contraseña)) {
-            $errors[] = 'Contraseña es requerida';
-        }
-        
-        return $errors;
     }
 }

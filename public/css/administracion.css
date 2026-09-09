@@ -1229,6 +1229,54 @@ p {
   background-color: #6c757d;
   color: white;
 }
+.atributo-config-card {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.atributo-config-card.sortable-ghost {
+    opacity: 0.5;
+    box-shadow: 0 0 0 3px #f35b08, 0 4px 15px rgba(0,0,0,0.15);
+    transform: scale(1.02);
+}
+
+.atributo-config-card.sortable-chosen {
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    transform: scale(1.01);
+}
+
+.atributo-config-card.sortable-drag {
+    cursor: grabbing !important;
+}
+
+.orden-badge {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f35b08;
+    color: white;
+    font-weight: bold;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.atributo-config-card:hover .orden-badge {
+    transform: scale(1.1);
+}
+
+/* Estilos para el toast */
+.toast {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    border-radius: 12px;
+}
+
+.toast .toast-body {
+    padding: 12px 16px;
+    font-size: 0.95rem;
+}
 @media (max-width: 768px) {
   #massActionsPanel .card-body {
     padding: 1rem;

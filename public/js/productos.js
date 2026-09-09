@@ -1,6 +1,4 @@
 (function(){
-  
-  // ---- Utilities ----
   const qs = (selector, scope = document) => scope.querySelector(selector);
   const qsa = (selector, scope = document) => scope.querySelectorAll(selector);
   
@@ -9,16 +7,12 @@
                                        .replace(/"/g,'&quot;')
                                        .replace(/'/g,'&#039;');
 
-  // ---- Configs/Globals ----
   const MAX_IMAGES = 6;
   const MAX_SIZE_BYTES = 4 * 1024 * 1024;
-  
-  // Data from server
   const CATEGORIAS = window._CATEGORIAS || [];
   const ETIQUETAS = window._ETIQUETAS || [];
   const ATRIBUTOS = window._ATRIBUTOS || [];
 
-  // State management
   const state = {
     imageFiles: [],
     nextFileId: 1,
@@ -33,6 +27,7 @@
     relacionados: [],
     variacionesPage: 1,
     variacionesPerPage: 10,
+    modalTransition: false
   };
 
   function getCurrentPageVariaciones() {
@@ -48,26 +43,16 @@
   function initTipoProductoSystem(){
     const sel = qs('#tipoProductoSelect');
     if(!sel) return;
-
-    // run una vez al inicio para aplicar UI por defecto
     applyTipoUI(sel.value || sel.options[sel.selectedIndex].value);
 
     sel.addEventListener('change', (e) => {
       const nuevoTipo = e.target.value;
-      // limpiar TODO lo dependiente del tipo
       clearOnTipoChange(nuevoTipo);
-      // aplicar UI acorde al tipo
       applyTipoUI(nuevoTipo);
     });
   }
 
   function clearOnTipoChange(nuevoTipo){
-    console.log(`🔄 Limpiando todo antes de cambiar a: ${nuevoTipo}`);
-    
-    // NO reseteamos el formulario completo aquí porque eso cambiaría el select
-    // Solo limpiamos los estados específicos
-    
-    // ===== 1. LIMPIAR ESTADO PRINCIPAL =====
     state.productoAtributos = [];
     state.variaciones = [];
     state.upsells = [];
@@ -79,12 +64,10 @@
     state.variacionesPage = 1;
     state.isSubmitting = false;
     
-    // ===== 2. LIMPIAR TINYMCE =====
     if (typeof tinymce !== 'undefined' && tinymce.get('descripcionLarga')) {
         tinymce.get('descripcionLarga').setContent('');
     }
     
-    // ===== 3. LIMPIAR CONTENEDORES VISUALES =====
     const atributosBlocks = qs('#atributosBlocks');
     if (atributosBlocks) atributosBlocks.innerHTML = '';
     
@@ -94,20 +77,17 @@
     const previewContainer = qs('#previewContainer');
     if (previewContainer) previewContainer.innerHTML = '';
     
-    // ===== 4. LIMPIAR TAGS DE RELACIONADOS =====
     const tagContainers = document.querySelectorAll('.tag-container');
     tagContainers.forEach(container => {
         if (container) container.innerHTML = '';
     });
     
-    // ===== 5. LIMPIAR INPUTS DE BÚSQUEDA =====
     const searchInputs = ['#inputUpsells', '#inputCrosssells', '#inputRelacionados'];
     searchInputs.forEach(selector => {
         const input = qs(selector);
         if (input) input.value = '';
     });
     
-    // ===== 6. LIMPIAR MINIATURA =====
     const miniImg = qs('#miniImg');
     const miniPlaceholder = qs('#miniPlaceholder');
     const removeMiniBtn = qs('#removeMiniBtn');
@@ -121,34 +101,23 @@
     
     const miniInput = qs('#miniaturaInput');
     if (miniInput) miniInput.value = '';
-    
-    // ===== 7. LIMPIAR CATEGORÍA Y SUBCATEGORÍA =====
     const catSelect = qs('#categoriaSelect');
     if (catSelect) catSelect.value = '';
     
     const subList = qs('#subcategoriaList');
     if (subList) subList.innerHTML = '<div class="text-muted text-center py-3">Selecciona una categoría primero</div>';
-    
-    // Limpiar radio buttons de subcategoría
     const subcatRadios = document.querySelectorAll('input[name="id_subCategorias"]');
     subcatRadios.forEach(radio => radio.checked = false);
-    
-    // ===== 8. LIMPIAR ETIQUETAS =====
-    // Limpiar checkboxes de etiquetas disponibles
     const tagCheckboxes = document.querySelectorAll('.tag-available');
     tagCheckboxes.forEach(checkbox => {
         if (checkbox) checkbox.checked = false;
     });
     
-    // Limpiar etiquetas seleccionadas
     const selectedTagsContainer = qs('#selectedTags');
     if (selectedTagsContainer) selectedTagsContainer.innerHTML = '';
     
     const tagInput = qs('#tagInput');
     if (tagInput) tagInput.value = '';
-    
-    // ===== 9. LIMPIAR CHECKBOXES Y RADIOS ESPECÍFICOS =====
-    // Programar rebaja
     const checkRebaja = qs('#checkRebaja');
     const rebajaFechas = qs('#rebajaFechas');
     if (checkRebaja) {
@@ -156,7 +125,6 @@
         if (rebajaFechas) rebajaFechas.classList.add('d-none');
     }
     
-    // Gestión de inventario
     const checkGestion = qs('#checkGestion');
     const invExtra = qs('#invExtra');
     if (checkGestion) {
@@ -164,7 +132,6 @@
         if (invExtra) invExtra.classList.add('d-none');
     }
     
-    // ===== 10. LIMPIAR CAMPOS DE INVENTARIO =====
     const stockInput = qs('input[name="stock"]');
     if (stockInput) stockInput.value = '';
     
@@ -174,14 +141,10 @@
     const backordersRadios = document.querySelectorAll('input[name="backorders"]');
     backordersRadios.forEach(radio => radio.checked = false);
     if (backordersRadios.length > 0) backordersRadios[0].checked = true;
-    
-    // Estado de inventario
     const estadoInvRadios = document.querySelectorAll('input[name="estado_inv"]');
     estadoInvRadios.forEach(radio => radio.checked = false);
     const primerEstadoInv = document.querySelector('input[name="estado_inv"][value="existe"]');
     if (primerEstadoInv) primerEstadoInv.checked = true;
-    
-    // ===== 11. LIMPIAR CAMPOS DE PRECIOS =====
     const precioRegular = qs('input[name="precio_regular"]');
     if (precioRegular) precioRegular.value = '';
     
@@ -192,8 +155,6 @@
     const fechaFin = qs('input[name="fecha_fin_rebaja"]');
     if (fechaInicio) fechaInicio.value = '';
     if (fechaFin) fechaFin.value = '';
-    
-    // ===== 12. LIMPIAR CAMPOS DE ENVÍO =====
     const peso = qs('input[name="peso"]');
     if (peso) peso.value = '';
     
@@ -206,8 +167,6 @@
     if (longitud) longitud.value = '';
     if (anchura) anchura.value = '';
     if (altura) altura.value = '';
-    
-    // ===== 13. LIMPIAR CAMPOS AVANZADOS =====
     const notaInterna = qs('textarea[name="nota_interna"]');
     if (notaInterna) notaInterna.value = '';
     
@@ -216,54 +175,40 @@
     
     const vendidoIndividualmente = qs('input[name="vendido_individualmente"]');
     if (vendidoIndividualmente) vendidoIndividualmente.checked = false;
-    
-    // ===== 14. LIMPIAR IMÁGENES PRINCIPALES =====
     const imagenesInput = qs('#imagenesInput');
     if (imagenesInput) imagenesInput.value = '';
     
-    // Liberar URLs de objetos
     state.imageFiles.forEach(img => {
         if (img.url) URL.revokeObjectURL(img.url);
     });
     
-    // ===== 15. RESETEAR CHECKBOXES DE ATRIBUTOS DE VARIACIÓN =====
     const chkVariaciones = document.querySelectorAll('.chk-variacion');
     chkVariaciones.forEach(chk => {
         if (chk) {
             chk.checked = false;
-            // Ocultar si es necesario
             const formCheck = chk.closest('.form-check');
             if (formCheck) formCheck.classList.add('d-none');
         }
     });
     
-    // ===== 16. RE-RENDERIZAR COMPONENTES =====
     renderAtributoBlocks();
     renderVariacionesUI();
     renderSelectedTags();
     updateImageStatus();
-    
-    // ===== 17. LIMPIAR VARIABLES DE PAGINACIÓN =====
     state.variacionesPage = 1;
-    
-    console.log(`✅ Todo limpiado correctamente para tipo: ${nuevoTipo}`);
   }
 
   function initNewProductButton() {
     const btnNuevo = qs('#btnNuevo');
     if (btnNuevo) {
         btnNuevo.addEventListener('click', function() {
-            console.log('Botón Nuevo clickeado - limpiando todo');
-            resetForm(false); // Reset completo
-            
-            // Resetear tipo de producto a simple
+            resetForm(false); 
             const tipoSelect = qs('#tipoProductoSelect');
             if (tipoSelect) {
                 tipoSelect.value = 'simple';
                 applyTipoUI('simple');
             }
             
-            // Limpiar campos ocultos
             const idInput = qs('#idProducto');
             if (idInput) idInput.value = '';
         });
@@ -271,93 +216,87 @@
   }
 
   function applyTipoUI(tipo){
-    const navContainer = qs('.nav-pills') || qs('#v-tabs');
-    if(!navContainer) return;
+  const navContainer = qs('.nav-pills') || qs('#v-tabs');
+  if(!navContainer) return;
 
-    function toggleNavByTarget(targetSelector, show){
-      const btn = navContainer.querySelector(`[data-bs-target="${targetSelector}"]`);
-      if(btn) btn.classList.toggle('d-none', !show);
-    }
-    function togglePane(selector, show){
-      const pane = qs(selector);
-      if(pane) pane.classList.toggle('d-none', !show);
-    }
-    ensureVariacionesTab();
-
-    if(tipo === 'simple'){
-      // Mostrar todas las pestañas normalmente
-      toggleNavByTarget('#tab-general', true);
-      togglePane('#tab-general', true);
-      toggleNavByTarget('#tab-inventario', true);
-      togglePane('#tab-inventario', true);
-      toggleNavByTarget('#tab-envio', true);
-      togglePane('#tab-envio', true);
-      toggleNavByTarget('#tab-relacionados', true);
-      togglePane('#tab-relacionados', true);
-      toggleNavByTarget('#tab-atributos', true);
-      togglePane('#tab-atributos', true);
-      toggleNavByTarget('#tab-avanzado', true);
-      togglePane('#tab-avanzado', true);
-      toggleNavByTarget('#tab-variaciones', false);
-      togglePane('#tab-variaciones', false);
-      
-      // Habilitar campos de precios en general
-      enablePriceFields(true);
-      toggleAtributoVariacionCheckbox(false);
-      showTab('#tab-general');  // Para simple: mostrar pestaña General
-
-    } else if(tipo === 'variable'){
-      // Ocultar pestaña general (precios van en variaciones)
-      toggleNavByTarget('#tab-general', false);
-      togglePane('#tab-general', false);
-      
-      toggleNavByTarget('#tab-inventario', true);
-      togglePane('#tab-inventario', true);
-      toggleNavByTarget('#tab-envio', true);
-      togglePane('#tab-envio', true);
-      toggleNavByTarget('#tab-relacionados', true);
-      togglePane('#tab-relacionados', true);
-      toggleNavByTarget('#tab-atributos', true);
-      togglePane('#tab-atributos', true);
-      toggleNavByTarget('#tab-avanzado', true);
-      togglePane('#tab-avanzado', true);
-      toggleNavByTarget('#tab-variaciones', true);
-      togglePane('#tab-variaciones', true);
-      
-      // Configurar inventario para variable
-      showInventoryMode('variable');
-      // Deshabilitar campos de precio en general (no aplican para variable)
-      enablePriceFields(false);
-      toggleAtributoVariacionCheckbox(true);
-      
-      // *** CAMBIO AQUÍ: Mostrar pestaña de Inventario en lugar de Variaciones ***
-      showTab('#tab-inventario');  // Antes era '#tab-variaciones'
-      
-      renderVariacionesUI(); // Aunque no se muestre la pestaña, se renderizan por si el usuario cambia
-
-    } else if(tipo === 'agrupado'){
-      toggleNavByTarget('#tab-general', false);
-      togglePane('#tab-general', false);
-      toggleNavByTarget('#tab-inventario', true);
-      togglePane('#tab-inventario', true);
-      toggleNavByTarget('#tab-envio', false);
-      togglePane('#tab-envio', false);
-      toggleNavByTarget('#tab-relacionados', true);
-      togglePane('#tab-relacionados', true);
-      toggleNavByTarget('#tab-atributos', true);
-      togglePane('#tab-atributos', true);
-      toggleNavByTarget('#tab-avanzado', true);
-      togglePane('#tab-avanzado', true);
-      toggleNavByTarget('#tab-variaciones', false);
-      togglePane('#tab-variaciones', false);
-      
-      showInventoryMode('agrupado');
-      toggleAtributoVariacionCheckbox(false);
-      showFirstVisibleTab(navContainer);
-    }
+  function toggleNavByTarget(targetSelector, show){
+    const btn = navContainer.querySelector(`[data-bs-target="${targetSelector}"]`);
+    if(btn) btn.classList.toggle('d-none', !show);
   }
+  function togglePane(selector, show){
+    const pane = qs(selector);
+    if(pane) pane.classList.toggle('d-none', !show);
+  }
+  ensureVariacionesTab();
 
-// Función auxiliar para habilitar/deshabilitar campos de precio
+  if(tipo === 'simple'){
+    toggleNavByTarget('#tab-general', true);
+    togglePane('#tab-general', true);
+    toggleNavByTarget('#tab-inventario', true);
+    togglePane('#tab-inventario', true);
+    toggleNavByTarget('#tab-envio', true);
+    togglePane('#tab-envio', true);
+    toggleNavByTarget('#tab-relacionados', true);
+    togglePane('#tab-relacionados', true);
+    toggleNavByTarget('#tab-atributos', true);
+    togglePane('#tab-atributos', true);
+    toggleNavByTarget('#tab-avanzado', true);
+    togglePane('#tab-avanzado', true);
+    toggleNavByTarget('#tab-variaciones', false);
+    togglePane('#tab-variaciones', false);
+    enablePriceFields(true);
+    toggleAtributoVariacionCheckbox(false);
+    showTab('#tab-general');
+    renderRelacionadosDefault();
+
+  } else if(tipo === 'variable'){
+    toggleNavByTarget('#tab-general', false);
+    togglePane('#tab-general', false);
+    
+    toggleNavByTarget('#tab-inventario', true);
+    togglePane('#tab-inventario', true);
+    toggleNavByTarget('#tab-envio', true);
+    togglePane('#tab-envio', true);
+    toggleNavByTarget('#tab-relacionados', true);
+    togglePane('#tab-relacionados', true);
+    toggleNavByTarget('#tab-atributos', true);
+    togglePane('#tab-atributos', true);
+    toggleNavByTarget('#tab-avanzado', true);
+    togglePane('#tab-avanzado', true);
+    toggleNavByTarget('#tab-variaciones', true);
+    togglePane('#tab-variaciones', true);
+    
+    showInventoryMode('variable');
+    enablePriceFields(false);
+    toggleAtributoVariacionCheckbox(true);
+    showTab('#tab-inventario');
+    renderRelacionadosDefault();
+    renderVariacionesUI();
+
+  } else if(tipo === 'agrupado'){
+    toggleNavByTarget('#tab-general', false);
+    togglePane('#tab-general', false);
+    toggleNavByTarget('#tab-inventario', true);
+    togglePane('#tab-inventario', true);
+    toggleNavByTarget('#tab-envio', false);
+    togglePane('#tab-envio', false);
+    toggleNavByTarget('#tab-relacionados', true);
+    togglePane('#tab-relacionados', true);
+    toggleNavByTarget('#tab-atributos', true);
+    togglePane('#tab-atributos', true);
+    toggleNavByTarget('#tab-avanzado', true);
+    togglePane('#tab-avanzado', true);
+    toggleNavByTarget('#tab-variaciones', false);
+    togglePane('#tab-variaciones', false);
+    
+    showInventoryMode('agrupado');
+    toggleAtributoVariacionCheckbox(false);
+    showFirstVisibleTab(navContainer);
+    
+    renderRelacionadosAgrupado();
+  }
+}
+
 function enablePriceFields(enable) {
     const precioRegular = qs('input[name="precio_regular"]');
     const precioRebajado = qs('input[name="precio_rebajado"]');
@@ -385,34 +324,24 @@ function showInventoryMode(mode){
     const invPane = qs('#tab-inventario');
     if(!invPane) return;
 
-    // Primero mostrar todos los elementos
     qsa('#tab-inventario .mb-3, #tab-inventario .form-check').forEach(el => {
         el.classList.remove('d-none');
     });
 
     if(mode === 'simple'){
-        // Mostrar todo para simple
-        // No ocultar nada adicional
-        
-        // Asegurar que los campos de precio están habilitados
         enablePriceFields(true);
 
     } else if(mode === 'variable'){
-        // Para variable: ocultar estado de inventario
         const estadoInv = invPane.querySelector('[name="estado_inv"]');
         if(estadoInv) {
             const estadoInvGroup = estadoInv.closest('.mb-3, .form-check');
             if(estadoInvGroup) estadoInvGroup.classList.add('d-none');
         }
         
-        // Mostrar tooltip informativo sobre inventario en variaciones
         showInventoryInfoMessage(true);
-        
-        // Deshabilitar campos de precio (se manejan en variaciones)
         enablePriceFields(false);
 
     } else if(mode === 'agrupado'){
-        // Para agrupado: solo SKU
         const elementosAOcultar = ['gestion_inventario', 'stock', 'backorders', 'estado_inv', 'vendido_individualmente'];
         elementosAOcultar.forEach(campo => {
             const elemento = invPane.querySelector(`[name="${campo}"]`);
@@ -422,21 +351,16 @@ function showInventoryMode(mode){
             }
         });
         
-        // Mostrar mensaje informativo
         showInventoryInfoMessage(false);
     }
 }
 
-// Función para mostrar mensajes informativos en inventario
 function showInventoryInfoMessage(isVariable) {
     const invPane = qs('#tab-inventario');
     if(!invPane) return;
-    
-    // Eliminar mensaje existente
     const existingMsg = invPane.querySelector('.inventory-info-message');
     if(existingMsg) existingMsg.remove();
     
-    // Crear nuevo mensaje
     const msgDiv = document.createElement('div');
     msgDiv.className = 'alert alert-info inventory-info-message mt-3';
     msgDiv.style.fontSize = '0.9rem';
@@ -458,7 +382,6 @@ function showInventoryInfoMessage(isVariable) {
     invPane.appendChild(msgDiv);
   }
 
-  // ---- Helpers adicionales ----
   function showInventoryMode(mode){
     const invPane = qs('#tab-inventario');
     if(!invPane) return;
@@ -471,7 +394,6 @@ function showInventoryInfoMessage(isVariable) {
       const hasEstado_inv = el.querySelector('[name="estado_inv"]');
       
       if(mode === 'simple'){
-        // Mostrar todo
         el.classList.remove('d-none');
 
       } else if(mode === 'variable'){
@@ -482,7 +404,6 @@ function showInventoryInfoMessage(isVariable) {
         }
 
       } else if(mode === 'agrupado'){
-        // Solo SKU
         if (hasSku) {
           el.classList.remove('d-none');
         } else {
@@ -527,19 +448,129 @@ function showInventoryInfoMessage(isVariable) {
   function renderRelacionadosAgrupado(){
     const relPane = qs('#tab-relacionados');
     if(!relPane) return;
+    
+    relPane.innerHTML = '';
     relPane.innerHTML = `
-      <div class="mb-3">
-        <label class="form-label">Productos relacionados</label>
-        <input type="text" id="inputRelacionados" class="form-control" placeholder="Buscar producto...">
+      <div class="mb-4">
+        <label class="form-label fw-semibold">
+          <i class="bi bi-diagram-3 me-1"></i> Productos Agrupados
+        </label>
+        <div class="note-small mb-2">
+          Los productos agrupados son productos individuales que se venden como un conjunto.
+          Busca y selecciona los productos que formarán parte de este grupo.
+        </div>
+        <input type="text" id="inputRelacionados" class="form-control" placeholder="Buscar producto por nombre o SKU...">
+        <div class="mt-2">
+          <small class="text-muted">Escribe al menos 2 caracteres para buscar y seleccionar productos</small>
+        </div>
+        <div id="relacionadosContainer" class="tag-container d-flex flex-wrap gap-2 mt-3"></div>
       </div>
-      <div class="mb-3">
-        <label class="form-label">Ventas cruzadas (Cross-sells)</label>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">
+          <i class="bi bi-arrow-left-right me-1"></i> Cross-sells
+        </label>
+        <div class="note-small mb-2">
+          Productos complementarios que se pueden comprar junto con el producto agrupado.
+        </div>
         <input type="text" id="inputCrosssells" class="form-control" placeholder="Buscar producto...">
+        <div class="mt-2">
+          <small class="text-muted">Escribe al menos 2 caracteres para buscar</small>
+        </div>
+        <div id="crosssellContainer" class="tag-container d-flex flex-wrap gap-2 mt-3"></div>
       </div>
     `;
-    setupProductSearch('#inputRelacionados', 'relacionados');
+    
+    setupProductSearchAgrupado('#inputRelacionados', 'relacionados', '#relacionadosContainer');
     setupProductSearch('#inputCrosssells', 'crosssells');
-  }             
+  }
+
+  function setupProductSearchAgrupado(selector, type, containerSelector) {
+    const input = qs(selector);
+    if (!input) return;
+
+    const container = qs(containerSelector) || document.createElement('div');
+    if (!qs(containerSelector)) {
+      container.className = 'tag-container d-flex flex-wrap gap-2 mt-2';
+      input.insertAdjacentElement('afterend', container);
+    }
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'dropdown-menu show shadow';
+    dropdown.style.display = 'none';
+    dropdown.style.maxHeight = '200px';
+    dropdown.style.overflowY = 'auto';
+    dropdown.style.position = 'absolute';
+    dropdown.style.zIndex = '9999';
+    input.parentNode.style.position = 'relative';
+    input.parentNode.appendChild(dropdown);
+
+    let timeout;
+
+    input.addEventListener('input', async (e) => {
+      clearTimeout(timeout);
+      const term = e.target.value.trim();
+      if (!term || term.length < 2) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      timeout = setTimeout(async () => {
+        try {
+          const res = await axios.post('productos', {
+            opcion: 'Buscar',
+            query: term
+          });
+          const productos = res.data.productos || [];
+          renderDropdownAgrupado(productos);
+        } catch (err) {
+          Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
+        }
+      }, 400);
+    });
+
+    function renderDropdownAgrupado(productos) {
+      dropdown.innerHTML = '';
+      if (!productos.length) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      productos.forEach(prod => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'dropdown-item';
+        item.textContent = `${prod.nombre} (ID:${prod.id} / SKU:${prod.sku})`;
+        item.addEventListener('click', () => addTagAgrupado(prod));
+        dropdown.appendChild(item);
+      });
+      dropdown.style.display = 'block';
+    }
+
+    function addTagAgrupado(prod) {
+      dropdown.style.display = 'none';
+      input.value = '';
+      const exists = state[type].some(p => p.id === prod.id);
+      if (exists) return;
+
+      state[type].push({ id: prod.id, nombre: prod.nombre });
+
+      const tag = document.createElement('span');
+      tag.className = 'badge bg-light text-dark border px-2 py-1 d-inline-flex align-items-center';
+      tag.innerHTML = `
+        ${escapeHtml(prod.nombre)}
+        <button type="button" class="btn-close btn-sm ms-2 remove-tag" aria-label="Close"></button>
+      `;
+      tag.querySelector('.remove-tag').addEventListener('click', () => {
+        tag.remove();
+        state[type] = state[type].filter(p => p.id !== prod.id);
+      });
+      container.appendChild(tag);
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && e.target !== input) {
+        dropdown.style.display = 'none';
+      }
+    });
+  }            
 
   function ensureVariacionesTab(){
     const navContainer = qs('.nav-pills') || qs('#v-tabs');
@@ -656,7 +687,6 @@ function showInventoryInfoMessage(isVariable) {
       const tabContent = qs('.tab-content');
       if(tabContent) tabContent.appendChild(pane);
       
-      // Eventos de los botones
       document.addEventListener('click', (e) => {
         if(e.target && e.target.id === 'btnGenerateVariations') {
           generateVariationsFromAtributos();
@@ -672,15 +702,11 @@ function showInventoryInfoMessage(isVariable) {
         }
       });
 
-      // Botón para limpiar acciones masivas
       document.getElementById('btnClearMassActions')?.addEventListener('click', () => {
-        // Resetear selects
         document.getElementById('massPriceNormalAction').value = 'none';
         document.getElementById('massPriceSaleAction').value = 'none';
-        // Deshabilitar inputs de valor
         document.getElementById('massPriceNormalValue').disabled = true;
         document.getElementById('massPriceSaleValue').disabled = true;
-        // Limpiar valores numéricos y fechas
         document.getElementById('massPriceNormalValue').value = '';
         document.getElementById('massPriceSaleValue').value = '';
         document.getElementById('massSaleStart').value = '';
@@ -691,13 +717,10 @@ function showInventoryInfoMessage(isVariable) {
         document.getElementById('massHeight').value = '';
         document.getElementById('massWeight').value = '';
         document.getElementById('massWeightUnit').value = 'kg';
-        // Desmarcar checkbox
         document.getElementById('massEnableInventory').checked = false;
-        // Mostrar alerta opcional
         showAlert('info', 'Panel limpiado', 'Se han restablecido todas las acciones masivas.', 1200, false);
       });
       
-      // Habilitar/deshabilitar inputs según selección
       const priceNormalAction = document.getElementById('massPriceNormalAction');
       const priceNormalVal = document.getElementById('massPriceNormalValue');
       const priceSaleAction = document.getElementById('massPriceSaleAction');
@@ -717,7 +740,6 @@ function showInventoryInfoMessage(isVariable) {
       const chk = block.querySelector('.chk-variacion');
       if(chk) {
         chk.closest('.form-check')?.classList.toggle('d-none', !show);
-        // si ocultamos, desmarcar
         if(!show) chk.checked = false;
       }
     });
@@ -747,7 +769,6 @@ function showInventoryInfoMessage(isVariable) {
     }
   }
   
-  // ---- Variaciones: generación y UI ----
   function renderVariacionesUI() {
     const container = qs('#variationsContainer');
     if (!container) return;
@@ -758,7 +779,6 @@ function showInventoryInfoMessage(isVariable) {
         massPanel.style.display = state.variaciones.length ? 'block' : 'none';
     }
 
-    // Verificar si hay atributos marcados como variación
     const atributosVariacion = state.productoAtributos.filter(a => a.variacion && a.valores && a.valores.length);
     
     if (!state.variaciones.length) {
@@ -789,7 +809,6 @@ function showInventoryInfoMessage(isVariable) {
         return;
     }
 
-    // Resto del código para mostrar variaciones...
     const startIndex = (state.variacionesPage - 1) * state.variacionesPerPage;
     const pageVariaciones = state.variaciones.slice(startIndex, startIndex + state.variacionesPerPage);
 
@@ -823,7 +842,6 @@ function showInventoryInfoMessage(isVariable) {
         </div>
     `;
 
-    // Eventos de los botones (usando event delegation o listeners directos)
     const prevBtn = paginationDiv.querySelector('#variacionesPrevBtn');
     const nextBtn = paginationDiv.querySelector('#variacionesNextBtn');
 
@@ -1002,16 +1020,13 @@ function showInventoryInfoMessage(isVariable) {
       icon.classList.toggle('bi-chevron-up');
     });
 
-    // Eliminar variación
     wrapper.querySelector('.btn-remove-variation').addEventListener('click', () => {
       state.variaciones.splice(idx, 1);
       resetVariacionesPagination();
     });
 
-    // ===== Guardar cambios en todos los campos =====
     const variacionActual = state.variaciones[idx];
 
-    // Atributos
     wrapper.querySelectorAll('.variation-attr').forEach(sel => {
       sel.addEventListener('change', () => {
         const atrId = sel.dataset.atrId;
@@ -1021,7 +1036,6 @@ function showInventoryInfoMessage(isVariable) {
         const pos = variacionActual.atributos.findIndex(a => String(a.atrId) === String(atrId));
         if (pos >= 0) {
           if (termId) {
-            // Si es "0" guardamos null (Cualquier valor), si no guardamos el ID
             variacionActual.atributos[pos].termId = termId === "0" ? null : termId;
           } else {
             variacionActual.atributos.splice(pos, 1);
@@ -1035,13 +1049,11 @@ function showInventoryInfoMessage(isVariable) {
       });
     });
 
-    // SKU, stock, precios
     wrapper.querySelector('.variation-sku').addEventListener('input', e => variacionActual.sku = e.target.value);
     wrapper.querySelector('.variation-stock').addEventListener('input', e => variacionActual.stock = e.target.value);
     wrapper.querySelector('.variation-price-normal').addEventListener('input', e => variacionActual.price_normal = e.target.value);
     wrapper.querySelector('.variation-price-sale').addEventListener('input', e => variacionActual.price_sale = e.target.value);
 
-    // Reprogramar precios
     const scheduleCheckbox = wrapper.querySelector('.schedule-sale');
     const datesDiv = wrapper.querySelector('.schedule-dates');
     scheduleCheckbox.addEventListener('change', () => {
@@ -1050,17 +1062,13 @@ function showInventoryInfoMessage(isVariable) {
     wrapper.querySelector('.variation-sale-start').addEventListener('input', e => variacionActual.sale_start = e.target.value);
     wrapper.querySelector('.variation-sale-end').addEventListener('input', e => variacionActual.sale_end = e.target.value);
 
-    // Peso, tipo, dimensiones
     wrapper.querySelector('.variation-weight').addEventListener('input', e => variacionActual.weight = e.target.value);
     wrapper.querySelector('.variation-weight-type').addEventListener('change', e => variacionActual.weight_type = e.target.value);
     wrapper.querySelector('.variation-length').addEventListener('input', e => variacionActual.length = e.target.value);
     wrapper.querySelector('.variation-width').addEventListener('input', e => variacionActual.width = e.target.value);
     wrapper.querySelector('.variation-height').addEventListener('input', e => variacionActual.height = e.target.value);
-
-    // Descripción
     wrapper.querySelector('.variation-description').addEventListener('input', e => variacionActual.description = e.target.value);
 
-    // Backorder
     wrapper.querySelectorAll('.allow-backorder').forEach(radio => {
       radio.addEventListener('change', () => variacionActual.backorder = radio.value);
     });
@@ -1068,7 +1076,6 @@ function showInventoryInfoMessage(isVariable) {
     const chkGestion = wrapper.querySelector('.gestion-inventario-check');
     const detallesDiv = wrapper.querySelector('.inventario-detalles-variacion');
     if (chkGestion && detallesDiv) {
-        // Asegurar estado inicial (por si viene de edición)
         chkGestion.checked = variacionActual.gestion_inventario;
         detallesDiv.style.display = variacionActual.gestion_inventario ? 'block' : 'none';
 
@@ -1078,7 +1085,6 @@ function showInventoryInfoMessage(isVariable) {
         });
     }
 
-    // ===== Imágenes =====
     const imgInput = wrapper.querySelector('.variation-image-input');
     const imgPreview = wrapper.querySelector('.image-preview');
     if (!variacionActual.images) variacionActual.images = [];
@@ -1128,7 +1134,6 @@ function showInventoryInfoMessage(isVariable) {
     return wrapper;
   }
 
-  // ===== Generar variaciones automáticamente desde atributos =====
   function generateVariationsFromAtributos() {
     const attrs = state.productoAtributos.filter(a => a.variacion && a.valores && a.valores.length);
     if (attrs.length < 1) {
@@ -1136,9 +1141,7 @@ function showInventoryInfoMessage(isVariable) {
       return;
     }
 
-    // Crear arrays de valores por atributo, INCLUYENDO la opción "Cualquier"
     const arrays = attrs.map(a => {
-      // Primero agregamos la opción "Cualquier" como null
       const valores = [
         { atrId: a.atributo.id, termId: null, nombre: `Cualquier ${a.atributo.nombre}` },
         ...a.valores.map(v => ({
@@ -1150,14 +1153,12 @@ function showInventoryInfoMessage(isVariable) {
       return valores;
     });
 
-    // Función cartesiana
     function cartesian(arr) {
       return arr.reduce((a, b) => a.flatMap(d => b.map(e => d.concat([e]))), [[]]);
     }
 
     const combos = cartesian(arrays);
 
-    // Guardar variaciones en state con todos los campos inicializados
     state.variaciones = combos.map(combo => ({
         atributos: combo.map(c => ({ atrId: c.atrId, termId: c.termId })),
         sku: '',
@@ -1181,7 +1182,6 @@ function showInventoryInfoMessage(isVariable) {
     showAlert('success', 'Variaciones generadas', `${state.variaciones.length} variación(es) generadas.`, 1400, false);
 }
 
-  // ===== Agregar fila manual de variación =====
   function addManualVariationRow() {
     const activos = state.productoAtributos.filter(a => a.variacion && a.valores.length);
     if (activos.length === 0) {
@@ -1192,7 +1192,7 @@ function showInventoryInfoMessage(isVariable) {
     state.variaciones.push({
       atributos: activos.map(a => ({ 
         atrId: a.atributo.id, 
-        termId: null // null = "Cualquier valor"
+        termId: null 
       })),
       sku: '',
       gestion_inventario: false,
@@ -1214,7 +1214,6 @@ function showInventoryInfoMessage(isVariable) {
     renderVariacionesUI();
   }
 
-    // Eliminar todas las variaciones
     function deleteAllVariations() {
       if (!state.variaciones.length) return;
       Swal.fire({
@@ -1233,14 +1232,12 @@ function showInventoryInfoMessage(isVariable) {
       });
     }
 
-    // Aplicar acciones masivas
     function applyMassActions() {
     if (!state.variaciones.length) {
       showAlert('warning', 'Sin variaciones', 'No hay variaciones para modificar.');
       return;
     }
 
-    // Obtener valores
     const priceNormalAction = document.getElementById('massPriceNormalAction')?.value || 'none';
     const priceNormalValue = parseFloat(document.getElementById('massPriceNormalValue')?.value);
     const priceSaleAction = document.getElementById('massPriceSaleAction')?.value || 'none';
@@ -1258,7 +1255,6 @@ function showInventoryInfoMessage(isVariable) {
     let changesApplied = false;
 
     for (let variacion of state.variaciones) {
-      // Precio normal
       if (priceNormalAction !== 'none' && !isNaN(priceNormalValue)) {
         let current = parseFloat(variacion.price_normal) || 0;
         let newValue = current;
@@ -1272,7 +1268,6 @@ function showInventoryInfoMessage(isVariable) {
         changesApplied = true;
       }
 
-      // Precio rebajado
       if (priceSaleAction !== 'none' && !isNaN(priceSaleValue)) {
         let current = parseFloat(variacion.price_sale) || 0;
         let newValue = current;
@@ -1287,7 +1282,6 @@ function showInventoryInfoMessage(isVariable) {
         changesApplied = true;
       }
 
-      // Fechas rebaja
       if (saleStart) {
         variacion.sale_start = saleStart;
         changesApplied = true;
@@ -1297,19 +1291,16 @@ function showInventoryInfoMessage(isVariable) {
         changesApplied = true;
       }
 
-      // Gestión inventario
       if (enableInventory) {
         variacion.gestion_inventario = true;
         changesApplied = true;
       }
 
-      // Stock
       if (massStock !== undefined && massStock !== '') {
         variacion.stock = Number(massStock);
         changesApplied = true;
       }
 
-      // Dimensiones
       if (massLength !== undefined && massLength !== '') {
         variacion.length = Number(massLength);
         changesApplied = true;
@@ -1322,7 +1313,6 @@ function showInventoryInfoMessage(isVariable) {
         variacion.height = Number(massHeight);
         changesApplied = true;
       }
-      // Peso y unidad
       if (massWeight !== undefined && massWeight !== '') {
         variacion.weight = Number(massWeight);
         variacion.weight_type = massWeightUnit;
@@ -1331,10 +1321,9 @@ function showInventoryInfoMessage(isVariable) {
     }
 
     if (changesApplied) {
-      renderVariacionesUI(); // refresca vista
+      renderVariacionesUI(); 
       showAlert('success', 'Actualización masiva', 'Se han modificado todas las variaciones.');
 
-      // ** Limpiar todos los campos del panel de acciones **
       document.getElementById('massPriceNormalAction').value = 'none';
       document.getElementById('massPriceSaleAction').value = 'none';
       document.getElementById('massPriceNormalValue').disabled = true;
@@ -1396,7 +1385,7 @@ function showInventoryInfoMessage(isVariable) {
           const productos = res.data.productos || [];
           renderDropdown(productos);
         } catch (err) {
-          console.error(err);
+          Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
         }
       }, 400);
     });
@@ -1447,10 +1436,8 @@ function showInventoryInfoMessage(isVariable) {
     });
   }
 
-  // ---- Modal Management ----
   function initModals() {
     if (typeof bootstrap === 'undefined') {
-        console.error('Bootstrap no está cargado');
         return;
     }
 
@@ -1462,24 +1449,28 @@ function showInventoryInfoMessage(isVariable) {
     
     const modalElement = qs('#modalProducto');
     if (modalElement) {
-        // Limpiar cuando se abre el modal (reset completo)
         modalElement.addEventListener('show.bs.modal', function () {
-            console.log('Modal abriendo - limpiando formulario');
-            resetForm(false); // false = resetear tipo también
+          if (state.modalTransition) {
+            state.modalTransition = false;
+            return;
+          }
+          resetForm(false);
         });
         
-        // Limpiar cuando se cierra el modal (reset completo)
         modalElement.addEventListener('hidden.bs.modal', function () {
-            console.log('Modal cerrado - limpieza adicional');
-            resetForm(false); // false = resetear tipo también
-            
-            // Resetear active tabs a la primera
-            const firstTab = document.querySelector('.nav-link');
-            if (firstTab && typeof bootstrap !== 'undefined') {
-                const bsTab = new bootstrap.Tab(firstTab);
-                bsTab.show();
-            }
-        });
+
+      if (state.modalTransition) {
+      return;
+    }
+    resetForm(false);
+
+    const firstTab = document.querySelector('.nav-link');
+
+    if (firstTab && typeof bootstrap !== 'undefined') {
+        const bsTab = new bootstrap.Tab(firstTab);
+        bsTab.show();
+    }
+  });
         
         modalElement.addEventListener('shown.bs.modal', function () {
             if (typeof tinymce !== 'undefined' && !tinymce.get('descripcionLarga')) {
@@ -1517,16 +1508,20 @@ function showInventoryInfoMessage(isVariable) {
   function setupModalNavigation() {
     document.addEventListener('click', (e) => {
       if (e.target && e.target.id === 'btnOpenCrearAtributo') {
+        state.modalTransition = true;
         state.modals.producto.hide();
+
         setTimeout(() => {
-          state.modals.crearAtributo.show();
+            state.modals.crearAtributo.show();
         }, 300);
       }
     });
 
     document.addEventListener('click', (e) => {
       if (e.target && e.target.classList.contains('btnCrearValor')) {
+        state.modalTransition = true;
         state.modals.producto.hide();
+
         setTimeout(() => {
           state.modals.crearValor.show();
         }, 300);
@@ -1561,21 +1556,27 @@ function showInventoryInfoMessage(isVariable) {
 
   function setupSuccessHandlers() {
     document.addEventListener('atributoCreado', () => {
-      state.modals.crearAtributo.hide();
-      setTimeout(() => {
-        state.modals.producto.show();
-      }, 300);
-    });
 
-    document.addEventListener('valorCreado', () => {
-      state.modals.crearValor.hide();
-      setTimeout(() => {
+    state.modalTransition = true;
+
+    state.modals.crearAtributo.hide();
+
+    setTimeout(() => {
         state.modals.producto.show();
-      }, 300);
-    });
+    }, 300);
+  });
+
+  document.addEventListener('valorCreado', () => {
+
+    state.modalTransition = true;
+    state.modals.crearValor.hide();
+
+    setTimeout(() => {
+      state.modals.producto.show();
+    }, 300);
+  });
   }
 
-  // ---- Atributos System ----
   function initAtributosSystem() {
     renderAtributosSelect();
     renderAtributoBlocks();
@@ -1829,24 +1830,31 @@ function showInventoryInfoMessage(isVariable) {
       });
 
       if (data.respuesta === 'ok') {
-        ATRIBUTOS.push(data.atributo);
 
-        const container = qs('#tab-atributos');
-        const selectWrap = container?.querySelector('.atributos-select-wrap');
-        if (selectWrap) {
-          selectWrap.remove();
-        }
+    ATRIBUTOS.push(data.atributo);
 
-        renderAtributosSelect();
-        renderAtributoBlocks();
-        addAtributoBlock(data.atributo);
+    const container = qs('#tab-atributos');
+    const selectWrap = container?.querySelector('.atributos-select-wrap');
 
-        document.dispatchEvent(new CustomEvent('atributoCreado'));
-        showAlert('success', 'Atributo creado', '', 1200, false);
+    if (selectWrap) {
+        selectWrap.remove();
+    }
 
-        form.reset();
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCrearAtributo'));
-        modal.hide();
+    renderAtributosSelect();
+    renderAtributoBlocks();
+    addAtributoBlock(data.atributo);
+
+    document.dispatchEvent(new CustomEvent('atributoCreado'));
+
+    showAlert(
+        'success',
+        'Atributo creado',
+        '',
+        1200,
+        false
+    );
+
+    form.reset();
 
       } else {
         showAlert('error', 'Error', data.mensaje);
@@ -1879,32 +1887,43 @@ function showInventoryInfoMessage(isVariable) {
       });
 
       if (data.respuesta === 'ok') {
-        const atributoId = formData.get('atributo_id');
 
-        const attr = ATRIBUTOS.find(a => String(a.id) === String(atributoId));
+        const atributoId = formData.get('atributo_id');
+        const attr = ATRIBUTOS.find(
+            a => String(a.id) === String(atributoId)
+        );
+
         if (attr) {
-          attr.terminos = attr.terminos || [];
-          attr.terminos.push(data.termino);
+            attr.terminos = attr.terminos || [];
+            attr.terminos.push(data.termino);
         }
 
-        const productoAttr = state.productoAtributos.find(x => String(x.atributo.id) === String(atributoId));
+        const productoAttr = state.productoAtributos.find(
+            x => String(x.atributo.id) === String(atributoId)
+        );
+
         if (productoAttr) {
-          productoAttr.valores.push({
-            id: data.termino.id,
-            nombre: data.termino.nombre,
-            slug: data.termino.slug
-          });
+            productoAttr.valores.push({
+                id: data.termino.id,
+                nombre: data.termino.nombre,
+                slug: data.termino.slug
+            });
         }
 
         renderAtributoBlocks();
+
         document.dispatchEvent(new CustomEvent('valorCreado'));
-        showAlert('success', 'Valor creado', '', 1200, false);
+
+        showAlert(
+            'success',
+            'Valor creado',
+            '',
+            1200,
+            false
+        );
 
         form.reset();
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCrearValor'));
-        modal.hide();
-
-      } else {
+      }else {
         showAlert('error', 'Error', data.mensaje);
       }
     } catch (error) {
@@ -1915,7 +1934,6 @@ function showInventoryInfoMessage(isVariable) {
     }
   }
 
-  // ---- Categorías System ----
   function initCategoriasSystem() {
     const catSelect = qs('#categoriaSelect');
     const subList = qs('#subcategoriaList');
@@ -1959,7 +1977,6 @@ function showInventoryInfoMessage(isVariable) {
     });
   }
 
-  // ---- Etiquetas System ----
   function initEtiquetasSystem() {
     renderAvailableTags();
     renderSelectedTags();
@@ -1972,7 +1989,6 @@ function showInventoryInfoMessage(isVariable) {
     const container = qs('#availableTags');
     if (!container) return;
     
-    // Guardar qué etiquetas están actualmente seleccionadas
     const selectedTagIds = new Set();
     state.selectedTags.forEach((tag, slug) => {
         if (tag.id) selectedTagIds.add(tag.id);
@@ -1998,7 +2014,6 @@ function showInventoryInfoMessage(isVariable) {
         container.appendChild(wrapper);
     });
     
-    // Re-conectar los event listeners para los nuevos checkboxes
     container.querySelectorAll('.tag-available').forEach(checkbox => {
         checkbox.removeEventListener('change', handleTagCheckboxChange);
         checkbox.addEventListener('change', handleTagCheckboxChange);
@@ -2052,10 +2067,8 @@ function showInventoryInfoMessage(isVariable) {
         if (data.respuesta === 'ok') {
             const nueva = data.etiqueta;
             
-            // Agregar la nueva etiqueta al array global
             ETIQUETAS.push(nueva);
             
-            // Agregar la nueva etiqueta al DOM sin regenerar todo
             const container = qs('#availableTags');
             if (container) {
                 const id = `tag_av_${nueva.id}`;
@@ -2068,23 +2081,18 @@ function showInventoryInfoMessage(isVariable) {
                     <label class="form-check-label" for="${id}">${escapeHtml(nueva.nombre)}</label>
                 `;
                 container.appendChild(wrapper);
-                
-                // Conectar el evento change
                 const checkbox = wrapper.querySelector('.tag-available');
                 checkbox.addEventListener('change', handleTagCheckboxChange);
             }
             
-            // Agregar al estado seleccionado
             const newSlug = nueva.nombre.toLowerCase().replace(/\s+/g, '-');
             state.selectedTags.set(newSlug, { 
                 id: nueva.id, 
                 name: nueva.nombre 
             });
             
-            // Actualizar la visualización de etiquetas seleccionadas
             renderSelectedTags();
             
-            // Limpiar el input
             tagInput.value = '';
 
             showAlert('success', 'Etiqueta creada', `"${nueva.nombre}" fue agregada correctamente`, 1800, false);
@@ -2092,13 +2100,11 @@ function showInventoryInfoMessage(isVariable) {
             showAlert('error', 'Oops...', data.mensaje);
         }
     } catch (error) {
-        console.error('Error al crear etiqueta:', error);
         showAlert('error', 'Error de servidor', 'No se pudo crear la etiqueta');
     }
   }
 
   function handleTagCheckboxChange(e) {
-    // Asegurarse de que estamos manejando el evento correctamente
     const checkbox = e.target;
     if (!checkbox.classList.contains('tag-available')) return;
     
@@ -2107,18 +2113,14 @@ function showInventoryInfoMessage(isVariable) {
     const slug = name.toLowerCase().replace(/\s+/g, '-');
     
     if (checkbox.checked) {
-        // Agregar la etiqueta seleccionada
         state.selectedTags.set(slug, { id, name });
     } else {
-        // Remover la etiqueta deseleccionada
         state.selectedTags.delete(slug);
     }
     
-    // Actualizar la visualización de etiquetas seleccionadas
     renderSelectedTags();
   }
 
-  // ---- Images System ----
   function initImagesSystem() {
     const imagenesInput = qs('#imagenesInput');
     const miniInput = qs('#miniaturaInput');
@@ -2171,10 +2173,9 @@ function showInventoryInfoMessage(isVariable) {
       const id = 'f' + (state.nextFileId++);
       const url = URL.createObjectURL(file);
       
-      // 🔥 CORRECCIÓN: Guardar el objeto File completo
       state.imageFiles.push({ 
         _id: id, 
-        file: file, // Este es el objeto File que necesitamos enviar
+        file: file, 
         url: url,
         name: file.name,
         size: file.size
@@ -2183,13 +2184,6 @@ function showInventoryInfoMessage(isVariable) {
     }
     
     updateImageStatus();
-    
-    // DEBUG: Verificar que las imágenes se están guardando
-    console.log('Imágenes en state:', state.imageFiles.map(img => ({
-      name: img.file.name,
-      size: img.file.size,
-      type: img.file.type
-    })));
   }
 
   function createPreviewCard(fileObj) {
@@ -2214,7 +2208,6 @@ function showInventoryInfoMessage(isVariable) {
   function removeImageById(id) {
     const index = state.imageFiles.findIndex(i => i._id === id);
     if (index >= 0) {
-      // 🔥 IMPORTANTE: Liberar la URL del objeto
       URL.revokeObjectURL(state.imageFiles[index].url);
       state.imageFiles.splice(index, 1);
     }
@@ -2281,12 +2274,9 @@ function showInventoryInfoMessage(isVariable) {
     miniImg.style.display = 'none';
     miniPlaceholder.style.display = 'flex';
     removeMiniBtn.classList.add('d-none');
-    
-    // Limpiar del state
     state.miniaturaFile = null;
   }
 
-  // ---- Quick Preview ----
   function initQuickPreview() {
     const quickName = qs('#quickName');
     const quickPrice = qs('#quickPrice');
@@ -2331,7 +2321,7 @@ function showInventoryInfoMessage(isVariable) {
             if (sel.value) {
                 attrs.push({
                     atrId: sel.dataset.atrId,
-                    termId: sel.value === "0" ? null : sel.value // Convertir "0" a null
+                    termId: sel.value === "0" ? null : sel.value 
                 });
             }
         });
@@ -2339,7 +2329,6 @@ function showInventoryInfoMessage(isVariable) {
     });
   }
 
-  // ---- Form Submission ----
   function validarProducto() {
     const tipo = qs('#tipoProductoSelect')?.value;
     const nombre = qs('[name="nombre"]')?.value.trim();
@@ -2348,13 +2337,11 @@ function showInventoryInfoMessage(isVariable) {
     const categoria = qs('#categoriaSelect')?.value;
     const subcat = qs('[name="id_subCategorias"]:checked')?.value;
 
-    // Validaciones generales
     if (!estado || !nombre || !miniatura || !categoria || !subcat) {
       showAlert('warning','Campos obligatorios','Debes completar: nombre, estado, miniatura, categoría y subcategoría.');
       return false;
     }
 
-    // Validaciones por tipo
     if (tipo === 'simple') {
       const precio = qs('[name="precio_regular"]')?.value;
       if (!precio) {
@@ -2381,7 +2368,6 @@ function showInventoryInfoMessage(isVariable) {
       }
 
     } else if (tipo === 'variable') {
-      // Stock general
       if (qs('#checkGestion')?.checked) {
           const stock = qs('[name="stock"]')?.value;
           if (!stock) {
@@ -2390,14 +2376,12 @@ function showInventoryInfoMessage(isVariable) {
           }
       }
 
-      // Atributos (opcional, pero si hay deben tener valores)
       const material = state.productoAtributos.find(a => a.atributo.nombre.toLowerCase() === 'material');
       if (material && (!material.valores || material.valores.length === 0)) {
           showAlert('warning','Valores requeridos','El atributo Material debe tener valores seleccionados.');
           return false;
       }
 
-      // Variaciones - SOLO validamos que existan, no que tengan todos los valores
       if (!state.variaciones.length) {
           showAlert('warning','Variaciones requeridas','Debes generar al menos una variación.');
           return false;
@@ -2433,7 +2417,6 @@ function showInventoryInfoMessage(isVariable) {
 
     const form = ev.target;
     
-    // Deshabilitar botón de envío
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Guardando...';
@@ -2453,18 +2436,25 @@ function showInventoryInfoMessage(isVariable) {
     .then(res => res.json())
     .then(data => {
         if (data.respuesta === 'ok') {
-            showAlert('success', 'Éxito', 'Producto guardado correctamente.');
-            resetForm();
-            const modalEl = document.getElementById('modalProducto');
-            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-            modal.hide();
-            $('#tablaProductos').DataTable().ajax.reload(null, false);
+
+          showAlert(
+              'success',
+              'Éxito',
+              'Producto guardado correctamente.'
+          );
+
+          state.modalTransition = false;
+          const modalEl = document.getElementById('modalProducto');
+          const modal = bootstrap.Modal.getInstance(modalEl) ||
+                        new bootstrap.Modal(modalEl);
+          modal.hide();
+
+          $('#tablaProductos').DataTable().ajax.reload(null, false);
         } else {
             showAlert('error', 'Error', data.mensaje || 'Error al guardar el producto.');
         }
     })
     .catch(err => {
-        console.error('Error de red:', err);
         showAlert('error', 'Error', 'No se pudo conectar con el servidor.');
     })
     .finally(() => {
@@ -2493,20 +2483,17 @@ function showInventoryInfoMessage(isVariable) {
     
     formData.append('opcion', 'Crear');
 
-    // --- Imágenes principales ---
     if (state.imageFiles && state.imageFiles.length > 0) {
         state.imageFiles.forEach((imageFile, index) => {
             formData.append('imagenes[]', imageFile.file);
         });
     }
 
-    // --- Etiquetas ---
     if (state.selectedTags && state.selectedTags.size > 0) {
         const tagIds = Array.from(state.selectedTags.values()).map(tag => tag.id);
         formData.append('etiquetas', JSON.stringify(tagIds));
     }
 
-    // --- Atributos ---
     if (state.productoAtributos && state.productoAtributos.length) {
         formData.append('atributos', JSON.stringify(state.productoAtributos.map(a => ({
             atributo_id: a.atributo.id,
@@ -2516,7 +2503,6 @@ function showInventoryInfoMessage(isVariable) {
         }))));
     }
 
-    // --- Variaciones ---
     if (state.variaciones && state.variaciones.length) {
         const variacionesParaEnviar = state.variaciones.map((variacion, index) => {
             const variacionData = {
@@ -2536,11 +2522,10 @@ function showInventoryInfoMessage(isVariable) {
               backorder: variacion.backorder || 'no',
               atributos: (variacion.atributos || []).map(attr => ({
                   atrId: attr.atrId,
-                  termId: attr.termId // puede ser null
+                  termId: attr.termId 
               }))
           };
             
-            // Agregar imágenes de variación
             if (variacion.images && variacion.images.length > 0) {
               variacion.images.forEach(img => {
                 formData.append(`variation_images_${index}[]`, img.file);
@@ -2553,7 +2538,6 @@ function showInventoryInfoMessage(isVariable) {
         formData.append('variaciones', JSON.stringify(variacionesParaEnviar));
     }
 
-    // --- Cross-sells / Upsells ---
     const crosssells = (state.crosssells || []).map(p => p.id);
     const upsells = (state.upsells || []).map(p => p.id);
     formData.append('crosssells', JSON.stringify(crosssells));
@@ -2564,7 +2548,6 @@ function showInventoryInfoMessage(isVariable) {
       formData.append('relacionados', JSON.stringify(relacionados));
     }
 
-    // --- Campos de inventario ---
     const camposAdicionales = [
         'gestion_inventario', 'estado_inventario', 'stock', 'stock_minimo',
         'max_stock', 'vendido_individualmente'
@@ -2580,23 +2563,18 @@ function showInventoryInfoMessage(isVariable) {
     return formData;
 }
 
-  // ---- Reset System ----
   function initResetSystem() {
-    // Para botones de cerrar
     const closeButtons = document.querySelectorAll('#modalProducto .btn-close, #modalProducto [data-bs-dismiss="modal"]');
     closeButtons.forEach(btn => {
         btn.addEventListener('click', function() {
-            console.log('Cerrando modal - limpiando');
-            resetForm(false); // Reset completo
+            resetForm(false); 
         });
     });
     
-    // También para el botón de cancelar
     const cancelBtn = qs('#modalProducto .btn-secondary');
     if (cancelBtn) {
         cancelBtn.addEventListener('click', function() {
-            console.log('Cancelar click - limpiando');
-            resetForm(false); // Reset completo
+            resetForm(false); 
         });
     }
   }
@@ -2607,12 +2585,10 @@ function showInventoryInfoMessage(isVariable) {
         form.reset();
     }
 
-    // Limpiar TinyMCE si existe
     if (typeof tinymce !== 'undefined' && tinymce.get('descripcionLarga')) {
         tinymce.get('descripcionLarga').setContent('');
     }
 
-    // Reset state completo
     state.imageFiles = [];
     state.selectedTags.clear();
     state.productoAtributos = [];
@@ -2624,22 +2600,18 @@ function showInventoryInfoMessage(isVariable) {
     state.miniaturaFile = null;
     state.variacionesPage = 1;
 
-    // Guardar el tipo actual si keepType es true
     let currentType = null;
     if (keepType) {
         const tipoSelect = qs('#tipoProductoSelect');
         if (tipoSelect) currentType = tipoSelect.value;
     }
 
-    // Limpiar contenedores de tags
     const tagContainers = document.querySelectorAll('.tag-container');
     tagContainers.forEach(container => container.innerHTML = '');
 
-    // Limpiar preview de imágenes
     const previewContainer = qs('#previewContainer');
     if (previewContainer) previewContainer.innerHTML = '';
     
-    // Limpiar miniatura
     const miniImg = qs('#miniImg');
     const miniPlaceholder = qs('#miniPlaceholder');
     const removeMiniBtn = qs('#removeMiniBtn');
@@ -2651,23 +2623,16 @@ function showInventoryInfoMessage(isVariable) {
     const miniInput = qs('#miniaturaInput');
     if (miniInput) miniInput.value = '';
 
-    // Limpiar inputs de imágenes
     const imagenesInput = qs('#imagenesInput');
     if (imagenesInput) imagenesInput.value = '';
 
-    // Limpiar radio buttons de subcategoría
     const subcatRadios = document.querySelectorAll('input[name="id_subCategorias"]');
     subcatRadios.forEach(radio => radio.checked = false);
 
-    // Limpiar select de categoría
     const catSelect = qs('#categoriaSelect');
     if (catSelect) catSelect.value = '';
-
-    // Limpiar subcategorías
     const subList = qs('#subcategoriaList');
     if (subList) subList.innerHTML = '<div class="text-muted text-center py-3">Selecciona una categoría primero</div>';
-
-    // Resetear selects y checkboxes específicos
     const checkRebaja = qs('#checkRebaja');
     const rebajaFechas = qs('#rebajaFechas');
     if (checkRebaja) {
@@ -2682,7 +2647,6 @@ function showInventoryInfoMessage(isVariable) {
         if (invExtra) invExtra.classList.add('d-none');
     }
 
-    // Limpiar campos de inventario
     const stockInput = qs('input[name="stock"]');
     if (stockInput) stockInput.value = '';
     
@@ -2690,7 +2654,6 @@ function showInventoryInfoMessage(isVariable) {
     backordersRadios.forEach(radio => radio.checked = false);
     if (backordersRadios.length > 0) backordersRadios[0].checked = true;
 
-    // Limpiar campos de precios
     const precioRegular = qs('input[name="precio_regular"]');
     if (precioRegular) precioRegular.value = '';
     
@@ -2701,8 +2664,6 @@ function showInventoryInfoMessage(isVariable) {
     const fechaFin = qs('input[name="fecha_fin_rebaja"]');
     if (fechaInicio) fechaInicio.value = '';
     if (fechaFin) fechaFin.value = '';
-
-    // Limpiar campos de envío
     const peso = qs('input[name="peso"]');
     if (peso) peso.value = '';
     
@@ -2713,14 +2674,11 @@ function showInventoryInfoMessage(isVariable) {
     if (anchura) anchura.value = '';
     if (altura) altura.value = '';
 
-    // Limpiar campos avanzados
     const notaInterna = qs('textarea[name="nota_interna"]');
     if (notaInterna) notaInterna.value = '';
     
     const permiteValoraciones = qs('input[name="permite_valoraciones"]');
     if (permiteValoraciones) permiteValoraciones.checked = true;
-
-    // SOLO resetear tipo de producto si NO estamos manteniendo el tipo
     const tipoSelect = qs('#tipoProductoSelect');
     if (tipoSelect && !keepType) {
         tipoSelect.value = 'simple';
@@ -2728,23 +2686,17 @@ function showInventoryInfoMessage(isVariable) {
         tipoSelect.value = currentType;
     }
 
-    // Resetear atributos UI
     renderSelectedTags();
     renderAtributoBlocks();
     renderVariacionesUI();
     updateImageStatus();
 
-    // Limpiar URLs de objetos creados
     state.imageFiles.forEach(img => {
         if (img.url) URL.revokeObjectURL(img.url);
     });
-
-    console.log('Formulario completamente reiniciado' + (keepType ? ' (manteniendo tipo)' : ''));
   }
 
-  // ---- Toggle Systems ----
   function initToggleSystems() {
-    // Programar rebaja
     const checkRebaja = qs('#checkRebaja');
     const rebajaFechas = qs('#rebajaFechas');
     
@@ -2754,7 +2706,6 @@ function showInventoryInfoMessage(isVariable) {
       });
     }
     
-    // Gestión de inventario
     const checkGestion = qs('#checkGestion');
     const invExtra = qs('#invExtra');
     
@@ -2765,7 +2716,6 @@ function showInventoryInfoMessage(isVariable) {
     }
   }
 
-  // ---- Helper Functions ----
   function showAlert(icon, title, text, timer = null, showConfirmButton = true) {
     const config = {
       icon,
@@ -2781,7 +2731,6 @@ function showInventoryInfoMessage(isVariable) {
     Swal.fire(config);
   }
 
-  // ---- Initialization ----
   function init() {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initializeApp);
@@ -2805,7 +2754,6 @@ function showInventoryInfoMessage(isVariable) {
     initNewProductButton();
   }
 
-  // Start the application
   init();
 
   window._productAdmin = window._productAdmin || {};
@@ -2813,6 +2761,1846 @@ function showInventoryInfoMessage(isVariable) {
   window._productAdmin.state = state;
 
 })();
+
+const configState = {
+    productoId: null,
+    atributos: [],
+    historial: [],
+    imagenesSubidas: {}
+};
+
+let variacionesStockData = [];
+let variacionesStockOriginal = {};
+let cambiosPendientes = {};
+let datatableVariacionesStock = null;
+let isDataTableInitialized = false;
+
+async function renderVariacionesStock(productoId) {
+    const container = document.getElementById('variaciones-stock-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="text-muted">Cargando variaciones...</p>
+        </div>
+    `;
+
+    try {
+        const { data } = await axios.post('productos', {
+            opcion: 'ObtenerVariacionesStock',
+            id: productoId
+        });
+
+        if (data.respuesta !== 'ok') {
+            container.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    ${data.mensaje || 'No se pudieron cargar las variaciones'}
+                </div>
+            `;
+            return;
+        }
+
+        variacionesStockData = data.variaciones || [];
+        variacionesStockOriginal = {};
+        variacionesStockData.forEach(v => {
+            variacionesStockOriginal[v.id] = { stock: v.stock };
+        });
+        
+        cambiosPendientes = {};
+
+        if (variacionesStockData.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    No hay variaciones con gestión de inventario activada.
+                    <br><small>Las variaciones deben tener marcada la opción "Gestionar inventario" para aparecer aquí.</small>
+                </div>
+            `;
+            return;
+        }
+
+        if (datatableVariacionesStock) {
+            datatableVariacionesStock.destroy();
+            datatableVariacionesStock = null;
+            isDataTableInitialized = false;
+        }
+
+        renderVariacionesStockTable(container);
+
+    } catch (error) {
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Error al cargar las variaciones. Intenta nuevamente.
+            </div>
+        `;
+    }
+}
+
+function renderVariacionesStockTable(container) {
+    container.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Procesando...</span>
+            </div>
+            <p class="text-muted">Preparando tabla de variaciones...</p>
+        </div>
+    `;
+
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover" id="tablaVariacionesStock">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th>Variación</th>
+                        <th>SKU</th>
+                        <th style="width: 120px;">Stock Actual</th>
+                        <th style="width: 130px;">Nuevo Stock</th>
+                        <th>Motivo</th>
+                        <th style="width: 60px; text-align: center;">Historial</th>
+                        <th style="width: 90px; text-align: center;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    variacionesStockData.forEach((variacion, index) => {
+        const atributosStr = variacion.atributos_nombres || 'Sin atributos';
+        const tieneCambio = cambiosPendientes[variacion.id] !== undefined;
+        const nuevoStock = tieneCambio ? cambiosPendientes[variacion.id].nuevoStock : variacion.stock;
+        const motivo = tieneCambio ? cambiosPendientes[variacion.id].motivo : '';
+        const esDiferente = tieneCambio && nuevoStock !== variacion.stock;
+        
+        html += `
+            <tr data-variacion-id="${variacion.id}" class="${esDiferente ? 'table-warning' : ''}">
+                <td>${index + 1}</td>
+                <td>
+                    <span class="fw-semibold">${escapeHtml(atributosStr)}</span>
+                    ${variacion.nombre ? `<br><small class="text-muted">${escapeHtml(variacion.nombre)}</small>` : ''}
+                </td>
+                <td><code>${escapeHtml(variacion.sku || 'N/A')}</code></td>
+                <td>
+                    <span class="badge ${variacion.stock > 0 ? 'bg-success' : 'bg-danger'} fs-6">
+                        ${variacion.stock}
+                    </span>
+                </td>
+                <td>
+                    <div class="input-group input-group-sm" style="min-width: 110px;">
+                        <button class="btn btn-sm btn-outline-secondary variacion-stock-decrement" 
+                                data-variacion-id="${variacion.id}"
+                                title="Disminuir stock en 1">
+                            <i class="bi bi-dash"></i>
+                        </button>
+                        <input type="number" class="form-control form-control-sm variacion-stock-input text-center" 
+                               data-variacion-id="${variacion.id}"
+                               min="0" 
+                               value="${nuevoStock}" 
+                               style="width: 60px; max-width: 60px;">
+                        <button class="btn btn-sm btn-outline-secondary variacion-stock-increment" 
+                                data-variacion-id="${variacion.id}"
+                                title="Aumentar stock en 1">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm variacion-motivo-input" 
+                           data-variacion-id="${variacion.id}"
+                           placeholder="Motivo del cambio" 
+                           value="${escapeHtml(motivo)}"
+                           style="min-width: 120px;">
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-info variacion-ver-historial" 
+                            data-variacion-id="${variacion.id}"
+                            title="Ver historial de stock">
+                        <i class="bi bi-clock-history"></i>
+                    </button>
+                </td>
+                <td class="text-center">
+                    ${esDiferente ? `
+                        <button class="btn btn-sm btn-outline-danger variacion-descartar-cambio" 
+                                data-variacion-id="${variacion.id}"
+                                title="Descartar cambio">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    ` : `
+                        <span class="text-muted small">Sin cambios</span>
+                    `}
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    setTimeout(() => {
+        inicializarDataTableVariaciones();
+    }, 100);
+}
+
+function inicializarDataTableVariaciones() {
+    if (!$('#tablaVariacionesStock').length) {
+        console.warn('Tabla #tablaVariacionesStock no encontrada en el DOM');
+        return;
+    }
+
+    if ($.fn.DataTable.isDataTable('#tablaVariacionesStock')) {
+        $('#tablaVariacionesStock').DataTable().destroy();
+    }
+
+    datatableVariacionesStock = $('#tablaVariacionesStock').DataTable({
+        language: {
+            "processing": "Procesando...",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "zeroRecords": "No se encontraron resultados",
+            "emptyTable": "No se encontraron registros",
+            "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
+            "infoFiltered": "(filtrado de un total de _MAX_ registros)",
+            "search": "Buscar:",
+            "loadingRecords": "Cargando...",
+            "paginate": {
+                "first": "Primero",
+                "last": "Último",
+                "next": "Siguiente",
+                "previous": "Anterior"
+            },
+            "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
+            "searchPlaceholder": "Buscar variación..."
+        },
+        pageLength: 10,
+        lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Todos"]],
+        order: [[0, 'asc']],
+        columnDefs: [
+            { orderable: false, targets: [4, 5, 6, 7] },
+            { className: 'text-center', targets: [6, 7] }
+        ],
+        drawCallback: function(settings) {
+            attachVariacionesStockEvents();
+        }
+    });
+
+    isDataTableInitialized = true;
+    actualizarContadorCambios();
+}
+
+function attachVariacionesStockEvents() {
+    const container = document.getElementById('variaciones-stock-container');
+    if (!container) return;
+
+    container.querySelectorAll('.variacion-stock-increment').forEach(btn => {
+        btn.removeEventListener('click', handleIncrementClick);
+        btn.addEventListener('click', handleIncrementClick);
+    });
+
+    container.querySelectorAll('.variacion-stock-decrement').forEach(btn => {
+        btn.removeEventListener('click', handleDecrementClick);
+        btn.addEventListener('click', handleDecrementClick);
+    });
+
+    container.querySelectorAll('.variacion-stock-input').forEach(input => {
+        input.removeEventListener('change', handleStockChange);
+        input.addEventListener('change', handleStockChange);
+    });
+
+    container.querySelectorAll('.variacion-motivo-input').forEach(input => {
+        input.removeEventListener('input', handleMotivoChange);
+        input.addEventListener('input', handleMotivoChange);
+    });
+
+    container.querySelectorAll('.variacion-descartar-cambio').forEach(btn => {
+        btn.removeEventListener('click', handleDescartarCambio);
+        btn.addEventListener('click', handleDescartarCambio);
+    });
+
+    container.querySelectorAll('.variacion-ver-historial').forEach(btn => {
+        btn.removeEventListener('click', handleVerHistorial);
+        btn.addEventListener('click', handleVerHistorial);
+    });
+}
+
+function handleIncrementClick(e) {
+    const variacionId = this.dataset.variacionId;
+    const row = document.querySelector(`tr[data-variacion-id="${variacionId}"]`);
+    if (!row) return;
+    const input = row.querySelector('.variacion-stock-input');
+    if (!input) return;
+    const currentVal = parseInt(input.value) || 0;
+    input.value = currentVal + 1;
+    input.dispatchEvent(new Event('change'));
+}
+
+function handleDecrementClick(e) {
+    const variacionId = this.dataset.variacionId;
+    const row = document.querySelector(`tr[data-variacion-id="${variacionId}"]`);
+    if (!row) return;
+    const input = row.querySelector('.variacion-stock-input');
+    if (!input) return;
+    const currentVal = parseInt(input.value) || 0;
+    if (currentVal > 0) {
+        input.value = currentVal - 1;
+        input.dispatchEvent(new Event('change'));
+    }
+}
+
+function handleStockChange(e) {
+    const variacionId = this.dataset.variacionId;
+    const newStock = parseInt(this.value) || 0;
+    const row = document.querySelector(`tr[data-variacion-id="${variacionId}"]`);
+    if (!row) return;
+    const motivoInput = row.querySelector('.variacion-motivo-input');
+    const motivo = motivoInput?.value || '';
+    
+    const variacion = variacionesStockData.find(v => v.id == variacionId);
+    if (!variacion) return;
+    if (newStock !== variacion.stock) {
+        cambiosPendientes[variacionId] = {
+            stockOriginal: variacion.stock,
+            nuevoStock: newStock,
+            motivo: motivo || 'Ajuste manual'
+        };
+    } else {
+        delete cambiosPendientes[variacionId];
+    }
+
+    actualizarFilaVariacion(variacionId);
+    actualizarContadorCambios();
+}
+
+function handleMotivoChange(e) {
+    const variacionId = this.dataset.variacionId;
+    const motivo = this.value;
+    const row = document.querySelector(`tr[data-variacion-id="${variacionId}"]`);
+    if (!row) return;
+    const stockInput = row.querySelector('.variacion-stock-input');
+    const currentStock = parseInt(stockInput?.value) || 0;
+    
+    const variacion = variacionesStockData.find(v => v.id == variacionId);
+    if (!variacion) return;
+    if (motivo && (currentStock !== variacion.stock || cambiosPendientes[variacionId])) {
+        cambiosPendientes[variacionId] = {
+            stockOriginal: variacion.stock,
+            nuevoStock: currentStock,
+            motivo: motivo
+        };
+        actualizarFilaVariacion(variacionId);
+        actualizarContadorCambios();
+    } else if (!motivo && cambiosPendientes[variacionId] && currentStock === variacion.stock) {
+        delete cambiosPendientes[variacionId];
+        actualizarFilaVariacion(variacionId);
+        actualizarContadorCambios();
+    }
+}
+
+function handleDescartarCambio(e) {
+    const variacionId = this.dataset.variacionId;
+    descartarCambioVariacion(variacionId);
+}
+
+function handleVerHistorial(e) {
+    const variacionId = this.dataset.variacionId;
+    const variacion = variacionesStockData.find(v => v.id == variacionId);
+    if (variacion) {
+        mostrarHistorialVariacion(variacion);
+    }
+}
+
+function actualizarFilaVariacion(variacionId) {
+    const row = document.querySelector(`tr[data-variacion-id="${variacionId}"]`);
+    if (!row) return;
+
+    const variacion = variacionesStockData.find(v => v.id == variacionId);
+    if (!variacion) return;
+
+    const tieneCambio = cambiosPendientes[variacionId] !== undefined;
+    const nuevoStock = tieneCambio ? cambiosPendientes[variacionId].nuevoStock : variacion.stock;
+    const esDiferente = tieneCambio && nuevoStock !== variacion.stock;
+
+    row.className = esDiferente ? 'table-warning' : '';
+
+    const input = row.querySelector('.variacion-stock-input');
+    if (input) input.value = nuevoStock;
+
+    const motivoInput = row.querySelector('.variacion-motivo-input');
+    if (motivoInput && tieneCambio) {
+        motivoInput.value = cambiosPendientes[variacionId].motivo || '';
+    }
+
+    const accionCell = row.querySelector('td:last-child');
+    if (accionCell) {
+        if (esDiferente) {
+            accionCell.innerHTML = `
+                <button class="btn btn-sm btn-outline-danger variacion-descartar-cambio" 
+                        data-variacion-id="${variacionId}"
+                        title="Descartar cambio">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            `;
+            
+            accionCell.querySelector('.variacion-descartar-cambio')?.addEventListener('click', function() {
+                descartarCambioVariacion(variacionId);
+            });
+        } else {
+            accionCell.innerHTML = `<span class="text-muted small">Sin cambios</span>`;
+        }
+    }
+}
+
+function descartarCambioVariacion(variacionId) {
+    delete cambiosPendientes[variacionId];
+    const variacion = variacionesStockData.find(v => v.id == variacionId);
+    if (variacion) {
+        const row = document.querySelector(`tr[data-variacion-id="${variacionId}"]`);
+        if (row) {
+            const input = row.querySelector('.variacion-stock-input');
+            if (input) input.value = variacion.stock;
+            const motivoInput = row.querySelector('.variacion-motivo-input');
+            if (motivoInput) motivoInput.value = '';
+        }
+        actualizarFilaVariacion(variacionId);
+        actualizarContadorCambios();
+    }
+}
+
+function actualizarContadorCambios() {
+    const totalCambios = Object.keys(cambiosPendientes).filter(id => {
+        const cambio = cambiosPendientes[id];
+        const variacion = variacionesStockData.find(v => v.id == id);
+        return variacion && cambio.nuevoStock !== variacion.stock;
+    }).length;
+
+    const badge = document.getElementById('badgeCambiosPendientes');
+    if (badge) {
+        if (totalCambios > 0) {
+            badge.className = 'badge bg-warning text-dark align-self-center';
+            badge.textContent = `${totalCambios} cambio(s) pendiente(s)`;
+        } else {
+            badge.className = 'badge bg-secondary align-self-center';
+            badge.textContent = 'Sin cambios pendientes';
+        }
+    }
+}
+
+document.getElementById('btnGuardarCambiosStockVariaciones')?.addEventListener('click', async function() {
+    const changes = Object.keys(cambiosPendientes).filter(id => {
+        const cambio = cambiosPendientes[id];
+        const variacion = variacionesStockData.find(v => v.id == id);
+        return variacion && cambio.nuevoStock !== variacion.stock;
+    });
+
+    if (changes.length === 0) {
+        Swal.fire('Info', 'No hay cambios pendientes para guardar.', 'info');
+        return;
+    }
+
+    const confirm = await Swal.fire({
+        title: '¿Guardar todos los cambios?',
+        html: `
+            <p>Se aplicarán <strong>${changes.length}</strong> cambio(s) en el stock de las variaciones.</p>
+            <div class="text-start mt-3" style="max-height: 200px; overflow-y: auto;">
+                ${changes.map(id => {
+                    const cambio = cambiosPendientes[id];
+                    const variacion = variacionesStockData.find(v => v.id == id);
+                    const diff = cambio.nuevoStock - variacion.stock;
+                    return `
+                        <div class="small border-bottom py-1">
+                            <span class="fw-semibold">${variacion.atributos_nombres || 'Sin nombre'}</span>
+                            <span class="text-muted">(${variacion.sku || 'N/A'})</span>
+                            <span class="badge ${diff > 0 ? 'bg-success' : 'bg-danger'}">
+                                ${diff > 0 ? '+' : ''}${diff}
+                            </span>
+                            <span class="text-muted">→ ${cambio.nuevoStock}</span>
+                            <br><small class="text-muted">Motivo: ${cambio.motivo || 'Ajuste manual'}</small>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, guardar cambios',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    const preloaderMessages = showPreloader("Guardando cambios de stock...", "registrar");
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Guardando...';
+
+    try {
+        const productoId = document.getElementById('config_producto_id').value;
+        
+        const cambiosData = changes.map(id => {
+            const cambio = cambiosPendientes[id];
+            const variacion = variacionesStockData.find(v => v.id == id);
+            return {
+                variacion_id: id,
+                nuevo_stock: cambio.nuevoStock,
+                motivo: cambio.motivo || 'Ajuste manual',
+                stock_anterior: variacion.stock
+            };
+        });
+
+        const { data } = await axios.post('productos', {
+            opcion: 'GuardarCambiosMasivosVariacionesStock',
+            producto_id: productoId,
+            cambios: cambiosData
+        });
+
+        Swal.close();
+
+        if (data.respuesta === 'ok') {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Cambios guardados!',
+                text: data.mensaje || 'Todos los cambios de stock se han aplicado correctamente.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            cambiosData.forEach(c => {
+                const variacion = variacionesStockData.find(v => v.id == c.variacion_id);
+                if (variacion) {
+                    variacion.stock = c.nuevo_stock;
+                }
+                delete cambiosPendientes[c.variacion_id];
+            });
+
+            await renderVariacionesStock(productoId);
+            
+            if (document.getElementById('panel-movimientos-stock').classList.contains('show')) {
+                await cargarConfiguracionProducto(productoId);
+            }
+        } else {
+            Swal.fire('Error', data.mensaje || 'No se pudieron guardar los cambios', 'error');
+        }
+    } catch (error) {
+        Swal.close();
+        Swal.fire('Error', 'Error al guardar los cambios', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-save me-1"></i> Guardar todos los cambios';
+    }
+});
+
+document.getElementById('btnDescartarCambiosStockVariaciones')?.addEventListener('click', async function() {
+    const totalCambios = Object.keys(cambiosPendientes).length;
+    if (totalCambios === 0) {
+        Swal.fire('Info', 'No hay cambios pendientes para descartar.', 'info');
+        return;
+    }
+
+    const confirm = await Swal.fire({
+        title: '¿Descartar todos los cambios?',
+        text: `Se descartarán ${totalCambios} cambio(s) pendiente(s).`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, descartar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (confirm.isConfirmed) {
+        Object.keys(cambiosPendientes).forEach(id => {
+            const variacion = variacionesStockData.find(v => v.id == id);
+            if (variacion) {
+                const row = document.querySelector(`tr[data-variacion-id="${id}"]`);
+                if (row) {
+                    const input = row.querySelector('.variacion-stock-input');
+                    if (input) input.value = variacion.stock;
+                    const motivoInput = row.querySelector('.variacion-motivo-input');
+                    if (motivoInput) motivoInput.value = '';
+                }
+            }
+        });
+
+        cambiosPendientes = {};
+        actualizarContadorCambios();
+        
+        document.querySelectorAll('#tablaVariacionesStock tbody tr').forEach(row => {
+            const id = row.dataset.variacionId;
+            if (id) actualizarFilaVariacion(id);
+        });
+
+        Swal.fire({
+            icon: 'info',
+            title: 'Cambios descartados',
+            timer: 1000,
+            showConfirmButton: false
+        });
+    }
+});
+
+document.getElementById('btnResetearStockVariaciones')?.addEventListener('click', async function() {
+    const confirm = await Swal.fire({
+        title: '¿Resetear stock a valores originales?',
+        text: 'Esto restaurará el stock de TODAS las variaciones a los valores guardados en la base de datos.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, resetear',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (confirm.isConfirmed) {
+        cambiosPendientes = {};
+        const productoId = document.getElementById('config_producto_id').value;
+        await renderVariacionesStock(productoId);
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Stock restaurado',
+            text: 'El stock de todas las variaciones ha sido restaurado a los valores originales.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+    }
+});
+
+async function mostrarHistorialVariacion(variacion) {
+    try {
+        const { data } = await axios.post('productos', {
+            opcion: 'ObtenerHistorialVariacionStock',
+            variacion_id: variacion.id
+        });
+
+        if (data.respuesta !== 'ok') {
+            Swal.fire('Error', data.mensaje || 'No se pudo cargar el historial', 'error');
+            return;
+        }
+
+        const historial = data.historial || [];
+        const atributosStr = variacion.atributos_nombres || 'Sin atributos';
+
+        let historialHtml = '';
+        if (historial.length === 0) {
+            historialHtml = '<tr><td colspan="6" class="text-center text-muted">No hay movimientos registrados</td></tr>';
+        } else {
+            historialHtml = historial.map(item => `
+                <tr>
+                    <td>${new Date(item.created_at).toLocaleString()}</td>
+                    <td>${item.cantidad_anterior}</td>
+                    <td>${item.nueva_cantidad}</td>
+                    <td class="${item.diferencia > 0 ? 'text-success' : 'text-danger'}">
+                        ${item.diferencia > 0 ? '+' : ''}${item.diferencia}
+                    </td>
+                    <td>${item.motivo || 'Sin motivo'}</td>
+                    <td>${item.usuario_nombre || 'Sistema'}</td>
+                </tr>
+            `).join('');
+        }
+
+        Swal.fire({
+            title: `Historial de Stock - ${atributosStr}`,
+            html: `
+                <div class="text-start">
+                    <p><strong>SKU:</strong> <code>${variacion.sku || 'N/A'}</code></p>
+                    <p><strong>Stock actual:</strong> <span class="badge ${variacion.stock > 0 ? 'bg-success' : 'bg-danger'}">${variacion.stock}</span></p>
+                    <hr>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Anterior</th>
+                                    <th>Nuevo</th>
+                                    <th>Diferencia</th>
+                                    <th>Motivo</th>
+                                    <th>Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${historialHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `,
+            width: 900,
+            confirmButtonText: 'Cerrar'
+        });
+
+    } catch (error) {
+        Swal.fire('Error', 'Error al cargar el historial', 'error');
+    }
+}
+
+async function cargarConfiguracionProducto(productoId) {
+    const preloaderMessages = showPreloader("Cargando configuración...", "cargar");
+    
+    try {
+        const { data } = await axios.post('productos', {
+            opcion: 'ObtenerConfiguracion',
+            id: productoId
+        });
+
+        Swal.close();
+
+        if (data.respuesta !== 'ok') {
+            Swal.fire('Error', data.mensaje || 'No se pudo cargar la configuración', 'error');
+            return;
+        }
+
+        configState.productoId = productoId;
+        configState.atributos = data.atributos_config || [];
+        configState.historial = data.historial_stock || [];
+        configState.imagenesSubidas = {};
+        configState.etiquetas = data.etiquetas_producto || [];
+
+        const gestionaInventario = data.producto.gestion_inventario == 1 || data.producto.gestion_inventario === true;
+        const esVariable = data.producto.tipo_producto === 'variable';
+
+        configState.tipoProducto = data.producto.tipo_producto;
+
+        toggleAllTabsVisibility(esVariable, gestionaInventario);
+
+        if (esVariable) {
+            await renderVariacionesStock(productoId);
+        }
+
+        document.getElementById('config_stock_minimo').value = data.producto.stock_minimo || 0;
+        document.getElementById('config_max_stock').value = data.producto.max_stock || '';
+
+        renderHistorialStock(configState.historial);
+        
+        if (esVariable) {
+            renderAtributosConfig(configState.atributos);
+        } else {
+            const container = document.getElementById('config_atributos_container');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Los atributos solo están disponibles para productos de tipo <strong>Variable</strong>.
+                        <br><small>Cambia el tipo de producto a "Variable" en el formulario principal para gestionar atributos.</small>
+                    </div>
+                `;
+            }
+        }
+        
+        renderEtiquetasConfig(configState.etiquetas);
+        
+        document.getElementById('config_producto_id').value = productoId;
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Configuración cargada',
+            text: 'Los datos del producto se han cargado correctamente.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+    } catch (error) {
+        Swal.close();
+        console.error('Error cargando configuración:', error);
+        Swal.fire('Error', 'No se pudo cargar la configuración del producto', 'error');
+    }
+}
+
+function toggleVariacionesStockTab(mostrar) {
+    const navItem = document.getElementById('tab-variaciones-stock-nav');
+    const panel = document.getElementById('panel-variaciones-stock');
+    
+    if (navItem) {
+        navItem.style.display = mostrar ? '' : 'none';
+        navItem.classList.toggle('d-none', !mostrar);
+    }
+    
+    if (panel) {
+        panel.style.display = mostrar ? '' : 'none';
+        panel.classList.toggle('d-none', !mostrar);
+    }
+    
+    if (!mostrar) {
+        const activeTab = document.querySelector('#configTabs .nav-link.active');
+        if (activeTab && activeTab.id === 'tab-variaciones-stock') {
+            const allTabs = document.querySelectorAll('#configTabs .nav-link:not(.d-none)');
+            let firstVisible = null;
+            for (const tab of allTabs) {
+                if (tab.id !== 'tab-variaciones-stock' && tab.id !== 'tab-atributos-config') {
+                    firstVisible = tab;
+                    break;
+                }
+            }
+            if (firstVisible) {
+                new bootstrap.Tab(firstVisible).show();
+            }
+        }
+
+        if (datatableVariacionesStock) {
+            datatableVariacionesStock.destroy();
+            datatableVariacionesStock = null;
+            isDataTableInitialized = false;
+        }
+    } else {
+        if (configState.productoId) {
+            cambiosPendientes = {};
+            renderVariacionesStock(configState.productoId);
+        }
+    }
+}
+
+function toggleStockTabs(mostrar) {
+    const tabLimitesStock = document.getElementById('tab-limites-stock');
+    const tabMovimientosStock = document.getElementById('tab-movimientos-stock');
+    const panelLimitesStock = document.getElementById('panel-limites-stock');
+    const panelMovimientosStock = document.getElementById('panel-movimientos-stock');
+    const tabAtributos = document.getElementById('tab-atributos-config');
+    const panelAtributos = document.getElementById('panel-atributos-config');
+    const tabEtiquetas = document.getElementById('tab-etiquetas-config');
+    const panelEtiquetas = document.getElementById('panel-etiquetas-config');
+
+    const esVariable = configState.tipoProducto === 'variable';
+
+    if (mostrar) {
+        if (tabLimitesStock) {
+            tabLimitesStock.style.display = '';
+            tabLimitesStock.classList.remove('d-none');
+        }
+        if (tabMovimientosStock) {
+            tabMovimientosStock.style.display = '';
+            tabMovimientosStock.classList.remove('d-none');
+        }
+        if (panelLimitesStock) {
+            panelLimitesStock.style.display = '';
+            panelLimitesStock.classList.remove('d-none');
+        }
+        if (panelMovimientosStock) {
+            panelMovimientosStock.style.display = '';
+            panelMovimientosStock.classList.remove('d-none');
+        }
+
+        if (tabAtributos) {
+            if (esVariable) {
+                tabAtributos.style.display = '';
+                tabAtributos.classList.remove('d-none');
+            } else {
+                tabAtributos.style.display = 'none';
+                tabAtributos.classList.add('d-none');
+            }
+        }
+        if (panelAtributos) {
+            if (esVariable) {
+                panelAtributos.style.display = '';
+                panelAtributos.classList.remove('d-none');
+            } else {
+                panelAtributos.style.display = 'none';
+                panelAtributos.classList.add('d-none');
+            }
+        }
+
+        if (tabEtiquetas) {
+            tabEtiquetas.style.display = '';
+            tabEtiquetas.classList.remove('d-none');
+        }
+        if (panelEtiquetas) {
+            panelEtiquetas.style.display = '';
+            panelEtiquetas.classList.remove('d-none');
+        }
+
+        if (esVariable) {
+            toggleVariacionesStockTab(true);
+        }
+
+        document.querySelectorAll('.stock-disabled-message').forEach(el => el.remove());
+
+        const allTabs = document.querySelectorAll('#configTabs .nav-link:not(.d-none)');
+        let firstVisibleTab = null;
+        for (const tab of allTabs) {
+            const style = window.getComputedStyle(tab);
+            if (style.display !== 'none' && !tab.classList.contains('d-none')) {
+                firstVisibleTab = tab;
+                break;
+            }
+        }
+
+        if (firstVisibleTab && !firstVisibleTab.classList.contains('active')) {
+            const bsTab = new bootstrap.Tab(firstVisibleTab);
+            bsTab.show();
+        }
+
+    } else {
+        if (tabLimitesStock) {
+            tabLimitesStock.style.display = 'none';
+            tabLimitesStock.classList.add('d-none');
+        }
+        if (tabMovimientosStock) {
+            tabMovimientosStock.style.display = 'none';
+            tabMovimientosStock.classList.add('d-none');
+        }
+        if (panelLimitesStock) {
+            panelLimitesStock.style.display = 'none';
+            panelLimitesStock.classList.add('d-none');
+        }
+        if (panelMovimientosStock) {
+            panelMovimientosStock.style.display = 'none';
+            panelMovimientosStock.classList.add('d-none');
+        }
+
+        toggleVariacionesStockTab(false);
+
+        if (tabAtributos) {
+            if (!esVariable) {
+                tabAtributos.style.display = 'none';
+                tabAtributos.classList.add('d-none');
+            } else {
+                tabAtributos.style.display = 'none';
+                tabAtributos.classList.add('d-none');
+            }
+        }
+        if (panelAtributos) {
+            if (!esVariable) {
+                panelAtributos.style.display = 'none';
+                panelAtributos.classList.add('d-none');
+            } else {
+                panelAtributos.style.display = 'none';
+                panelAtributos.classList.add('d-none');
+            }
+        }
+
+        const activeTab = document.querySelector('#configTabs .nav-link.active');
+        if (activeTab && 
+            (activeTab.id === 'tab-limites-stock' || 
+             activeTab.id === 'tab-movimientos-stock' || 
+             activeTab.id === 'tab-variaciones-stock' ||
+             activeTab.id === 'tab-atributos-config')) {
+            
+            const allTabs = document.querySelectorAll('#configTabs .nav-link:not(.d-none)');
+            let firstVisibleTab = null;
+            for (const tab of allTabs) {
+                if (tab.id !== 'tab-limites-stock' && 
+                    tab.id !== 'tab-movimientos-stock' && 
+                    tab.id !== 'tab-variaciones-stock' &&
+                    tab.id !== 'tab-atributos-config') {
+                    firstVisibleTab = tab;
+                    break;
+                }
+            }
+
+            if (firstVisibleTab) {
+                new bootstrap.Tab(firstVisibleTab).show();
+            }
+        }
+
+        const panelAtributosEl = document.getElementById('panel-atributos-config');
+        if (panelAtributosEl) {
+            const existingMsg = panelAtributosEl.querySelector('.stock-disabled-message');
+            if (existingMsg) existingMsg.remove();
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'alert alert-warning stock-disabled-message mt-3';
+            msgDiv.innerHTML = `
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <strong>Inventario desactivado:</strong> Este producto no tiene activada la gestión de inventario. 
+                Los tabs de "Límites de Stock" y "Historial de Stock" están ocultos.
+                <br><br>
+                <small>Para activar la gestión de inventario, edita el producto desde el formulario principal y marca la opción "Gestionar inventario".</small>
+            `;
+            panelAtributosEl.prepend(msgDiv);
+        }
+    }
+}
+
+function toggleAllTabsVisibility(esVariable, gestionaInventario) {
+    const tabLimitesStock = document.getElementById('tab-limites-stock');
+    const tabMovimientosStock = document.getElementById('tab-movimientos-stock');
+    const tabAtributos = document.getElementById('tab-atributos-config');
+    const tabVariacionesStock = document.getElementById('tab-variaciones-stock-nav');
+    const tabEtiquetas = document.getElementById('tab-etiquetas-config');
+    
+    const panelLimitesStock = document.getElementById('panel-limites-stock');
+    const panelMovimientosStock = document.getElementById('panel-movimientos-stock');
+    const panelAtributos = document.getElementById('panel-atributos-config');
+    const panelVariacionesStock = document.getElementById('panel-variaciones-stock');
+    const panelEtiquetas = document.getElementById('panel-etiquetas-config');
+
+    const mostrarStock = gestionaInventario;
+    
+    toggleElementVisibility(tabLimitesStock, mostrarStock);
+    toggleElementVisibility(tabMovimientosStock, mostrarStock);
+    toggleElementVisibility(panelLimitesStock, mostrarStock);
+    toggleElementVisibility(panelMovimientosStock, mostrarStock);
+
+    const mostrarAtributos = esVariable;
+    toggleElementVisibility(tabAtributos, mostrarAtributos);
+    toggleElementVisibility(panelAtributos, mostrarAtributos);
+
+    toggleElementVisibility(tabVariacionesStock, mostrarAtributos);
+    toggleElementVisibility(panelVariacionesStock, mostrarAtributos);
+
+    toggleElementVisibility(tabEtiquetas, true);
+    toggleElementVisibility(panelEtiquetas, true);
+
+    if (!mostrarStock) {
+        const panelAtributosEl = document.getElementById('panel-atributos-config');
+        if (panelAtributosEl) {
+            const existingMsg = panelAtributosEl.querySelector('.stock-disabled-message');
+            if (existingMsg) existingMsg.remove();
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'alert alert-warning stock-disabled-message mt-3';
+            msgDiv.innerHTML = `
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <strong>Inventario desactivado:</strong> Este producto no tiene activada la gestión de inventario. 
+                Los tabs de "Límites de Stock", "Historial de Stock" y "Atributos" están ocultos.
+                <br><br>
+                <small>Para activar la gestión de inventario, edita el producto desde el formulario principal y marca la opción "Gestionar inventario".</small>
+            `;
+            panelAtributosEl.prepend(msgDiv);
+        }
+    }
+
+    if (!esVariable) {
+        const container = document.getElementById('config_atributos_container');
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Atributos solo para productos variables:</strong>
+                    <br>Los atributos con valores extra (colores, imágenes, etc.) solo están disponibles para productos de tipo <strong>Variable</strong>.
+                    <br><small>Cambia el tipo de producto a "Variable" en el formulario principal para gestionar atributos.</small>
+                </div>
+            `;
+        }
+    }
+
+    const allTabs = document.querySelectorAll('#configTabs .nav-link:not(.d-none)');
+    let firstVisibleTab = null;
+    for (const tab of allTabs) {
+        const style = window.getComputedStyle(tab);
+        if (style.display !== 'none' && !tab.classList.contains('d-none')) {
+            firstVisibleTab = tab;
+            break;
+        }
+    }
+
+    if (firstVisibleTab && !firstVisibleTab.classList.contains('active')) {
+        const bsTab = new bootstrap.Tab(firstVisibleTab);
+        bsTab.show();
+    }
+}
+
+function toggleElementVisibility(element, show) {
+    if (!element) return;
+    if (show) {
+        element.style.display = '';
+        element.classList.remove('d-none');
+    } else {
+        element.style.display = 'none';
+        element.classList.add('d-none');
+    }
+}
+
+function renderEtiquetasConfig(etiquetas) {
+    const container = document.getElementById('config_etiquetas_container');
+    if (!container) return;
+
+    if (!etiquetas || etiquetas.length === 0) {
+        container.innerHTML = `
+            <div class="text-muted text-center py-4">
+                <i class="bi bi-tags fs-2 d-block mb-2"></i>
+                <p>Este producto no tiene etiquetas asociadas.</p>
+                <p class="small">Puedes agregar etiquetas desde el formulario principal del producto.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Etiqueta</th>
+                        <th>Color actual</th>
+                        <th>Nuevo color</th>
+                        <th>Vista previa</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${etiquetas.map(etq => `
+                        <tr data-etiqueta-id="${etq.id}">
+                            <td class="fw-semibold">${escapeHtml(etq.nombre)}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width:30px;height:30px;border-radius:50%;background:${etq.color};border:2px solid #ddd;"></div>
+                                    <span class="badge" style="background:${etq.color};color:#fff;">${etq.color}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <input type="color" class="form-control form-control-sm etiqueta-color-input" 
+                                       data-etiqueta-id="${etq.id}" 
+                                       value="${etq.color}" 
+                                       style="width:60px;padding:2px;cursor:pointer;">
+                            </td>
+                            <td>
+                                <span class="badge etiqueta-preview" style="background:${etq.color};color:#fff;font-size:1rem;padding:8px 16px;">
+                                    ${escapeHtml(etq.nombre)}
+                                </span>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-primary btn-actualizar-color-etiqueta" 
+                                        data-etiqueta-id="${etq.id}" 
+                                        data-color="${etq.color}">
+                                    <i class="bi bi-check2-circle"></i> Actualizar
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    document.querySelectorAll('.etiqueta-color-input').forEach(input => {
+        input.addEventListener('input', function() {
+            const etiquetaId = this.dataset.etiquetaId;
+            const nuevoColor = this.value;
+            
+            const preview = document.querySelector(`.etiqueta-preview[data-etiqueta-id="${etiquetaId}"]`);
+            if (preview) {
+                preview.style.background = nuevoColor;
+            }
+            
+            const colorBadge = document.querySelector(`tr[data-etiqueta-id="${etiquetaId}"] .badge:not(.etiqueta-preview)`);
+            if (colorBadge) {
+                colorBadge.style.background = nuevoColor;
+                colorBadge.textContent = nuevoColor;
+            }
+            
+            const colorCircle = document.querySelector(`tr[data-etiqueta-id="${etiquetaId}"] div[style*="border-radius:50%"]`);
+            if (colorCircle) {
+                colorCircle.style.background = nuevoColor;
+            }
+
+            const btn = document.querySelector(`.btn-actualizar-color-etiqueta[data-etiqueta-id="${etiquetaId}"]`);
+            if (btn) {
+                btn.dataset.color = nuevoColor;
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-actualizar-color-etiqueta').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const etiquetaId = this.dataset.etiquetaId;
+            const color = this.dataset.color;
+            const productoId = configState.productoId;
+
+            if (!color || color === '#000000') {
+                Swal.fire('Advertencia', 'El color no puede ser negro (#000000). Elige otro color.', 'warning');
+                return;
+            }
+
+            try {
+                const { data } = await axios.post('productos', {
+                    opcion: 'ActualizarColorEtiqueta',
+                    producto_id: productoId,
+                    etiqueta_id: etiquetaId,
+                    color: color
+                });
+
+                if (data.respuesta === 'ok') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Color actualizado',
+                        text: 'El color de la etiqueta se ha actualizado correctamente.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+
+                    const row = document.querySelector(`tr[data-etiqueta-id="${etiquetaId}"]`);
+                    if (row) {
+                        const badge = row.querySelector('.badge:not(.etiqueta-preview)');
+                        if (badge) {
+                            badge.style.background = color;
+                            badge.textContent = color;
+                        }
+                        
+                        const circle = row.querySelector('div[style*="border-radius:50%"]');
+                        if (circle) {
+                            circle.style.background = color;
+                        }
+                        
+                        const preview = row.querySelector('.etiqueta-preview');
+                        if (preview) {
+                            preview.style.background = color;
+                        }
+                        
+                        const input = row.querySelector('.etiqueta-color-input');
+                        if (input) {
+                            input.value = color;
+                        }
+                    }
+                    cargarConfiguracionProducto(productoId);
+
+                } else {
+                    Swal.fire('Error', data.mensaje || 'No se pudo actualizar el color', 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
+            }
+        });
+    });
+}
+
+function renderHistorialStock(historial) {
+    const tbody = document.getElementById('config_historial_table_body');
+    if (!tbody) return;
+
+    if (!historial || historial.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No hay movimientos registrados</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = historial.map(item => {
+        let nombreUsuario = 'Sistema';
+        if (item.usuario) {
+            nombreUsuario = `${item.usuario.nombres || ''} ${item.usuario.apellidos || ''}`.trim() || 'Usuario';
+        }
+        
+        return `
+            <tr>
+                <td>${new Date(item.created_at).toLocaleString()}</td>
+                <td>${item.cantidad_anterior}</td>
+                <td>${item.nueva_cantidad}</td>
+                <td class="${item.diferencia > 0 ? 'text-success' : 'text-danger'}">
+                    ${item.diferencia > 0 ? '+' : ''}${item.diferencia}
+                </td>
+                <td>${item.motivo || 'Sin motivo'}</td>
+                <td>${nombreUsuario}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderAtributosConfig(atributos) {
+    const container = document.getElementById('config_atributos_container');
+    if (!container) return;
+
+    if (!atributos || atributos.length === 0) {
+        container.innerHTML = '<p class="text-muted">Este producto no tiene atributos.</p>';
+        return;
+    }
+
+    // Ordenar atributos por prioridad (si existe)
+    const atributosOrdenados = [...atributos].sort((a, b) => {
+        const prioridadA = a.prioridad || 999;
+        const prioridadB = b.prioridad || 999;
+        return prioridadA - prioridadB;
+    });
+
+    container.innerHTML = atributosOrdenados.map((attr, index) => {
+        const tipoActual = attr.tipo || 'Default';
+        const shapeActual = attr.shape || 'Default';
+        const prioridadActual = attr.prioridad || index + 1;
+
+        const terminosHtml = (attr.terminos || []).map(term => {
+            let inputExtra = '';
+            
+            if (tipoActual === 'Color') {
+                inputExtra = `
+                    <input type="color" class="form-control form-control-sm valor-extra-input" 
+                           data-attr-id="${attr.id}" data-term-id="${term.id}" 
+                           value="${term.valor_extra || '#000000'}" style="width: 50px; padding: 0;">
+                `;
+            } else if (tipoActual === 'Image') {
+                const imagenActual = term.valor_extra || '';
+                const tieneImagen = imagenActual && imagenActual.length > 0;
+                
+                inputExtra = `
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <input type="file" class="form-control form-control-sm valor-extra-input-file" 
+                               data-attr-id="${attr.id}" data-term-id="${term.id}" 
+                               accept=".jpg,.png,.ico" style="width: 200px;">
+                        ${tieneImagen ? `
+                            <div class="d-flex align-items-center gap-2">
+                                <img src="/${imagenActual}" 
+                                     style="max-height: 40px; max-width: 40px; border-radius: 4px; border: 1px solid #ddd; object-fit: cover;">
+                                <a href="/${imagenActual}" target="_blank" class="btn btn-sm btn-outline-info">
+                                    <i class="bi bi-eye"></i> Ver
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-remove-imagen-termino" 
+                                        data-attr-id="${attr.id}" data-term-id="${term.id}" 
+                                        data-imagen="${imagenActual}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="file-preview-${attr.id}-${term.id} mt-1"></div>
+                `;
+            } else {
+                inputExtra = `<span class="text-muted small">Sin valor extra</span>`;
+            }
+
+            return `
+                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                    <span class="badge bg-secondary" style="min-width: 80px;">${term.nombre}</span>
+                    ${inputExtra}
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="card mb-3 atributo-config-card" data-attr-id="${attr.id}" data-prioridad="${prioridadActual}">
+                <div class="card-header d-flex justify-content-between align-items-center text-white">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="grip-handle" style="cursor: grab; color: white;">
+                            <i class="bi bi-grip-vertical"></i>
+                        </span>
+                        <span class="orden-badge" style="width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #f35b08; color: white; font-weight: bold; font-size: 0.8rem;">
+                            ${prioridadActual}
+                        </span>
+                        <strong>${attr.nombre}</strong>
+                        <span class="badge bg-info">ID: ${attr.id}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-select form-select-sm attr-tipo-select" data-attr-id="${attr.id}">
+                                <option value="Default" ${tipoActual === 'Default' ? 'selected' : ''}>Default</option>
+                                <option value="Label" ${tipoActual === 'Label' ? 'selected' : ''}>Label</option>
+                                <option value="Color" ${tipoActual === 'Color' ? 'selected' : ''}>Color</option>
+                                <option value="Image" ${tipoActual === 'Image' ? 'selected' : ''}>Image</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Shape</label>
+                            <select class="form-select form-select-sm attr-shape-select" data-attr-id="${attr.id}">
+                                <option value="Default" ${shapeActual === 'Default' ? 'selected' : ''}>Default</option>
+                                <option value="Square" ${shapeActual === 'Square' ? 'selected' : ''}>Square</option>
+                                <option value="Rounded Corner" ${shapeActual === 'Rounded Corner' ? 'selected' : ''}>Rounded Corner</option>
+                                <option value="Circle" ${shapeActual === 'Circle' ? 'selected' : ''}>Circle</option>
+                            </select>
+                        </div>
+                    </div>
+                    <hr>
+                    <label class="form-label">Valores Extra por Término</label>
+                    ${terminosHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Inicializar SortableJS para drag & drop
+    initSortableAtributos();
+
+    // Event listeners para cambios de tipo y shape
+    document.querySelectorAll('.attr-tipo-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const attrId = this.dataset.attrId;
+            const nuevoTipo = this.value;
+            const attrData = configState.atributos.find(a => String(a.id) === String(attrId));
+            if (attrData) {
+                attrData.tipo = nuevoTipo;
+                renderAtributosConfig(configState.atributos);
+            }
+        });
+    });
+
+    document.querySelectorAll('.attr-shape-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const attrId = this.dataset.attrId;
+            const nuevoShape = this.value;
+            const attrData = configState.atributos.find(a => String(a.id) === String(attrId));
+            if (attrData) {
+                attrData.shape = nuevoShape;
+            }
+        });
+    });
+
+    // Event listeners para inputs de archivos (imágenes)
+    document.querySelectorAll('.valor-extra-input-file').forEach(input => {
+        input.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const attrId = this.dataset.attrId;
+            const termId = this.dataset.termId;
+            const previewContainer = document.querySelector(`.file-preview-${attrId}-${termId}`);
+            if (!previewContainer) return;
+
+            const validExtensions = ['.jpg', '.jpeg', '.png', '.ico'];
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            if (!validExtensions.includes(fileExt)) {
+                Swal.fire('Error', 'Solo se permiten archivos .jpg, .png o .ico', 'error');
+                this.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                previewContainer.innerHTML = `
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                        <img src="${event.target.result}" style="max-height: 50px; max-width: 50px; border-radius: 4px; border: 1px solid #ddd; object-fit: cover;">
+                        <span class="small text-success">${file.name}</span>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-cancelar-archivo" 
+                                data-attr-id="${attrId}" data-term-id="${termId}">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                `;
+
+                if (!configState.imagenesSubidas[attrId]) {
+                    configState.imagenesSubidas[attrId] = {};
+                }
+                configState.imagenesSubidas[attrId][termId] = file;
+                
+                previewContainer.querySelector('.btn-cancelar-archivo')?.addEventListener('click', function() {
+                    delete configState.imagenesSubidas[attrId]?.[termId];
+                    const input = document.querySelector(`.valor-extra-input-file[data-attr-id="${attrId}"][data-term-id="${termId}"]`);
+                    if (input) input.value = '';
+                    previewContainer.innerHTML = '';
+                });
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // Event listeners para eliminar imágenes de términos
+    document.querySelectorAll('.btn-remove-imagen-termino').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const attrId = this.dataset.attrId;
+            const termId = this.dataset.termId;
+            const imagenPath = this.dataset.imagen;
+
+            Swal.fire({
+                title: '¿Eliminar imagen?',
+                text: 'Esta acción no se puede deshacer',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const { data } = await axios.post('productos', {
+                            opcion: 'EliminarImagenTermino',
+                            producto_id: configState.productoId,
+                            atributo_id: attrId,
+                            termino_id: termId,
+                            imagen_path: imagenPath
+                        });
+
+                        if (data.respuesta === 'ok') {
+                            Swal.fire('Eliminada', 'La imagen ha sido eliminada', 'success');
+                            cargarConfiguracionProducto(configState.productoId);
+                        } else {
+                            Swal.fire('Error', data.mensaje || 'No se pudo eliminar la imagen', 'error');
+                        }
+                    } catch (error) {
+                        Swal.fire('Error', 'No se pudo eliminar la imagen', 'error');
+                    }
+                }
+            });
+        });
+    });
+}
+
+/**
+ * Inicializa SortableJS para ordenar atributos por arrastre
+ */
+function initSortableAtributos() {
+    const container = document.getElementById('config_atributos_container');
+    if (!container) return;
+    initSortableInstance(container);
+}
+
+function initSortableInstance(container) {
+    // Destruir instancia anterior si existe
+    if (container._sortableInstance) {
+        container._sortableInstance.destroy();
+    }
+
+    const sortable = new Sortable(container, {
+        handle: '.grip-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        dragClass: 'sortable-drag',
+        onEnd: function(evt) {
+            // Obtener el nuevo orden de los atributos
+            const cards = container.querySelectorAll('.atributo-config-card');
+            const nuevosAtributos = [];
+            const prioridadesActualizadas = [];
+
+            cards.forEach((card, index) => {
+                const attrId = card.dataset.attrId;
+                const nuevaPrioridad = index + 1;
+                prioridadesActualizadas.push({
+                    atributo_id: attrId,
+                    prioridad: nuevaPrioridad
+                });
+
+                // Actualizar el badge de orden
+                const badge = card.querySelector('.orden-badge');
+                if (badge) {
+                    badge.textContent = nuevaPrioridad;
+                }
+                card.dataset.prioridad = nuevaPrioridad;
+
+                // Actualizar en configState
+                const attrData = configState.atributos.find(a => String(a.id) === String(attrId));
+                if (attrData) {
+                    attrData.prioridad = nuevaPrioridad;
+                    nuevosAtributos.push(attrData);
+                }
+            });
+
+            // Guardar la nueva prioridad en el servidor
+            guardarPrioridadAtributos(prioridadesActualizadas);
+        }
+    });
+
+    // Guardar la instancia para poder destruirla después
+    container._sortableInstance = sortable;
+}
+
+/**
+ * Guarda las prioridades de los atributos en el servidor
+ */
+async function guardarPrioridadAtributos(prioridades) {
+    try {
+        const productoId = configState.productoId;
+        
+        const { data } = await axios.post('productos', {
+            opcion: 'GuardarPrioridadAtributos',
+            producto_id: productoId,
+            prioridades: prioridades
+        });
+
+        if (data.respuesta === 'ok') {
+            // Mostrar notificación sutil
+            showToast('Orden de atributos actualizado', 'success');
+        } else {
+            console.error('Error al guardar prioridades:', data.mensaje);
+            showToast('Error al guardar el orden', 'error');
+        }
+    } catch (error) {
+        console.error('Error al guardar prioridades:', error);
+        showToast('Error al guardar el orden', 'error');
+    }
+}
+
+/**
+ * Muestra un toast/notificación simple
+ */
+function showToast(mensaje, tipo = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${tipo === 'success' ? 'success' : tipo === 'error' ? 'danger' : 'info'} border-0`;
+    toast.role = 'alert';
+    toast.ariaLive = 'assertive';
+    toast.ariaAtomic = 'true';
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.right = '20px';
+    toast.style.zIndex = '9999';
+    toast.style.minWidth = '250px';
+    
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="bi bi-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                ${mensaje}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+window.abrirConfiguracion = function(productoId) {
+    document.getElementById('config_producto_id').value = productoId;
+    const modalConfig = new bootstrap.Modal(document.getElementById('modalConfiguracionProducto'));
+    modalConfig.show();
+};
+
+document.getElementById('modalConfiguracionProducto')?.addEventListener('show.bs.modal', async function (event) {
+    const productoId = document.getElementById('config_producto_id').value;
+    if (productoId) {
+      
+        const preloaderMessages = showPreloader("Cargando configuración avanzada...", "cargar");
+        
+        try {
+            const { data: tipoData } = await axios.post('productos', {
+                opcion: 'ObtenerTipoProducto',
+                id: productoId
+            });
+            
+            if (tipoData.respuesta === 'ok') {
+                configState.tipoProducto = tipoData.tipo_producto;
+            }
+            
+            await cargarConfiguracionProducto(productoId);
+            
+            Swal.close();
+            
+        } catch (error) {
+            Swal.close();
+            Swal.fire('Error', 'No se pudo cargar la configuración del producto', 'error');
+        }
+    } else {
+        Swal.fire('Advertencia', 'No se encontró el ID del producto.', 'warning');
+    }
+});
+
+document.getElementById('btnGuardarLimitesStock')?.addEventListener('click', async function() {
+    const productoId = configState.productoId;
+    const stockMinimo = document.getElementById('config_stock_minimo').value;
+    const maxStock = document.getElementById('config_max_stock').value;
+
+    try {
+        const { data } = await axios.post('productos', {
+            opcion: 'GuardarLimitesStock',
+            id: productoId,
+            stock_minimo: stockMinimo,
+            max_stock: maxStock
+        });
+
+        if (data.respuesta === 'ok') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Éxito',
+                text: data.mensaje,
+                timer: 1500,
+                showConfirmButton: false
+            });
+            cargarConfiguracionProducto(productoId);
+        } else {
+            Swal.fire('Error', data.mensaje, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'No se pudo guardar los límites de stock', 'error');
+    }
+});
+
+document.getElementById('btnAddStock')?.addEventListener('click', async function() {
+    const productoId = configState.productoId;
+    const cantidad = document.getElementById('config_add_stock').value;
+    const motivo = document.getElementById('config_motivo_movimiento').value;
+
+    if (!cantidad || parseInt(cantidad) <= 0) {
+        Swal.fire('Advertencia', 'Ingresa una cantidad válida para añadir.', 'warning');
+        return;
+    }
+
+    try {
+        const { data: stockData } = await axios.post('productos', {
+            opcion: 'ObtenerStockYLimites',
+            id: productoId
+        });
+
+        if (stockData.respuesta === 'ok') {
+            const stockActual = stockData.stock || 0;
+            const maxStock = stockData.max_stock;
+            
+            if (maxStock !== null && maxStock > 0) {
+                const nuevoStock = stockActual + parseInt(cantidad);
+                if (nuevoStock > maxStock) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Límite de stock excedido',
+                        html: `
+                            <p>No puedes añadir ${cantidad} unidades porque superarías el stock máximo.</p>
+                            <p><strong>Stock actual:</strong> ${stockActual}</p>
+                            <p><strong>Stock máximo:</strong> ${maxStock}</p>
+                            <p><strong>Intentas añadir:</strong> ${cantidad}</p>
+                            <p><strong>Nuevo stock:</strong> ${nuevoStock} (excede el máximo)</p>
+                            <p class="text-danger">Puedes añadir como máximo ${maxStock - stockActual} unidades.</p>
+                        `,
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+            }
+        }
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error al validar stock',
+            text: 'No se pudo verificar los límites de stock. Intenta nuevamente.',
+            confirmButtonText: 'Reintentar'
+        });
+    }
+
+    try {
+        const { data } = await axios.post('productos', {
+            opcion: 'RegistrarMovimientoStock',
+            id: productoId,
+            cantidad: parseInt(cantidad),
+            motivo: motivo,
+            tipo_movimiento: 'add'
+        });
+
+        if (data.respuesta === 'ok') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Éxito',
+                text: data.mensaje,
+                timer: 1500,
+                showConfirmButton: false
+            });
+            document.getElementById('config_add_stock').value = '';
+            document.getElementById('config_motivo_movimiento').value = '';
+            cargarConfiguracionProducto(productoId);
+        } else {
+            Swal.fire('Error', data.mensaje, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'No se pudo registrar el movimiento', 'error');
+    }
+});
+
+document.getElementById('btnRemoveStock')?.addEventListener('click', async function() {
+    const productoId = configState.productoId;
+    const cantidad = document.getElementById('config_remove_stock').value;
+    const motivo = document.getElementById('config_motivo_movimiento').value;
+
+    if (!cantidad || parseInt(cantidad) <= 0) {
+        Swal.fire('Advertencia', 'Ingresa una cantidad válida para quitar.', 'warning');
+        return;
+    }
+
+    try {
+        const { data } = await axios.post('productos', {
+            opcion: 'RegistrarMovimientoStock',
+            id: productoId,
+            cantidad: parseInt(cantidad),
+            motivo: motivo,
+            tipo_movimiento: 'remove'
+        });
+
+        if (data.respuesta === 'ok') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Éxito',
+                text: data.mensaje,
+                timer: 1500,
+                showConfirmButton: false
+            });
+            document.getElementById('config_remove_stock').value = '';
+            document.getElementById('config_motivo_movimiento').value = '';
+            cargarConfiguracionProducto(productoId);
+        } else {
+            Swal.fire('Error', data.mensaje, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'No se pudo registrar el movimiento', 'error');
+    }
+});
+
+document.getElementById('btnGuardarAtributosConfig')?.addEventListener('click', async function() {
+    const productoId = configState.productoId;
+    const atributosData = [];
+    
+    document.querySelectorAll('.card.mb-3').forEach(card => {
+        const attrId = card.dataset.attrId;
+        if (!attrId) return;
+
+        const tipo = card.querySelector('.attr-tipo-select')?.value || 'Default';
+        const shape = card.querySelector('.attr-shape-select')?.value || 'Default';
+        
+        const prioridad = parseInt(card.dataset.prioridad) || parseInt(card.querySelector('.orden-badge')?.textContent) || 999;
+
+        const terminos = [];
+        card.querySelectorAll('.valor-extra-input, .valor-extra-input-file').forEach(input => {
+            const termId = input.dataset.termId;
+            let valorExtra = '';
+            
+            if (input.type === 'color') {
+                valorExtra = input.value || '#000000';
+            } else if (input.type === 'file') {
+                const file = configState.imagenesSubidas[attrId]?.[termId];
+                if (file) {
+                    valorExtra = file;
+                } else {
+                    valorExtra = null;
+                }
+            }
+
+            terminos.push({
+                id: termId,
+                valor_extra: valorExtra,
+                es_archivo: input.type === 'file' && !!configState.imagenesSubidas[attrId]?.[termId]
+            });
+        });
+
+        atributosData.push({
+            id: attrId,
+            tipo: tipo,
+            shape: shape,
+            prioridad: prioridad, 
+            terminos: terminos
+        });
+    });
+
+    const formData = new FormData();
+    formData.append('opcion', 'GuardarAtributosConfig');
+    formData.append('id', productoId);
+    formData.append('atributos', JSON.stringify(atributosData.map(attr => ({
+        ...attr,
+        terminos: attr.terminos.map(t => ({
+            id: t.id,
+            valor_extra: t.es_archivo ? '__FILE__' : t.valor_extra
+        }))
+    }))));
+
+    Object.keys(configState.imagenesSubidas).forEach(attrId => {
+        Object.keys(configState.imagenesSubidas[attrId]).forEach(termId => {
+            const file = configState.imagenesSubidas[attrId][termId];
+            if (file instanceof File) {
+                formData.append(`imagen_${attrId}_${termId}`, file);
+            }
+        });
+    });
+
+    try {
+        const { data } = await axios.post('productos', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+
+        if (data.respuesta === 'ok') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Éxito',
+                text: data.mensaje,
+                timer: 1500,
+                showConfirmButton: false
+            });
+            configState.imagenesSubidas = {};
+            cargarConfiguracionProducto(productoId);
+        } else {
+            Swal.fire('Error', data.mensaje, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'No se pudo guardar la configuración de atributos', 'error');
+    }
+});
 
 $(document).ready(function () {
   $('#tablaProductos').DataTable({
@@ -2831,7 +4619,7 @@ $(document).ready(function () {
       { data: 'id' },
       { data: 'nombre' },
       { data: 'descripcion' },
-      { data: 'precio', render: (data) => data },  // ✅ precio viene con <span>, se pinta directo
+      { data: 'precio', render: (data) => data },  
       { data: 'inventario' },
       { data: 'marca' },
       { data: 'tipo_producto' },
@@ -2848,6 +4636,9 @@ $(document).ready(function () {
           <button class="btn btn-warning btn-sm me-1" onclick="obtenerProducto(${data.id})">
             <i class="bi bi-pencil-square"></i>
           </button>
+          <button class="btn btn-info btn-sm me-1" onclick="abrirConfiguracion(${data.id})" title="Configuración Avanzada">
+            <i class="bi bi-gear"></i>
+          </button>
           <button class="btn btn-danger btn-sm" onclick="eliminarProducto(${data.id})">
             <i class="bi bi-trash"></i>
           </button>
@@ -2857,7 +4648,6 @@ $(document).ready(function () {
   });
 });
 
-// Eliminar producto
 function eliminarProducto(id) {
   Swal.fire({
     title: '¿Eliminar producto?',
@@ -2924,7 +4714,6 @@ async function obtenerProducto(id) {
 
         const producto = data.producto;
 
-        // Guardamos en editState
         editState.productoActual = producto;
         editState.imagenes = producto.imagenes || [];
         editState.imagenesNuevas = [];
@@ -2932,7 +4721,6 @@ async function obtenerProducto(id) {
         editState.upsells = [];
         editState.crosssells = [];
 
-        // Procesar productos relacionados (upsells/crosssells)
         if (producto.productos_relacionados && producto.productos_relacionados.length > 0) {
             producto.productos_relacionados.forEach(rel => {
                 if (rel.pivot && rel.pivot.tipo === 'upsell') {
@@ -2951,7 +4739,6 @@ async function obtenerProducto(id) {
             });
         }
 
-        // Abrimos modal según tipo
         switch (producto.tipo_producto) {
             case 'simple':
                 abrirModalSimple(producto);
@@ -2968,7 +4755,6 @@ async function obtenerProducto(id) {
 
     } catch (err) {
         Swal.close();
-        console.error('Error al obtener producto:', err);
         Swal.fire('Error', 'Error al obtener el producto: ' + (err.response?.data?.mensaje || err.message), 'error');
     }
 }

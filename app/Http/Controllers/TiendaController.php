@@ -8,9 +8,13 @@ use App\Models\Categoria;
 use App\Models\Subcategoria;
 use App\Models\Producto;
 use App\Models\ProductoValoracion;
+use App\Models\ProductoAtributo;
+use App\Models\AtributoTerm;
+use App\Models\ProductoVariacion;
 use App\Models\User;
 use App\Models\Rol;
 use App\Models\Atributo;
+use App\Models\AtributoPrioridad;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -82,6 +86,8 @@ class TiendaController extends Controller
             ->orderBy('created_at', 'desc')
             ->take(8)
             ->get();
+        
+        $productos = $this->procesarVariacionesTarjeta($productos);
 
         $base = $this->getBaseConfig();
         return view('layouts.contenido2', array_merge($base, [
@@ -224,6 +230,13 @@ class TiendaController extends Controller
         }
 
         $productos = $query->paginate(32)->appends($request->query());
+
+        $productos->getCollection()->transform(function($producto) {
+            if ($producto->tipo_producto === 'variable') {
+                $producto->variaciones_tarjeta = $this->getVariacionesParaTarjeta($producto);
+            }
+            return $producto;
+        });
 
         // ---------- OBTENER ATRIBUTOS Y TÉRMINOS CON CONTADORES REALES (para esta subcategoría) ----------
         $atributosConTerminos = [];
@@ -491,6 +504,12 @@ class TiendaController extends Controller
         }
 
         $productos = $query->paginate(32)->appends($request->query());
+            $productos->getCollection()->transform(function($producto) {
+            if ($producto->tipo_producto === 'variable') {
+                $producto->variaciones_tarjeta = $this->getVariacionesParaTarjeta($producto);
+            }
+            return $producto;
+        });
 
         // ---------- OBTENER CATEGORÍAS (para el select de filtro) ----------
         $categorias = Categoria::with(['subcategorias' => function($q) {
@@ -685,6 +704,15 @@ class TiendaController extends Controller
                         ->orWhere('fecha_fin_rebaja', '>=', now());
                     })
                     ->paginate(12);
+        
+        // 🔥 Procesar variaciones para tarjeta
+        $productos->getCollection()->transform(function($producto) {
+            if ($producto->tipo_producto === 'variable') {
+                $producto->variaciones_tarjeta = $this->getVariacionesParaTarjeta($producto);
+            }
+            return $producto;
+        });
+        
         $base = $this->getBaseConfig();
         return view('layouts.contenido2', array_merge($base, [
             'contenido2' => 'tienda.ofertas',
@@ -704,7 +732,10 @@ class TiendaController extends Controller
     {
         $producto = Producto::with([
             'imagenes',
-            'variaciones.atributos.atributo',
+            'variaciones' => function($q) {
+                $q->where('activo', true)
+                ->with(['atributos.atributo', 'imagenes']);
+            },
             'subcategoria.categoria',
             'etiquetas',
             'valoraciones' => function($q) {
@@ -712,39 +743,403 @@ class TiendaController extends Controller
             },
             'productosRelacionados' => function($q) {
                 $q->with(['imagenes', 'valoraciones']);
+            },
+            'atributos' => function($q) {
+                $q->withPivot('visible', 'variacion', 'tipo', 'shape');
             }
         ])->findOrFail($id);
+        
+        $valorExtraMap = [];
+        $productoAtributos = ProductoAtributo::where('producto_id', $producto->id)
+            ->with(['valores' => function($q) {
+                $q->withPivot('valor_extra');
+            }])
+            ->get();
+            
+        foreach ($productoAtributos as $pa) {
+            foreach ($pa->valores as $valor) {
+                $key = $pa->atributo_id . '_' . $valor->id;
+                $valorExtraMap[$key] = $valor->pivot->valor_extra;
+            }
+        }
+        
+        if ($producto->productosRelacionados->isNotEmpty()) {
+            $producto->productosRelacionados = $this->procesarVariacionesTarjeta($producto->productosRelacionados);
+        }
+        
+        $variacionesAgrupadas = $this->getVariacionesAgrupadas($producto);
         
         $base = $this->getBaseConfig();
         return view('layouts.contenido2', array_merge($base, [
             'contenido2' => 'tienda.producto-detalle',
             'producto' => $producto,
+            'variacionesAgrupadas' => $variacionesAgrupadas,
+            'valorExtraMap' => $valorExtraMap,
+            'script' => 'js/tienda-producto-detalle.js',
         ]));
+    }
+
+    public function getOrdenAtributos(Request $request)
+    {
+        $request->validate([
+            'producto_id' => 'required|exists:productos,id'
+        ]);
+
+        try {
+            $productoId = $request->producto_id;
+
+            // 🔥 Obtener orden desde atributo_prioridad
+            $ordenAtributos = \App\Models\AtributoPrioridad::where('producto_id', $productoId)
+                ->orderBy('prioridad', 'asc')
+                ->pluck('atributo_id')
+                ->toArray();
+
+            // Si no hay prioridades definidas, obtener los atributos del producto
+            if (empty($ordenAtributos)) {
+                $ordenAtributos = ProductoAtributo::where('producto_id', $productoId)
+                    ->where('variacion', 1)
+                    ->pluck('atributo_id')
+                    ->toArray();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $ordenAtributos
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener el orden de atributos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function getVariacionesAgrupadas($producto)
+{
+    $variaciones = $producto->variaciones()
+        ->where('activo', true)
+        ->with(['atributos.atributo', 'imagenes'])
+        ->get();
+        
+    $agrupado = [];
+    
+    // 🔥 PASO 1: Identificar qué atributos tiene cada variación (para detectar "Cualquier")
+    $variacionesConAtributos = [];
+    foreach ($variaciones as $variacion) {
+        $variacionesConAtributos[$variacion->id] = [];
+        foreach ($variacion->atributos as $termino) {
+            $variacionesConAtributos[$variacion->id][] = $termino->atributo_id;
+        }
+        $variacionesConAtributos[$variacion->id] = array_unique($variacionesConAtributos[$variacion->id]);
+    }
+    
+    // 🔥 PASO 2: Obtener términos registrados en producto_atributo_valores
+    $terminosRegistrados = [];
+    $productoAtributos = ProductoAtributo::where('producto_id', $producto->id)
+        ->where('variacion', 1)
+        ->with(['valores' => function($q) {
+            // 🔥 CORREGIDO: No hacer join adicional, solo seleccionar los campos necesarios
+            $q->select('atributo_terminos.id', 'atributo_terminos.nombre', 'atributo_terminos.atributo_id', 'producto_atributo_valores.valor_extra');
+        }])
+        ->get();
+    
+    foreach ($productoAtributos as $pa) {
+        $atributoId = $pa->atributo_id;
+        $terminosRegistrados[$atributoId] = [];
+        foreach ($pa->valores as $valor) {
+            $terminosRegistrados[$atributoId][] = [
+                'id' => $valor->id,
+                'nombre' => $valor->nombre,
+                'valor_extra' => $valor->pivot->valor_extra ?? null
+            ];
+        }
+    }
+    
+    // 🔥 PASO 3: Agrupar variaciones por atributo
+    foreach ($variaciones as $variacion) {
+        foreach ($variacion->atributos as $termino) {
+            $atributoId = $termino->atributo_id;
+            
+            if (!isset($agrupado[$atributoId])) {
+                $atributo = Atributo::find($atributoId);
+                $productoAtributo = ProductoAtributo::where('producto_id', $producto->id)
+                    ->where('atributo_id', $atributoId)
+                    ->first();
+                    
+                $agrupado[$atributoId] = (object) [
+                    'atributo' => $atributo,
+                    'tipo' => $productoAtributo->tipo ?? 'Default',
+                    'shape' => $productoAtributo->shape ?? 'Default',
+                    'variaciones' => [],
+                    'terminos_disponibles' => [],
+                    'tiene_cualquier' => false,
+                    'terminos_registrados' => $terminosRegistrados[$atributoId] ?? []
+                ];
+            }
+            
+            // Guardar términos que aparecen en variaciones
+            if (!in_array($termino->id, $agrupado[$atributoId]->terminos_disponibles)) {
+                $agrupado[$atributoId]->terminos_disponibles[] = $termino->id;
+            }
+            
+            $existe = false;
+            foreach ($agrupado[$atributoId]->variaciones as $v) {
+                if ($v->id == $variacion->id) {
+                    $existe = true;
+                    break;
+                }
+            }
+            
+            if (!$existe) {
+                $agrupado[$atributoId]->variaciones[] = $variacion;
+            }
+        }
+    }
+    
+    // 🔥 PASO 4: Verificar si algún atributo tiene "Cualquier"
+    foreach ($agrupado as $atributoId => $data) {
+        foreach ($variaciones as $variacion) {
+            $tieneAtributo = in_array($atributoId, $variacionesConAtributos[$variacion->id] ?? []);
+            if (!$tieneAtributo) {
+                $data->tiene_cualquier = true;
+                break;
+            }
+        }
+    }
+    
+    // 🔥 PASO 5: Obtener orden de atributos desde atributo_prioridad
+    $ordenAtributos = AtributoPrioridad::where('producto_id', $producto->id)
+        ->orderBy('prioridad', 'asc')
+        ->pluck('atributo_id')
+        ->toArray();
+    
+    if (!empty($ordenAtributos)) {
+        $agrupadoReordenado = [];
+        foreach ($ordenAtributos as $atributoId) {
+            if (isset($agrupado[$atributoId])) {
+                $agrupadoReordenado[$atributoId] = $agrupado[$atributoId];
+            }
+        }
+        foreach ($agrupado as $atributoId => $data) {
+            if (!isset($agrupadoReordenado[$atributoId])) {
+                $agrupadoReordenado[$atributoId] = $data;
+            }
+        }
+        $agrupado = $agrupadoReordenado;
+    }
+    
+    // 🔥 PASO 6: Determinar qué términos mostrar
+    foreach ($agrupado as $atributoId => $data) {
+        // Si tiene "Cualquier", mostrar TODOS los términos registrados en producto_atributo_valores
+        if ($data->tiene_cualquier) {
+            $data->terminos_a_mostrar = collect($data->terminos_registrados)
+                ->map(function($termino) {
+                    return (object) [
+                        'id' => $termino['id'],
+                        'nombre' => $termino['nombre'],
+                        'valor_extra' => $termino['valor_extra'] ?? null
+                    ];
+                })
+                ->toArray();
+            $data->termino_cualquier_id = null;
+        } else {
+            // Si NO tiene "Cualquier", mostrar SOLO los términos que aparecen en variaciones
+            // y que están registrados en producto_atributo_valores
+            $terminosRegistradosIds = collect($data->terminos_registrados)->pluck('id')->toArray();
+            $terminosDisponiblesFiltrados = array_intersect($data->terminos_disponibles, $terminosRegistradosIds);
+            
+            $data->terminos_a_mostrar = collect($data->terminos_registrados)
+                ->filter(function($termino) use ($terminosDisponiblesFiltrados) {
+                    return in_array($termino['id'], $terminosDisponiblesFiltrados);
+                })
+                ->map(function($termino) {
+                    return (object) [
+                        'id' => $termino['id'],
+                        'nombre' => $termino['nombre'],
+                        'valor_extra' => $termino['valor_extra'] ?? null
+                    ];
+                })
+                ->toArray();
+            $data->termino_cualquier_id = null;
+        }
+    }
+    
+    return $agrupado;
+}
+
+    /**
+     * Obtiene los detalles de una variación específica usando el procedimiento almacenado
+     */
+    public function getVariacionDetalle(Request $request)
+    {
+        $request->validate([
+            'producto_id' => 'required|exists:productos,id',
+            'variacion_id' => 'required|exists:producto_variaciones,id'
+        ]);
+
+        try {
+            $result = DB::select(
+                'CALL GetVariacionSeleccionada(?, ?)',
+                [$request->producto_id, $request->variacion_id]
+            );
+
+            if (empty($result)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró la variación'
+                ], 404);
+            }
+
+            $data = $result[0];
+            
+            // Procesar atributos combinados
+            $atributos = [];
+            if (!empty($data->atributos_combinados)) {
+                $atributosRaw = explode('||', $data->atributos_combinados);
+                foreach ($atributosRaw as $item) {
+                    $parts = explode('|', $item);
+                    if (count($parts) >= 4) {
+                        $atributos[] = [
+                            'atributo_id' => $parts[0],
+                            'atributo_nombre' => $parts[1],
+                            'termino_id' => !empty($parts[2]) ? $parts[2] : null,
+                            'termino_nombre' => !empty($parts[3]) ? $parts[3] : 'Cualquier',
+                        ];
+                    }
+                }
+            }
+
+            // Construir array de imágenes
+            $imagenes = [];
+            for ($i = 1; $i <= 6; $i++) {
+                $imgField = 'img' . $i;
+                if (!empty($data->$imgField)) {
+                    $imagenes[] = $data->$imgField;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'variacion_id' => $data->variacion_id,
+                    'sku' => $data->variacion_sku,
+                    'precio_regular' => floatval($data->precio_regular),
+                    'precio_rebajado' => $data->precio_rebajado ? floatval($data->precio_rebajado) : null,
+                    'precio_final' => floatval($data->precio_final),
+                    'descuento_porcentaje' => intval($data->descuento_porcentaje),
+                    'stock' => intval($data->stock),
+                    'gestion_inventario' => boolval($data->gestion_inventario),
+                    'estado_inventario' => $data->estado_inventario,
+                    'backorders' => boolval($data->backorders),
+                    'vendido_individualmente' => boolval($data->vendido_individualmente),
+                    'estado_actual' => $data->estado_actual,
+                    'peso' => $data->peso ? floatval($data->peso) : null,
+                    'peso_unidad' => $data->peso_unidad,
+                    'longitud' => $data->longitud ? floatval($data->longitud) : null,
+                    'anchura' => $data->anchura ? floatval($data->anchura) : null,
+                    'altura' => $data->altura ? floatval($data->altura) : null,
+                    'descripcion' => $data->variacion_descripcion,
+                    'imagenes' => $imagenes,
+                    'variacion_origen_id' => $data->variacion_origen_id ? intval($data->variacion_origen_id) : null
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los detalles de la variación: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtiene los términos disponibles usando el procedimiento almacenado
+     */
+    public function getTerminosDisponibles(Request $request)
+    {
+        $request->validate([
+            'producto_id' => 'required|exists:productos,id',
+            'terminos' => 'required|array',
+            'terminos.*' => 'exists:atributo_terminos,id'
+        ]);
+
+        try {
+            $productoId = $request->producto_id;
+            $terminosCsv = implode(',', $request->terminos);
+
+            // Ejecutar el procedimiento almacenado
+            $result = DB::select(
+                'CALL GetTerminosDisponibles(?, ?)',
+                [$productoId, $terminosCsv]
+            );
+
+            // 🔥 Agrupar resultados por atributo
+            $atributos = [];
+            foreach ($result as $row) {
+                $atributoId = $row->atributo_id;
+                if (!isset($atributos[$atributoId])) {
+                    $atributos[$atributoId] = [
+                        'atributo_id' => $atributoId,
+                        'atributo_nombre' => $row->atributo_nombre,
+                        'terminos' => []
+                    ];
+                }
+                $atributos[$atributoId]['terminos'][] = [
+                    'id' => $row->termino_id,
+                    'nombre' => $row->termino_nombre,
+                    'tiene_stock' => (bool)$row->tiene_stock
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => array_values($atributos)
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function valorarProducto(Request $request)
     {
         $user = Auth::user();
-        // Verificar que el usuario tenga rol 'client'
-        if (!$user->rol || $user->rol->name !== 'client') {
+        if (!$user || $user->id_rol != 2) {
             return response()->json(['success' => false, 'message' => 'No autorizado'], 403);
         }
 
         $request->validate([
             'producto_id' => 'required|exists:productos,id',
-            'puntuacion'  => 'required|integer|min:1|max:5'
+            'puntuacion'  => 'required|integer|min:1|max:5',
+            'comentario'  => 'nullable|string|max:1000'
         ]);
 
-        $valoracion = ProductoValoracion::updateOrCreate(
-            [
-                'producto_id' => $request->producto_id,
-                'user_id'     => auth()->id()
-            ],
-            [
+        $valoracion = ProductoValoracion::where([
+            'producto_id' => $request->producto_id,
+            'user_id'     => auth()->id()
+        ])->first();
+
+        if ($valoracion) {
+            $valoracion->update([
                 'puntuacion' => $request->puntuacion,
-                'aprobado'   => true  // o false si quieres moderación
-            ]
-        );
+                'comentario' => $request->comentario,
+                'aprobado'   => true,
+                'updated_at' => now() 
+            ]);
+        } else {
+            // Si no existe, crear nueva
+            $valoracion = ProductoValoracion::create([
+                'producto_id' => $request->producto_id,
+                'user_id'     => auth()->id(),
+                'puntuacion'  => $request->puntuacion,
+                'comentario'  => $request->comentario,
+                'aprobado'    => true
+            ]);
+        }
 
         $producto = Producto::find($request->producto_id);
         $avg = $producto->valoraciones()->where('aprobado', true)->avg('puntuacion');
@@ -753,7 +1148,8 @@ class TiendaController extends Controller
         return response()->json([
             'success' => true,
             'rating'  => round($avg, 1),
-            'count'   => $count
+            'count'   => $count,
+            'user_rating' => $valoracion->puntuacion
         ]);
     }
 
@@ -775,26 +1171,58 @@ class TiendaController extends Controller
     public function registroCliente(Request $request)
     {
         $request->validate([
-            'nombres'  => 'required|string|max:150',
-            'apellidos' => 'required|string|max:150',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|min:6'
+            'nombres'      => 'required|string|max:150',
+            'apellidos'    => 'required|string|max:150',
+            'email'        => 'required|email|unique:users,email',
+            'password'     => 'required|min:6',
+            'tipoDoc'      => 'nullable|string|max:50',
+            'numeroDoc'    => 'nullable|string|max:20|unique:usuarios_datos,numeroDoc',
+            'celular'      => 'nullable|string|max:15',
+            'fecha_nacimiento' => 'nullable|date',
+            'nacionalidad' => 'nullable|string|max:100',
+            'departamento_id' => 'nullable|exists:departamentos,id',
+            'provincia_id' => 'nullable|exists:provincias,id',
+            'distrito_id'  => 'nullable|exists:distritos,id',
+            'calle'        => 'nullable|string|max:255',
+            'numero'       => 'nullable|string|max:50',
+            'dir_otros'    => 'nullable|string|max:255',
+            'cod_postal'   => 'nullable|string|max:20',
         ]);
 
-        $rol = Rol::where('name', 'client')->first();
+        // 🔥 Forzar rol client (ID 2)
+        $rol = Rol::find(2); // client
+        
         if (!$rol) {
             return response()->json(['success' => false, 'message' => 'Rol de cliente no configurado'], 500);
         }
 
+        // Crear usuario
         $user = User::create([
             'nombres'    => $request->nombres,
             'apellidos'  => $request->apellidos,
             'email'      => $request->email,
             'password'   => Hash::make($request->password),
-            'id_rol'     => $rol->id,
+            'id_rol'     => $rol->id, // Siempre 2 (client)
             'estado'     => true,
             'conectado'  => false,
             'dark_mode'  => false,
+        ]);
+
+        // 🔥 CREAR DATOS DEL USUARIO EN TABLA usuarios_datos
+        $usuarioDato = \App\Models\UsuarioDato::create([
+            'id_usuario'      => $user->id,
+            'tipoDoc'         => $request->tipoDoc,
+            'numeroDoc'       => $request->numeroDoc,
+            'celular'         => $request->celular,
+            'fecha_nacimiento'=> $request->fecha_nacimiento,
+            'nacionalidad'    => $request->nacionalidad,
+            'departamento'    => $request->departamento_id,
+            'provincia'       => $request->provincia_id,
+            'distrito'        => $request->distrito_id,
+            'calle'           => $request->calle,
+            'numero'          => $request->numero,
+            'dir_otros'       => $request->dir_otros,
+            'cod_postal'      => $request->cod_postal,
         ]);
 
         Auth::login($user);
@@ -802,11 +1230,14 @@ class TiendaController extends Controller
 
         return response()->json([
             'success' => true,
+            'message' => 'Cuenta creada exitosamente',
             'user' => [
+                'id'        => $user->id,
                 'nombres'   => $user->nombres,
                 'apellidos' => $user->apellidos,
                 'email'     => $user->email,
                 'foto'      => asset('img/user.png'),
+                'rol_id'    => $user->id_rol,
             ]
         ]);
     }
@@ -820,6 +1251,15 @@ class TiendaController extends Controller
 
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
+            
+            if ($user->id_rol != 2) {
+                Auth::logout();
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Este usuario no tiene los permisos para acceder'
+                ], 403);
+            }
+            
             $user->update(['conectado' => true]);
             return response()->json([
                 'success' => true,
@@ -828,6 +1268,7 @@ class TiendaController extends Controller
                     'apellidos' => $user->apellidos,
                     'email'     => $user->email,
                     'foto'      => asset('img/user.png'),
+                    'rol_id'    => $user->id_rol,
                 ]
             ]);
         }
@@ -1019,6 +1460,12 @@ class TiendaController extends Controller
         }
 
         $productos = $query->paginate(32)->appends($request->query());
+            $productos->getCollection()->transform(function($producto) {
+            if ($producto->tipo_producto === 'variable') {
+                $producto->variaciones_tarjeta = $this->getVariacionesParaTarjeta($producto);
+            }
+            return $producto;
+        });
 
         // ---------- CONTADOR DE SUBCATEGORÍAS (incluye agrupados) ----------
         $subcategorias = $categoria->subcategorias->map(function ($sub) {
@@ -1151,4 +1598,104 @@ class TiendaController extends Controller
         ]));
     }
 
+    /**
+     * Obtiene las variaciones simplificadas para la tarjeta del producto
+     */
+    private function getVariacionesParaTarjeta($producto)
+    {
+        if ($producto->tipo_producto !== 'variable') {
+            return null;
+        }
+        
+        // Obtener el primer atributo que sea visible y variación
+        $primerAtributo = ProductoAtributo::where('producto_id', $producto->id)
+            ->where('visible', true)
+            ->where('variacion', true)
+            ->orderBy('id', 'asc')
+            ->first();
+        
+        if (!$primerAtributo) {
+            return null;
+        }
+        
+        // Obtener los términos con sus valores extra
+        $terminos = $primerAtributo->valores()
+            ->withPivot('valor_extra')
+            ->get();
+        
+        $resultado = [
+            'atributo_id' => $primerAtributo->atributo_id,
+            'atributo_nombre' => $primerAtributo->atributo->nombre ?? 'Atributo',
+            'tipo' => $primerAtributo->tipo ?? 'Default',
+            'shape' => $primerAtributo->shape ?? 'Default',
+            'terminos' => []
+        ];
+        
+        // 🔥 Preparar imágenes de variaciones para data attribute
+        $variacionesImagenes = [];
+        
+        foreach ($terminos as $termino) {
+            // Buscar variación que tenga este término
+            $variacion = ProductoVariacion::where('producto_padre_id', $producto->id)
+                ->where('activo', true)
+                ->whereHas('atributos', function($q) use ($termino) {
+                    $q->where('atributo_terminos.id', $termino->id);
+                })
+                ->first();
+            
+            $imagenUrl = null;
+            $stock = 0;
+            $precioRegular = null;
+            $precioRebajado = null;
+            $imagenesVariacion = [];
+            
+            if ($variacion) {
+                // Buscar imágenes de la variación
+                if ($variacion->imagenes->isNotEmpty()) {
+                    foreach ($variacion->imagenes as $img) {
+                        $imagenesVariacion[] = $img->imagen_path;
+                    }
+                    $imagenUrl = $variacion->imagenes->first()->imagen_path;
+                }
+                $stock = $variacion->stock ?? 0;
+                $precioRegular = $variacion->precio_regular ?? null;
+                $precioRebajado = $variacion->precio_rebajado ?? null;
+                
+                // Guardar imágenes de la variación
+                if (!empty($imagenesVariacion)) {
+                    $variacionesImagenes[$variacion->id] = $imagenesVariacion;
+                }
+            }
+            
+            $resultado['terminos'][] = [
+                'id' => $termino->id,
+                'nombre' => $termino->nombre,
+                'valor_extra' => $termino->pivot->valor_extra ?? null,
+                'imagen_url' => $imagenUrl,
+                'variacion_id' => $variacion ? $variacion->id : null,
+                'stock' => $stock,
+                'precio_regular' => $precioRegular,
+                'precio_rebajado' => $precioRebajado,
+                'disponible' => $variacion !== null,
+            ];
+        }
+        
+        // Guardar imágenes de variaciones en el producto para data attribute
+        $producto->variaciones_imagenes = $variacionesImagenes;
+        
+        return $resultado;
+    }
+
+    /**
+     * Procesa una colección de productos para agregar variaciones_tarjeta
+     */
+    private function procesarVariacionesTarjeta($productos)
+    {
+        return $productos->map(function($producto) {
+            if ($producto->tipo_producto === 'variable') {
+                $producto->variaciones_tarjeta = $this->getVariacionesParaTarjeta($producto);
+            }
+            return $producto;
+        });
+    }
 }

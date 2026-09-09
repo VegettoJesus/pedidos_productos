@@ -7,7 +7,13 @@ use App\Http\Controllers\TiendaController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Middleware\VerificarPermisoMenu;
 use App\Services\MenuService;
+use App\Models\User;
+use App\Models\Producto;
+use App\Models\ProductoVariacion;
+use App\Models\ProductoValoracion;
+use App\Models\Departamento;
 use App\Http\Controllers\BusquedaController;
+use Illuminate\Http\Request;
 
 Route::get('/', [TiendaController::class, 'home'])->name('tienda.home');
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -29,6 +35,143 @@ Route::post('/logout-cliente', [TiendaController::class, 'logoutCliente'])->name
 Route::get('/categoria/{id}/productos', [TiendaController::class, 'productosCategoriaCompleta'])->name('categoria.productos.completa');
 Route::post('/producto/valorar', [TiendaController::class, 'valorarProducto'])->middleware('auth');
 Route::post('/toggle-dark-mode', [LoginController::class, 'toggleDarkMode'])->name('toggle-dark-mode');
+Route::get('/api/productos/{productoId}/variacion/{variacionId}/imagenes', function ($productoId, $variacionId) {
+    try {
+        $variacion = ProductoVariacion::with('imagenes')
+            ->where('producto_padre_id', $productoId)
+            ->where('id', $variacionId)
+            ->where('activo', true)
+            ->first();
+        
+        if (!$variacion) {
+            return response()->json(['success' => false, 'message' => 'Variación no encontrada'], 404);
+        }
+        
+        $imagenes = [];
+        if ($variacion->imagenes->isNotEmpty()) {
+            foreach ($variacion->imagenes as $img) {
+                $imagenes[] = $img->imagen_path;
+            }
+        }
+        
+        if (empty($imagenes)) {
+            $producto = Producto::find($productoId);
+            if ($producto && $producto->imagen_miniatura) {
+                $imagenes[] = $producto->imagen_miniatura;
+            }
+            if ($producto && $producto->imagenes->isNotEmpty()) {
+                foreach ($producto->imagenes as $img) {
+                    if (!in_array($img->imagen_path, $imagenes)) {
+                        $imagenes[] = $img->imagen_path;
+                    }
+                }
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'imagenes' => $imagenes
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener imágenes: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// =============================================
+// RUTAS PARA AUTENTICACIÓN Y REGISTRO
+// =============================================
+
+Route::get('/api/auth/check', function () {
+    if (Auth::check()) {
+        $user = Auth::user();
+        return response()->json([
+            'authenticated' => true,
+            'rol' => $user->rol->name ?? null,
+            'user' => [
+                'id' => $user->id,
+                'nombres' => $user->nombres,
+                'apellidos' => $user->apellidos,
+                'email' => $user->email,
+                'rol_id' => $user->id_rol, 
+            ]
+        ]);
+    }
+    return response()->json(['authenticated' => false]);
+})->name('api.auth.check');
+
+Route::get('/api/producto/{id}/valoracion-usuario', function ($id) {
+    if (!Auth::check()) {
+        return response()->json(['success' => false, 'message' => 'No autenticado'], 401);
+    }
+    
+    $user = Auth::user();
+    
+    if ($user->id_rol != 2) {
+        return response()->json(['success' => false, 'message' => 'No autorizado'], 403);
+    }
+    
+    $valoracion = ProductoValoracion::where('producto_id', $id)
+        ->where('user_id', $user->id)
+        ->first();
+    
+    return response()->json([
+        'success' => true,
+        'user_rating' => $valoracion ? $valoracion->puntuacion : 0,
+        'comentario' => $valoracion ? $valoracion->comentario : null
+    ]);
+})->middleware('auth');
+
+Route::get('/api/auth/check-email', function (Request $request) {
+    $email = $request->input('email');
+    $exists = User::where('email', $email)->exists();
+    return response()->json(['exists' => $exists]);
+})->name('api.auth.check-email');
+
+
+Route::get('/api/mis-valoraciones/count', function() {
+        $user = Auth::user();
+        
+        $count = ProductoValoracion::where('user_id', $user->id)
+            ->where('aprobado', true)
+            ->count();
+        
+        return response()->json(['success' => true, 'count' => $count]);
+    })->name('api.mis-valoraciones.count');
+Route::get('/mis-valoraciones', [PerfilController::class, 'misValoraciones'])->name('perfil.mis-valoraciones');
+Route::get('/mis-valoraciones/data', [PerfilController::class, 'misValoraciones'])->name('perfil.mis-valoraciones.data');
+
+// =============================================
+// RUTAS PARA UBICACIÓN (Departamentos, Provincias, Distritos)
+// =============================================
+
+Route::get('/get-departamentos', fn() => Departamento::get(['id', 'nombre']))
+    ->name('get.departamentos');
+Route::get('/get-provincias/{id}', [AdministracionDelSistema::class, 'getProvincias']);
+Route::get('/get-distritos/{id}', [AdministracionDelSistema::class, 'getDistritos']);
+
+// =============================================
+// API PRODUCTOS
+// =============================================
+
+Route::prefix('api/productos')->group(function () {
+    Route::post('/variacion-detalle', [TiendaController::class, 'getVariacionDetalle'])
+        ->name('api.variacion.detalle');
+    Route::get('/{id}/variaciones', [TiendaController::class, 'getVariacionesProducto'])
+        ->name('api.producto.variaciones');
+    Route::post('/terminos-disponibles', [TiendaController::class, 'getTerminosDisponibles'])
+        ->name('api.producto.terminos-disponibles');
+    Route::post('/orden-atributos', [TiendaController::class, 'getOrdenAtributos'])
+        ->name('api.producto.orden-atributos');
+});
+
+// =============================================
+// OTRAS RUTAS
+// =============================================
+
 Route::get('/get-iconos', function () {
     $path = storage_path('app/iconos.csv');
     if (!file_exists($path)) {
@@ -42,8 +185,9 @@ Route::get('/main', [LoginController::class, 'main'])
     ->name('main')
     ->middleware('auth');
 
-Route::get('/get-provincias/{id}', [AdministracionDelSistema::class, 'getProvincias']);
-Route::get('/get-distritos/{id}', [AdministracionDelSistema::class, 'getDistritos']);
+// =============================================
+// RUTAS CON MIDDLEWARE AUTH
+// =============================================
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/configuracion', [PerfilController::class, 'index'])->name('perfil.configuracion');

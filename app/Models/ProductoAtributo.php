@@ -11,7 +11,7 @@ class ProductoAtributo extends Model
 
     protected $table = 'producto_atributo';
 
-    protected $fillable = ['producto_id', 'atributo_id', 'visible', 'variacion'];
+    protected $fillable = ['producto_id', 'atributo_id', 'visible', 'variacion', 'tipo', 'shape'];
 
     public function producto()
     {
@@ -25,7 +25,12 @@ class ProductoAtributo extends Model
 
     public function valores()
     {
-        return $this->belongsToMany(AtributoTerm::class, 'producto_atributo_valores', 
-            'producto_atributo_id', 'termino_id');
+        return $this->belongsToMany(
+            AtributoTerm::class, 
+            'producto_atributo_valores', 
+            'producto_atributo_id', 
+            'termino_id'
+        )->withPivot('valor_extra') 
+        ->withTimestamps();
     }
 }

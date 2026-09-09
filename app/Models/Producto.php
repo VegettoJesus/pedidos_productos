@@ -419,6 +419,187 @@ class Producto extends Model
         
         return null;
     }
+    /**
+     * Obtiene el estado de stock para mostrar en la vista
+     */
+    public function getEstadoStockAttribute()
+    {
+        // Si no gestiona inventario, verificar estado_inventario
+        if (!$this->gestion_inventario) {
+            return $this->estado_inventario ?? 'existe';
+        }
+        
+        // Si gestiona inventario y hay stock
+        if ($this->stock > 0) {
+            return 'existe';
+        }
+        
+        // Si gestiona inventario y no hay stock
+        return 'agotado';
+    }
 
-    
+    /**
+     * Verifica si se puede mostrar el botón de añadir al carrito
+     */
+    public function getPuedeComprarAttribute()
+    {
+        $estadoStock = $this->estado_stock;
+        
+        // Si no gestiona inventario, verificar estado_inventario
+        if (!$this->gestion_inventario) {
+            return in_array($this->estado_inventario, ['existe', 'reservar']);
+        }
+        
+        // Si gestiona inventario, verificar stock
+        return $this->stock > 0 || $this->backorders;
+    }
+    /**
+     * Obtiene los atributos de tipo Color para este producto
+     */
+    public function atributosColor()
+    {
+        return $this->belongsToMany(Atributo::class, 'producto_atributo')
+                    ->wherePivot('tipo', 'Color')
+                    ->withPivot('visible', 'variacion', 'tipo', 'shape')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Obtiene los atributos de tipo Imagen para este producto
+     */
+    public function atributosImagen()
+    {
+        return $this->belongsToMany(Atributo::class, 'producto_atributo')
+                    ->wherePivot('tipo', 'Image')
+                    ->withPivot('visible', 'variacion', 'tipo', 'shape')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Obtiene los atributos de tipo Label para este producto
+     */
+    public function atributosLabel()
+    {
+        return $this->belongsToMany(Atributo::class, 'producto_atributo')
+                    ->wherePivot('tipo', 'Label')
+                    ->withPivot('visible', 'variacion', 'tipo', 'shape')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Obtiene los atributos tipo Color con sus términos y valor_extra
+     */
+    public function getAtributosConValoresExtraAttribute()
+    {
+        $result = [];
+        
+        foreach ($this->atributos as $atributo) {
+            $pivot = $atributo->pivot;
+            
+            // Obtener los valores del atributo con valor_extra
+            $valores = $this->valoresAtributos()
+                ->where('atributo_id', $atributo->id)
+                ->get();
+                
+            $result[] = (object) [
+                'id' => $atributo->id,
+                'nombre' => $atributo->nombre,
+                'slug' => $atributo->slug,
+                'tipo' => $pivot->tipo,
+                'shape' => $pivot->shape,
+                'variacion' => $pivot->variacion,
+                'visible' => $pivot->visible,
+                'valores' => $valores->map(function($valor) {
+                    return (object) [
+                        'id' => $valor->id,
+                        'nombre' => $valor->nombre,
+                        'slug' => $valor->slug,
+                        'valor_extra' => $valor->pivot->valor_extra ?? null
+                    ];
+                })
+            ];
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Obtiene las variaciones agrupadas por atributo para mostrar en el frontend
+     */
+    public function getVariacionesAgrupadasAttribute()
+    {
+        $variaciones = $this->variaciones()
+            ->where('activo', true)
+            ->with(['atributos', 'imagenes'])
+            ->get();
+            
+        $agrupado = [];
+        
+        foreach ($variaciones as $variacion) {
+            foreach ($variacion->atributos as $termino) {
+                $atributoId = $termino->atributo_id;
+                
+                if (!isset($agrupado[$atributoId])) {
+                    $atributo = Atributo::find($atributoId);
+                    $productoAtributo = $this->productoAtributo()
+                        ->where('atributo_id', $atributoId)
+                        ->first();
+                        
+                    $agrupado[$atributoId] = (object) [
+                        'atributo' => $atributo,
+                        'tipo' => $productoAtributo->tipo ?? 'Default',
+                        'shape' => $productoAtributo->shape ?? 'Default',
+                        'variaciones' => []
+                    ];
+                }
+                
+                // Buscar si ya existe esta variación para este atributo
+                $existe = false;
+                foreach ($agrupado[$atributoId]->variaciones as $v) {
+                    if ($v->id == $variacion->id) {
+                        $existe = true;
+                        break;
+                    }
+                }
+                
+                if (!$existe) {
+                    $agrupado[$atributoId]->variaciones[] = $variacion;
+                }
+            }
+        }
+        
+        return $agrupado;
+    }
+
+    /**
+     * Obtiene el producto_atributo para un atributo específico
+     */
+    public function productoAtributo()
+    {
+        return $this->hasMany(ProductoAtributo::class);
+    }
+
+    public function getAtributosEspecificaciones()
+    {
+        return $this->atributos()
+            ->wherePivot('visible', true)
+            ->wherePivot('variacion', false)
+            ->with(['terminos' => function($query) {
+                $query->whereHas('productoAtributos', function($q) {
+                    $q->where('producto_id', $this->id)
+                    ->where('visible', true)
+                    ->where('variacion', false);
+                });
+            }])
+            ->get()
+            ->map(function($atributo) {
+                return (object) [
+                    'id' => $atributo->id,
+                    'nombre' => $atributo->nombre,
+                    'terminos' => $atributo->terminos->map(function($termino) {
+                        return $termino->nombre;
+                    })->implode(', ') ?: null
+                ];
+            });
+    }
 }

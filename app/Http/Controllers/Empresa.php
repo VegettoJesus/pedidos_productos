@@ -1507,8 +1507,9 @@ class Empresa extends Controller
                         $datosActualizar['activo'] = filter_var($request->input('activo', false), FILTER_VALIDATE_BOOLEAN);
 
                         $cambiosContraseña = false;
+
                         if ($request->filled('contraseña')) {
-                            $datosActualizar['contraseña'] = Crypt::encryptString($request->input('contraseña'));
+                            $datosActualizar['contraseña'] = $request->input('contraseña');
                             $cambiosContraseña = true;
                         }
 
@@ -1546,9 +1547,9 @@ class Empresa extends Controller
                             
                         } else {
                             if ($request->filled('contraseña')) {
-                                $datosActualizar['contraseña'] = Crypt::encryptString($request->input('contraseña'));
+                                $datosActualizar['contraseña'] = $request->input('contraseña');
                             }
-                            
+
                             $configuracion = ConfiguracionCorreo::create($datosActualizar);
                             
                             $this->registrarAuditoria(
@@ -1595,8 +1596,10 @@ class Empresa extends Controller
                         $email = $request->input('email');
                         $configPrueba = $request->input('configuracion');
                         
-                        if ($configPrueba) {
-                            // Usar configuración de prueba desde el formulario
+                        $config = null;
+                        $usandoConfiguracionGuardada = false;
+                        
+                        if ($configPrueba && !empty($configPrueba['servidor_correo'])) {
                             $config = [
                                 'transport' => 'smtp',
                                 'host' => $configPrueba['servidor_correo'],
@@ -1606,46 +1609,71 @@ class Empresa extends Controller
                                 'password' => $configPrueba['contraseña'] ?? '',
                                 'timeout' => 30,
                             ];
+                            $usandoConfiguracionGuardada = false;
                         } else {
-                            // Usar configuración guardada
                             $configuracion = ConfiguracionCorreo::getActiva();
+
                             if (!$configuracion) {
-                                throw new \Exception('No hay configuración de correo activa');
+                                throw new \Exception(
+                                    'No hay configuración de correo activa. Por favor, configura un servidor SMTP primero.'
+                                );
                             }
-                            
+
+                            $erroresValidacion = $configuracion->validarConfiguracion();
+
+                            if (!empty($erroresValidacion)) {
+                                throw new \Exception(
+                                    'Configuración de correo incompleta: ' . implode(', ', $erroresValidacion)
+                                );
+                            }
+
+                            $contraseñaDesencriptada = $configuracion->contraseña;
+
+                            if (empty($contraseñaDesencriptada)) {
+                                throw new \Exception(
+                                    'No se pudo desencriptar la contraseña SMTP. Verifica APP_KEY y la contraseña almacenada.'
+                                );
+                            }
+
                             $config = [
                                 'transport' => 'smtp',
                                 'host' => $configuracion->servidor_correo,
                                 'port' => $configuracion->puerto,
-                                'encryption' => $configuracion->seguridad === 'ninguna' ? null : $configuracion->seguridad,
+                                'encryption' => $configuracion->seguridad === 'ninguna'
+                                    ? null
+                                    : $configuracion->seguridad,
                                 'username' => $configuracion->nombre_acceso,
-                                'password' => $configuracion->contraseña,
+                                'password' => $contraseñaDesencriptada,
                                 'timeout' => 30,
                             ];
+
+                            $usandoConfiguracionGuardada = true;
                         }
 
-                        // Configurar temporalmente el mailer
                         config(['mail.mailers.smtp_test' => $config]);
                         
-                        // Enviar email de prueba
-                        Mail::mailer('smtp_test')->send([], [], function (Message $message) use ($email, $configPrueba) {
-                            $fromName = config('app.name', 'Sistema');
-                            $fromEmail = 'no-reply@example.com';
-                            
+                        $fromEmail = $usandoConfiguracionGuardada ? $config['username'] : 'no-reply@example.com';
+                        $fromName = config('app.name', 'Sistema');
+                        
+                        Mail::mailer('smtp_test')->send([], [], function (Message $message) use ($email, $fromEmail, $fromName, $usandoConfiguracionGuardada) {
                             $message->to($email)
                                     ->from($fromEmail, $fromName)
                                     ->subject('Prueba de conexión SMTP')
-                                    ->html($this->generarContenidoEmailPrueba());
+                                    ->html($this->generarContenidoEmailPrueba($usandoConfiguracionGuardada));
                         });
 
                         $data->success = true;
-                        $data->message = 'Email de prueba enviado correctamente';
+                        $data->message = $usandoConfiguracionGuardada 
+                            ? 'Email de prueba enviado correctamente usando la configuración guardada' 
+                            : 'Email de prueba enviado correctamente con la configuración de prueba';
                         $data->email = $email;
+                        $data->usando_configuracion_guardada = $usandoConfiguracionGuardada;
 
                     } catch (\Exception $e) {
                         $data->success = false;
                         $data->message = 'Error al enviar email de prueba: ' . $e->getMessage();
                         $data->error = $e->getMessage();
+                        $data->usando_configuracion_guardada = $usandoConfiguracionGuardada ?? false;
                     }
                     break;
 

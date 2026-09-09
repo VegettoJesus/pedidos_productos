@@ -20,8 +20,13 @@ class AtributoTerm extends Model
 
     public function productoAtributos()
     {
-        return $this->belongsToMany(ProductoAtributo::class, 'producto_atributo_valores', 
-            'termino_id', 'producto_atributo_id');
+        return $this->belongsToMany(
+            ProductoAtributo::class, 
+            'producto_atributo_valores', 
+            'termino_id', 
+            'producto_atributo_id'
+        )->withPivot('valor_extra')
+        ->withTimestamps();
     }
 
     public function variaciones()

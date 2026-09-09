@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Auth;
+
 use App\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -14,6 +15,10 @@ class LoginController extends Controller
     public function showLoginForm()
     {
         if (Auth::check()) {
+            $user = Auth::user();
+            if ($user->id_rol == 2) {
+                return redirect()->route('tienda.home')->with('warning', 'Los clientes no pueden acceder al panel de administración.');
+            }
             return redirect()->route('main');
         }
         return view('login_empleado');
@@ -33,6 +38,10 @@ class LoginController extends Controller
             return redirect()->back()->with('login_error', 'Tu usuario está deshabilitado. Contacta al administrador.');
         }
 
+        if ($user->id_rol == 2) {
+            return redirect()->back()->with('login_error', 'Acceso denegado. Los clientes no pueden acceder al panel de administración.');
+        }
+
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
             $user->update(['conectado' => true]);
@@ -40,8 +49,7 @@ class LoginController extends Controller
         }
 
         return redirect()->back()->with('login_error', 'Credenciales inválidas. Verifique su email y contraseña.');
-}
-
+    }
 
     public function logout(Request $request)
     {
@@ -64,6 +72,14 @@ class LoginController extends Controller
 
     public function main()
     {
+        $user = Auth::user();
+        if ($user->id_rol == 2) {
+            Auth::logout();
+            session()->invalidate();
+            session()->regenerateToken();
+            return redirect()->route('login')->with('login_error', 'Los clientes no pueden acceder al panel de administración.');
+        }
+        
         return view('main', [
             'darkMode' => Auth::user()->dark_mode
         ]);
@@ -78,5 +94,4 @@ class LoginController extends Controller
 
         return response()->json(['dark_mode' => $user->dark_mode]);
     }
-
 }
