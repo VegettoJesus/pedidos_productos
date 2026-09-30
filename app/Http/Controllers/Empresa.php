@@ -1653,7 +1653,7 @@ class Empresa extends Controller
                         config(['mail.mailers.smtp_test' => $config]);
                         
                         $fromEmail = $usandoConfiguracionGuardada ? $config['username'] : 'no-reply@example.com';
-                        $fromName = config('app.name', 'Sistema');
+                        $fromName = ConfiguracionHelper::getCompanyName();
                         
                         Mail::mailer('smtp_test')->send([], [], function (Message $message) use ($email, $fromEmail, $fromName, $usandoConfiguracionGuardada) {
                             $message->to($email)
@@ -1729,7 +1729,7 @@ class Empresa extends Controller
                             <p><strong>Detalles del envío:</strong></p>
                             <ul>
                                 <li><strong>Fecha:</strong> ' . date('d/m/Y H:i:s') . '</li>
-                                <li><strong>Sistema:</strong> ' . config('app.name', 'Sistema') . '</li>
+                                <li><strong>Sistema:</strong> ' . ConfiguracionHelper::getCompanyName() . '</li>
                                 <li><strong>Servidor SMTP:</strong> Configuración activa</li>
                             </ul>
                         </div>
@@ -1746,7 +1746,7 @@ class Empresa extends Controller
                     </div>
                     <div class="footer">
                         <p>Este es un email automático, por favor no responder.</p>
-                        <p>&copy; ' . date('Y') . ' ' . config('app.name', 'Sistema') . ' - Todos los derechos reservados.</p>
+                        <p>&copy; ' . date('Y') . ' ' . ConfiguracionHelper::getCompanyName() . ' - Todos los derechos reservados.</p>
                     </div>
                 </div>
             </body>

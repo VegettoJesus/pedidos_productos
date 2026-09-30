@@ -15,6 +15,9 @@ use App\Models\User;
 use App\Models\Rol;
 use App\Models\Atributo;
 use App\Models\AtributoPrioridad;
+use App\Models\Notificacion;
+use App\Models\TipoNotificacion;
+use App\Helpers\ConfiguracionHelper;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -1224,7 +1227,7 @@ class TiendaController extends Controller
             'dir_otros'       => $request->dir_otros,
             'cod_postal'      => $request->cod_postal,
         ]);
-
+        $this->crearNotificacionBienvenida($user);
         Auth::login($user);
         $user->update(['conectado' => true]);
 
@@ -1697,5 +1700,37 @@ class TiendaController extends Controller
             }
             return $producto;
         });
+    }
+
+    /**
+     * Crear notificación de bienvenida para un nuevo cliente
+     */
+    private function crearNotificacionBienvenida($usuario)
+    {
+        $tipoUsuario = TipoNotificacion::where('slug', 'usuario')->first();
+        
+        if (!$tipoUsuario) {
+            return;
+        }
+
+        $notificacion = Notificacion::create([
+            'tipo_notificacion_id' => $tipoUsuario->id,
+            'creado_por' => null,
+            'titulo' => '¡Bienvenido a ' . ConfiguracionHelper::getCompanyName() . '!',
+            'mensaje' => "Hola {$usuario->nombres} {$usuario->apellidos}, bienvenido a nuestra tienda. Estamos felices de tenerte con nosotros.",
+            'mensaje_corto' => '¡Bienvenido a nuestra tienda!',
+            'data_extra' => null,
+            'url' => route('tienda.home'),
+            'boton_texto' => 'Explorar tienda',
+            'prioridad' => 'baja',
+            'fecha_inicio' => now(),
+            'fecha_fin' => now()->addDays(7),
+            'usuario_id' => $usuario->id,
+            'rol_id' => null,
+            'visible' => true,
+            'eliminada' => false
+        ]);
+
+        return $notificacion;
     }
 }

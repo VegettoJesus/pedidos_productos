@@ -99,6 +99,36 @@
             </div>
                 
             <div class="action-icons">
+                @if($authUser)
+                <div class="notification-btn-wrapper">
+                    <button class="action-btn" id="notificationsBtn" title="Notificaciones">
+                        <i class="bi bi-bell"></i>
+                        <span class="badge" id="notificationsCount">0</span>
+                    </button>
+                    
+                    <!-- Dropdown de notificaciones -->
+                    <div class="notifications-dropdown" id="notificationsDropdown">
+                        <div class="notifications-header">
+                            <h6><i class="bi bi-bell-fill"></i> Notificaciones</h6>
+                            <button class="btn-link" id="markAllReadBtn">Marcar todas</button>
+                            <button class="btn-close-mobile" id="closeNotificationsMobile">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <div class="notifications-list" id="notificationsList">
+                            <div id="notificationsEmpty">
+                                <i class="bi bi-bell-slash"></i>
+                                <div>Cargando notificaciones...</div>
+                            </div>
+                        </div>
+                        <div class="notifications-footer">
+                            <a href="#" id="viewAllNotificationsBtn">
+                                Ver todas las notificaciones <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                @endif
                 <a href="{{ route('perfil.mis-valoraciones') }}" class="action-btn" title="Mis valoraciones" id="valoracionesBtn">
                     <i class="bi bi-star"></i>
                     <span class="badge" id="valoracionesCount">0</span>
@@ -228,66 +258,65 @@
                 @endforeach
             </ul>
             <div class="mobile-footer">
-    <!-- 🔥 Botón de cuenta móvil (usando el mismo sistema que desktop) -->
-    <div class="dropdown account-dropdown">
-        <button class="login-btn dropdown-toggle" type="button" id="mobileAccountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-person-circle me-1"></i>
-            <span id="mobileAccountName">
-                @if($authUser)
-                    {{ $authUser->nombres }}
-                @else
-                    Mi cuenta
-                @endif
-            </span>
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="mobileAccountDropdown" id="mobileAccountMenu">
-            @if($authUser)
-                <!-- Usuario logueado -->
-                <li class="dropdown-item-text text-muted small">
-                    <i class="bi bi-envelope me-1"></i> {{ $authUser->email }}
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <a class="dropdown-item" href="{{ route('perfil.configuracion') }}">
-                        <i class="bi bi-person-gear me-2"></i> Mi perfil
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="#">
-                        <i class="bi bi-box-seam me-2"></i> Mis pedidos
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="#">
-                        <i class="bi bi-geo-alt me-2"></i> Dirección de entrega
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="{{ route('perfil.mis-valoraciones') }}">
-                        <i class="bi bi-star me-2"></i> Mis valoraciones
-                    </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <button class="dropdown-item text-danger" id="mobileLogoutBtn">
-                        <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
-                    </button>
-                </li>
-            @else
-                <!-- Usuario NO logueado -->
-                <li>
-                    <button class="dropdown-item" id="mobileOpenLoginModalBtn">
-                        <i class="bi bi-box-arrow-in-right me-2"></i> Iniciar sesión
-                    </button>
-                </li>
-                <li>
-                    <button class="dropdown-item" id="mobileOpenRegisterModalBtn">
-                        <i class="bi bi-person-plus me-2"></i> Registrarse
-                    </button>
-                </li>
-            @endif
-        </ul>
-    </div>
+            <div class="dropdown account-dropdown">
+                <button class="login-btn dropdown-toggle" type="button" id="mobileAccountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle me-1"></i>
+                    <span id="mobileAccountName">
+                        @if($authUser)
+                            {{ $authUser->nombres }}
+                        @else
+                            Mi cuenta
+                        @endif
+                    </span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="mobileAccountDropdown" id="mobileAccountMenu">
+                    @if($authUser)
+                        <!-- Usuario logueado -->
+                        <li class="dropdown-item-text text-muted small">
+                            <i class="bi bi-envelope me-1"></i> {{ $authUser->email }}
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('perfil.configuracion') }}">
+                                <i class="bi bi-person-gear me-2"></i> Mi perfil
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#">
+                                <i class="bi bi-box-seam me-2"></i> Mis pedidos
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#">
+                                <i class="bi bi-geo-alt me-2"></i> Dirección de entrega
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('perfil.mis-valoraciones') }}">
+                                <i class="bi bi-star me-2"></i> Mis valoraciones
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <button class="dropdown-item text-danger" id="mobileLogoutBtn">
+                                <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
+                            </button>
+                        </li>
+                    @else
+                        <!-- Usuario NO logueado -->
+                        <li>
+                            <button class="dropdown-item" id="mobileOpenLoginModalBtn">
+                                <i class="bi bi-box-arrow-in-right me-2"></i> Iniciar sesión
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item" id="mobileOpenRegisterModalBtn">
+                                <i class="bi bi-person-plus me-2"></i> Registrarse
+                            </button>
+                        </li>
+                    @endif
+                </ul>
+            </div>
         </div>
         
         <!-- Pantallas dinámicas de subcategorías (generadas con JS o aquí directamente) -->

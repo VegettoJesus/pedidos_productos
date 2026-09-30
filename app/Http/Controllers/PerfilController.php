@@ -10,6 +10,8 @@ use App\Models\Provincia;
 use App\Models\Distrito;
 use App\Models\ProductoValoracion;
 use App\Models\ConfiguracionSistema;
+use App\Models\TipoNotificacion;
+use App\Models\Notificacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -23,7 +25,7 @@ class PerfilController extends Controller
         $authUser = null;
         if (Auth::check()) {
             $user = Auth::user();
-            if ($user->rol && $user->rol->name === 'client') {
+            if ($user->rol && $user->rol->id === 2) {
                 $authUser = [
                     'nombres'   => $user->nombres,
                     'apellidos' => $user->apellidos,
@@ -117,6 +119,12 @@ class PerfilController extends Controller
             ], 422);
         }
 
+        $cambios = [];
+        if ($user->nombres !== $request->nombres) $cambios[] = 'nombres';
+        if ($user->apellidos !== $request->apellidos) $cambios[] = 'apellidos';
+        if ($user->email !== $request->email) $cambios[] = 'email';
+        if ($request->filled('password')) $cambios[] = 'contraseña';
+
         $user->nombres = $request->nombres;
         $user->apellidos = $request->apellidos;
         $user->email = $request->email;
@@ -162,11 +170,52 @@ class PerfilController extends Controller
             $file->move($carpeta, $nombreArchivo);
             $usuarioDato->imagen = $nombreArchivo;
             $usuarioDato->save();
+
+            $cambios[] = 'foto de perfil';
         }
+
+        $this->crearNotificacionActualizacionPerfil($user, $cambios);
 
         return response()->json([
             'success' => true,
             'message' => 'Perfil actualizado correctamente'
+        ]);
+    }
+
+    /**
+     * Crear notificación personal cuando el usuario actualiza su perfil
+     */
+    private function crearNotificacionActualizacionPerfil($user, $cambios = [])
+    {
+        $tipo = TipoNotificacion::where('slug', 'usuario')->first();
+        
+        if (!$tipo) {
+            return; 
+        }
+
+        $resumenCambios = !empty($cambios)
+            ? 'Campos actualizados: ' . implode(', ', $cambios) . '.'
+            : 'Se actualizaron los datos de tu perfil.';
+
+        Notificacion::create([
+            'tipo_notificacion_id' => $tipo->id,
+            'creado_por'           => null, 
+            'titulo'               => 'Perfil actualizado',
+            'mensaje'              => "Hola {$user->nombres}, tu perfil se actualizó correctamente. {$resumenCambios}",
+            'mensaje_corto'        => 'Tu perfil fue actualizado correctamente.',
+            'data_extra'           => [
+                'campos_actualizados' => $cambios,
+                'fecha'               => now()->toDateTimeString(),
+            ],
+            'url'                  => route('perfil.configuracion'),
+            'boton_texto'          => 'Ver mi perfil',
+            'prioridad'            => 'baja',
+            'fecha_inicio'         => now(),
+            'fecha_fin'            => null,
+            'usuario_id'           => $user->id,
+            'rol_id'               => null,      
+            'visible'              => true,
+            'eliminada'            => false,
         ]);
     }
 

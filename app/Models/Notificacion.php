@@ -1,4 +1,5 @@
 <?php
+// app/Models/Notificacion.php
 
 namespace App\Models;
 
@@ -32,7 +33,9 @@ class Notificacion extends Model
     protected $casts = [
         'data_extra' => 'array',
         'fecha_inicio' => 'datetime',
-        'fecha_fin' => 'datetime'
+        'fecha_fin' => 'datetime',
+        'visible' => 'boolean',
+        'eliminada' => 'boolean'
     ];
 
     // ============================================
@@ -60,12 +63,13 @@ class Notificacion extends Model
     }
 
     /**
-     * 🔥 Relación con usuarios a través de la tabla pivote
-     * Cada notificación puede tener muchos usuarios asociados
+     * 🔥 CORREGIDO: Relación con usuarios a través de la tabla pivote
+     * La tabla pivote se llama 'notificacion_usuario'
+     * La columna en la tabla pivote es 'usuario_id' (NO 'user_id')
      */
     public function usuarios()
     {
-        return $this->belongsToMany(User::class, 'notificacion_usuario')
+        return $this->belongsToMany(User::class, 'notificacion_usuario', 'notificacion_id', 'usuario_id')
                     ->withPivot('leida', 'leida_en', 'fecha_visualizacion')
                     ->withTimestamps();
     }
@@ -102,8 +106,8 @@ class Notificacion extends Model
     public function scopeNoLeidasPorUsuario($query, $usuarioId)
     {
         return $query->whereHas('usuarios', function($q) use ($usuarioId) {
-            $q->where('user_id', $usuarioId)
-              ->where('leida', false);
+            $q->where('notificacion_usuario.usuario_id', $usuarioId) // 🔥 CORREGIDO: usuario_id
+              ->where('notificacion_usuario.leida', false);
         });
     }
 
@@ -113,8 +117,8 @@ class Notificacion extends Model
     public function scopeLeidasPorUsuario($query, $usuarioId)
     {
         return $query->whereHas('usuarios', function($q) use ($usuarioId) {
-            $q->where('user_id', $usuarioId)
-              ->where('leida', true);
+            $q->where('notificacion_usuario.usuario_id', $usuarioId) // 🔥 CORREGIDO: usuario_id
+              ->where('notificacion_usuario.leida', true);
         });
     }
 
@@ -150,7 +154,7 @@ class Notificacion extends Model
     public function estaLeidaPorUsuario($usuarioId)
     {
         return $this->usuarios()
-                    ->where('user_id', $usuarioId)
+                    ->where('notificacion_usuario.usuario_id', $usuarioId) // 🔥 CORREGIDO: usuario_id
                     ->wherePivot('leida', true)
                     ->exists();
     }
@@ -204,11 +208,12 @@ class Notificacion extends Model
     {
         return self::visible()
             ->enFecha()
+            ->desdeRegistroUsuario($userId)
             ->porUsuario($userId)
             ->porRol($rolId)
             ->whereHas('usuarios', function($q) use ($userId) {
-                $q->where('user_id', $userId)
-                  ->where('leida', false);
+                $q->where('notificacion_usuario.usuario_id', $userId) // 🔥 CORREGIDO: usuario_id
+                  ->where('notificacion_usuario.leida', false);
             })
             ->orderBy('prioridad', 'desc')
             ->orderBy('created_at', 'desc')
@@ -239,33 +244,30 @@ class Notificacion extends Model
     // ============================================
     
     /**
-     * 🔥 Asignar notificación a usuarios según el destino configurado
-     * (Se llama automáticamente después de crear la notificación)
+     * Asignar notificación a usuarios según el destino configurado
      */
     public function asignarAUsuarios()
     {
-        // Si ya tiene usuarios asignados, no hacer nada
         if ($this->usuarios()->exists()) {
             return $this;
         }
 
-        // Si tiene usuario específico, solo para ese usuario
         if ($this->usuario_id) {
             $this->usuarios()->attach($this->usuario_id);
             return $this;
         }
 
-        // Si tiene rol específico, para todos los usuarios de ese rol
         if ($this->rol_id) {
-            $usuarios = User::where('id_rol', $this->rol_id)->get();
+            $usuarios = User::where('id_rol', $this->rol_id)
+                ->where('created_at', '<=', $this->created_at ?? now())
+                ->get();
             foreach ($usuarios as $usuario) {
                 $this->usuarios()->attach($usuario->id);
             }
             return $this;
         }
 
-        // Si no tiene usuario ni rol, para TODOS los usuarios
-        $usuarios = User::all();
+        $usuarios = User::where('created_at', '<=', $this->created_at ?? now())->get();
         foreach ($usuarios as $usuario) {
             $this->usuarios()->attach($usuario->id);
         }
@@ -300,18 +302,19 @@ class Notificacion extends Model
     {
         if (!$usuario) return false;
         
-        // Admin ve todo
-        if ($usuario->rol->name === 'admin') {
+        // Admin siempre puede ver todo
+        if ($usuario->rol && $usuario->rol->name === 'admin') {
             return true;
         }
         
         // Si la notificación es para un usuario específico
         if ($this->usuario_id && $this->usuario_id == $usuario->id) {
-            return $this->tienePermisoRol($usuario->id_rol);
+            // Verificar si tiene permiso con excepciones
+            return PermisoNotificacion::puedeVerUsuario($usuario, $this->tipo_notificacion_id);
         }
         
-        // Verificar permiso por rol y tipo
-        return PermisoNotificacion::puedeVer($usuario->id_rol, $this->tipo_notificacion_id);
+        // Usar el nuevo método con excepciones
+        return PermisoNotificacion::puedeVerUsuario($usuario, $this->tipo_notificacion_id);
     }
 
     /**
@@ -323,23 +326,22 @@ class Notificacion extends Model
     }
 
     /**
-     * SOBRESCRIBIR: Obtener solo notificaciones que el usuario puede ver
+     * Obtener solo notificaciones que el usuario puede ver
      */
     public static function getNotificacionesParaUsuario($userId, $rolId, $limit = 50)
     {
-        // Obtener tipos de notificación permitidos para este rol
         $tiposPermitidos = PermisoNotificacion::tiposPermitidos($rolId);
         
-        // Si no tiene ningún tipo permitido, retornar vacío
         if (empty($tiposPermitidos)) {
             return collect();
         }
         
         return self::visible()
             ->enFecha()
+            ->desdeRegistroUsuario($userId)
             ->porUsuario($userId)
             ->porRol($rolId)
-            ->whereIn('tipo_notificacion_id', $tiposPermitidos) 
+            ->whereIn('tipo_notificacion_id', $tiposPermitidos)
             ->orderBy('prioridad', 'desc')
             ->orderBy('created_at', 'desc')
             ->limit($limit)
@@ -363,13 +365,187 @@ class Notificacion extends Model
         
         return self::visible()
             ->enFecha()
+            ->desdeRegistroUsuario($userId)
             ->porUsuario($userId)
             ->porRol($rolId)
             ->whereIn('tipo_notificacion_id', $tiposPermitidos)
             ->whereHas('usuarios', function($q) use ($userId) {
-                $q->where('user_id', $userId)
-                ->where('leida', false);
+                $q->where('notificacion_usuario.usuario_id', $userId) // 🔥 CORREGIDO: usuario_id
+                  ->where('notificacion_usuario.leida', false);
             })
             ->count();
+    }
+
+    public static function getNotificacionesParaUsuarioPanel($userId, $limit = 50)
+    {
+        $usuario = User::with('rol')->find($userId);
+        
+        if (!$usuario || !$usuario->rol) {
+            return collect();
+        }
+
+        // 🔥 Obtener tipos permitidos aplicando excepciones
+        $tiposPermitidos = PermisoNotificacion::tiposPermitidosUsuario($usuario);
+        
+        if (empty($tiposPermitidos)) {
+            return collect();
+        }
+        
+        return self::visible()
+            ->enFecha()
+            ->desdeRegistroUsuario($userId)
+            ->porUsuario($userId)
+            ->porRol($usuario->id_rol)
+            ->whereIn('tipo_notificacion_id', $tiposPermitidos)
+            ->orderBy('prioridad', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get()
+            ->map(function($notificacion) use ($userId) {
+                $notificacion->leida = $notificacion->estaLeidaPorUsuario($userId);
+                return $notificacion;
+            });
+    }
+
+    /**
+     * Contar notificaciones no leídas para un usuario del PANEL
+     */
+    public static function countNoLeidasPanel($userId)
+    {
+        $usuario = User::with('rol')->find($userId);
+        
+        if (!$usuario || !$usuario->rol) {
+            return 0;
+        }
+
+        $tiposPermitidos = PermisoNotificacion::tiposPermitidosUsuario($usuario);
+        
+        if (empty($tiposPermitidos)) {
+            return 0;
+        }
+        
+        return self::visible()
+            ->enFecha()
+            ->desdeRegistroUsuario($userId)
+            ->porUsuario($userId)
+            ->porRol($usuario->id_rol)
+            ->whereIn('tipo_notificacion_id', $tiposPermitidos)
+            ->whereHas('usuarios', function($q) use ($userId) {
+                $q->where('notificacion_usuario.usuario_id', $userId)
+                ->where('notificacion_usuario.leida', false);
+            })
+            ->count();
+    }
+
+    /**
+     * Obtener notificaciones no leídas para un usuario del PANEL
+     */
+    public static function getNoLeidasPanel($userId, $limit = 20)
+    {
+        $usuario = User::with('rol')->find($userId);
+        
+        if (!$usuario || !$usuario->rol) {
+            return collect();
+        }
+
+        $tiposPermitidos = PermisoNotificacion::tiposPermitidosUsuario($usuario);
+        
+        if (empty($tiposPermitidos)) {
+            return collect();
+        }
+        
+        return self::visible()
+            ->enFecha()
+            ->desdeRegistroUsuario($userId)
+            ->porUsuario($userId)
+            ->porRol($usuario->id_rol)
+            ->whereIn('tipo_notificacion_id', $tiposPermitidos)
+            ->whereHas('usuarios', function($q) use ($userId) {
+                $q->where('notificacion_usuario.usuario_id', $userId)
+                ->where('notificacion_usuario.leida', false);
+            })
+            ->orderBy('prioridad', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Marcar todas las notificaciones como leídas para un usuario del PANEL
+     */
+    public static function marcarTodasLeidasPanel($userId)
+    {
+        $usuario = User::with('rol')->find($userId);
+        
+        if (!$usuario || !$usuario->rol) {
+            return false;
+        }
+
+        $tiposPermitidos = PermisoNotificacion::tiposPermitidosUsuario($usuario);
+        
+        if (empty($tiposPermitidos)) {
+            return false;
+        }
+
+        $notificaciones = self::visible()
+            ->enFecha()
+            ->porUsuario($userId)
+            ->porRol($usuario->id_rol)
+            ->whereIn('tipo_notificacion_id', $tiposPermitidos)
+            ->get();
+
+        foreach ($notificaciones as $notificacion) {
+            $notificacion->marcarComoLeidaPorUsuario($userId);
+        }
+
+        return true;
+    }
+
+    public static function getNotificacionesParaUsuarioPanelPaginadas($userId, $perPage = 15)
+    {
+        $usuario = User::with('rol')->find($userId);
+        
+        if (!$usuario || !$usuario->rol) {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+        }
+
+        $tiposPermitidos = PermisoNotificacion::tiposPermitidosUsuario($usuario);
+        
+        if (empty($tiposPermitidos)) {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+        }
+        
+        $paginadas = self::visible()
+            ->enFecha()
+            ->desdeRegistroUsuario($userId)
+            ->porUsuario($userId)
+            ->porRol($usuario->id_rol)
+            ->whereIn('tipo_notificacion_id', $tiposPermitidos)
+            ->orderBy('prioridad', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+        
+        // Agregar estado "leida" a cada item
+        $paginadas->getCollection()->transform(function($notificacion) use ($userId) {
+            $notificacion->leida = $notificacion->estaLeidaPorUsuario($userId);
+            return $notificacion;
+        });
+        
+        return $paginadas;
+    }
+
+    /**
+     * Notificaciones creadas DESPUÉS de la fecha de registro del usuario.
+     * Evita que un usuario nuevo vea notificaciones retroactivas.
+     */
+    public function scopeDesdeRegistroUsuario($query, $userId)
+    {
+        $fechaRegistro = User::where('id', $userId)->value('created_at');
+        
+        if (!$fechaRegistro) {
+            return $query;
+        }
+        
+        return $query->where('notificaciones.created_at', '>=', $fechaRegistro);
     }
 }

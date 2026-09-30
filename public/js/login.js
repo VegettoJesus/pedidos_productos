@@ -11,19 +11,20 @@ function remcl() {
 }
 
 function togglePassword() {
-	const passwordInput = document.getElementById("passwordInput");
-	const eyeIcon = document.getElementById("eyeIcon");
+        const input = document.getElementById('passwordInput');
+        const icon = document.getElementById('eyeIcon');
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        icon.classList.toggle('bi-eye', !isPassword);
+        icon.classList.toggle('bi-eye-slash', isPassword);
+    }
 
-	if (passwordInput.type === "password") {
-		passwordInput.type = "text";
-		eyeIcon.classList.remove("fa-eye");
-		eyeIcon.classList.add("fa-eye-slash");
-	} else {
-		passwordInput.type = "password";
-		eyeIcon.classList.remove("fa-eye-slash");
-		eyeIcon.classList.add("fa-eye");
-	}
-}
+    document.getElementById('loginForm')?.addEventListener('submit', function () {
+        const btn = document.getElementById('submitBtn');
+        btn.classList.add('loading');
+        btn.querySelector('.btn-text').textContent = 'Ingresando...';
+        btn.disabled = true;
+    });
 
 const inputs = document.querySelectorAll(".input");
 
@@ -166,3 +167,442 @@ observer.observe(body, { attributes: true, attributeFilter: ['class'] });
 if (isTablet()) {
     document.documentElement.style.setProperty('--sidebar-width', '8rem');
 }
+
+// =============================================
+// SISTEMA DE RECUPERACIÓN DE CONTRASEÑA
+// =============================================
+(function() {
+    'use strict';
+
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    let modalInstance = null;
+    let countdownInterval = null;
+    let resendInterval = null;
+    let emailActual = '';
+    let codigoActual = '';
+    let segundosRestantes = 0;
+
+    // Inicializar modal
+    function initModal() {
+        const modalEl = document.getElementById('modalRecuperarPassword');
+        if (!modalEl) return;
+        modalInstance = new bootstrap.Modal(modalEl);
+
+        // Reset al cerrar
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            clearInterval(countdownInterval);
+            clearInterval(resendInterval);
+            irAPaso(1);
+            document.getElementById('emailRecuperacion').value = '';
+            document.getElementById('codigoInput').value = '';
+            document.getElementById('nuevaPassword').value = '';
+            document.getElementById('confirmarPassword').value = '';
+            document.getElementById('mensajePaso1').innerHTML = '';
+            document.getElementById('mensajePaso2').innerHTML = '';
+            document.getElementById('mensajePaso3').innerHTML = '';
+        });
+    }
+
+    // Cambiar de paso
+    function irAPaso(paso) {
+        document.querySelectorAll('.modal-paso').forEach(el => el.style.display = 'none');
+        document.getElementById('paso' + paso).style.display = 'block';
+    }
+
+    // Abrir modal desde el link
+    document.querySelector('.forgot-link')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        // Pre-llenar con el email si ya está escrito
+        const emailLogin = document.getElementById('emailInput').value.trim();
+        if (emailLogin) {
+            document.getElementById('emailRecuperacion').value = emailLogin;
+        }
+        modalInstance.show();
+    });
+
+    // ============================================
+    // PASO 1: Enviar código
+    // ============================================
+    document.getElementById('btnEnviarCodigo')?.addEventListener('click', async function() {
+        const btn = this;
+        const email = document.getElementById('emailRecuperacion').value.trim();
+        const msg = document.getElementById('mensajePaso1');
+
+        if (!email) {
+            msg.innerHTML = '<span class="text-danger">Ingresa tu correo electrónico.</span>';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.querySelector('.btn-text').textContent = 'Enviando...';
+        msg.innerHTML = '';
+
+        try {
+            const res = await fetch('/password/solicitar-codigo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await res.json();
+
+            if (!data.success) {
+                msg.innerHTML = `<span class="text-danger">${data.message}</span>`;
+                return;
+            }
+
+            emailActual = email;
+            document.getElementById('emailMostrado').textContent = email;
+            segundosRestantes = data.segundos_restantes;
+            
+            irAPaso(2);
+            iniciarContador();
+            iniciarReenvio();
+
+            if (data.reutilizado) {
+                // Avisar que ya estaba activo
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Código activo',
+                    text: 'Ya tenías un código activo. Revisa tu correo anterior.',
+                    timer: 2500,
+                    showConfirmButton: false,
+                    confirmButtonColor: '#F4AB28'
+                });
+            } else {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Código enviado',
+                    text: 'Revisa tu bandeja de entrada.',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    confirmButtonColor: '#F4AB28'
+                });
+            }
+
+        } catch (err) {
+            console.error(err);
+            msg.innerHTML = '<span class="text-danger">Error de conexión. Intenta nuevamente.</span>';
+        } finally {
+            btn.disabled = false;
+            btn.querySelector('.btn-text').textContent = 'Enviar código';
+        }
+    });
+
+    // ============================================
+    // CONTADOR
+    // ============================================
+    function iniciarContador() {
+        clearInterval(countdownInterval);
+        actualizarContador();
+        countdownInterval = setInterval(actualizarContador, 1000);
+    }
+
+    function actualizarContador() {
+        if (segundosRestantes <= 0) {
+            clearInterval(countdownInterval);
+            document.getElementById('contadorTexto').textContent = '00:00';
+            document.getElementById('contadorContainer').classList.add('expirado');
+            document.getElementById('contadorContainer').innerHTML = 
+                '<i class="bi bi-exclamation-triangle-fill me-2"></i><span>El código ha expirado. Solicita uno nuevo.</span>';
+            return;
+        }
+
+        segundosRestantes--;
+        const min = Math.floor(segundosRestantes / 60);
+        const seg = segundosRestantes % 60;
+        document.getElementById('contadorTexto').textContent = 
+            `${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
+    }
+
+    // ============================================
+    // REENVÍO (bloqueado 60s)
+    // ============================================
+    function iniciarReenvio() {
+        clearInterval(resendInterval);
+        let segundos = 60;
+        const btn = document.getElementById('btnReenviarCodigo');
+        const txt = document.getElementById('textoReenviar');
+        
+        btn.disabled = true;
+        txt.textContent = `Reenviar en ${segundos}s`;
+
+        resendInterval = setInterval(() => {
+            segundos--;
+            if (segundos <= 0) {
+                clearInterval(resendInterval);
+                btn.disabled = false;
+                txt.textContent = 'Reenviar código';
+            } else {
+                txt.textContent = `Reenviar en ${segundos}s`;
+            }
+        }, 1000);
+    }
+
+    document.getElementById('btnReenviarCodigo')?.addEventListener('click', async function() {
+        const msg = document.getElementById('mensajePaso2');
+        msg.innerHTML = '';
+
+        try {
+            const res = await fetch('/password/solicitar-codigo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ email: emailActual })
+            });
+
+            const data = await res.json();
+
+            if (!data.success) {
+                msg.innerHTML = `<span class="text-danger">${data.message}</span>`;
+                return;
+            }
+
+            segundosRestantes = data.segundos_restantes;
+            iniciarContador();
+            iniciarReenvio();
+
+            // Restaurar contenedor del contador
+            const cont = document.getElementById('contadorContainer');
+            cont.classList.remove('expirado');
+            cont.innerHTML = '<i class="bi bi-clock-history me-2"></i><span>El código expira en: </span><strong id="contadorTexto">15:00</strong>';
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Código reenviado',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } catch (err) {
+            msg.innerHTML = '<span class="text-danger">Error al reenviar.</span>';
+        }
+    });
+
+    // ============================================
+    // PASO 2: Validar código
+    // ============================================
+    document.getElementById('codigoInput')?.addEventListener('input', function() {
+        this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    });
+
+    document.getElementById('btnValidarCodigo')?.addEventListener('click', async function() {
+        const btn = this;
+        const codigo = document.getElementById('codigoInput').value.trim();
+        const msg = document.getElementById('mensajePaso2');
+
+        if (codigo.length !== 6) {
+            msg.innerHTML = '<span class="text-danger">Ingresa el código completo de 6 dígitos.</span>';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.querySelector('.btn-text').textContent = 'Validando...';
+        msg.innerHTML = '';
+
+        try {
+            const res = await fetch('/password/validar-codigo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ email: emailActual, codigo })
+            });
+
+            const data = await res.json();
+
+            if (!data.success) {
+                msg.innerHTML = `<span class="text-danger">${data.message}</span>`;
+                
+                if (data.expirado) {
+                    clearInterval(countdownInterval);
+                    const cont = document.getElementById('contadorContainer');
+                    cont.classList.add('expirado');
+                    cont.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i><span>El código ha expirado.</span>';
+                }
+                return;
+            }
+
+            codigoActual = codigo;
+            clearInterval(countdownInterval);
+            irAPaso(3);
+
+        } catch (err) {
+            msg.innerHTML = '<span class="text-danger">Error de conexión.</span>';
+        } finally {
+            btn.disabled = false;
+            btn.querySelector('.btn-text').textContent = 'Validar código';
+        }
+    });
+
+    // Volver al paso 1
+    document.getElementById('btnVolverPaso1')?.addEventListener('click', () => {
+        clearInterval(countdownInterval);
+        clearInterval(resendInterval);
+        irAPaso(1);
+    });
+
+    // ============================================
+    // PASO 3: Cambiar contraseña
+    // ============================================
+    const pass1 = document.getElementById('nuevaPassword');
+    const pass2 = document.getElementById('confirmarPassword');
+
+    function validarRequisitos() {
+        const val1 = pass1.value;
+        const val2 = pass2.value;
+        const reqLength = document.getElementById('req-length');
+        const reqMatch = document.getElementById('req-match');
+
+        // Longitud
+        if (val1.length >= 6) {
+            reqLength.classList.add('ok');
+            reqLength.querySelector('i').className = 'bi bi-check-circle-fill';
+        } else {
+            reqLength.classList.remove('ok');
+            reqLength.querySelector('i').className = 'bi bi-circle';
+        }
+
+        // Coincidencia
+        if (val1 && val2 && val1 === val2) {
+            reqMatch.classList.add('ok');
+            reqMatch.querySelector('i').className = 'bi bi-check-circle-fill';
+        } else {
+            reqMatch.classList.remove('ok');
+            reqMatch.querySelector('i').className = 'bi bi-circle';
+        }
+    }
+
+    pass1?.addEventListener('input', validarRequisitos);
+    pass2?.addEventListener('input', validarRequisitos);
+
+    document.getElementById('btnCambiarPassword')?.addEventListener('click', async function() {
+        const btn = this;
+        const val1 = pass1.value;
+        const val2 = pass2.value;
+        const msg = document.getElementById('mensajePaso3');
+
+        if (val1.length < 6) {
+            msg.innerHTML = '<span class="text-danger">La contraseña debe tener al menos 6 caracteres.</span>';
+            return;
+        }
+        if (val1 !== val2) {
+            msg.innerHTML = '<span class="text-danger">Las contraseñas no coinciden.</span>';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.querySelector('.btn-text').textContent = 'Cambiando...';
+        msg.innerHTML = '';
+
+        try {
+            const res = await fetch('/password/cambiar-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: emailActual,
+                    codigo: codigoActual,
+                    password: val1,
+                    password_confirmation: val2
+                })
+            });
+
+            const data = await res.json();
+
+            if (!data.success) {
+                msg.innerHTML = `<span class="text-danger">${data.message}</span>`;
+                return;
+            }
+
+            // Cerrar modal y mostrar éxito
+            modalInstance.hide();
+            
+            Swal.fire({
+                icon: 'success',
+                title: '¡Contraseña actualizada!',
+                text: 'Ya puedes iniciar sesión con tu nueva contraseña.',
+                confirmButtonColor: '#F4AB28',
+                confirmButtonText: 'Ir al login'
+            }).then(() => {
+                document.getElementById('emailInput').value = emailActual;
+                document.getElementById('passwordInput').focus();
+            });
+
+        } catch (err) {
+            msg.innerHTML = '<span class="text-danger">Error de conexión.</span>';
+        } finally {
+            btn.disabled = false;
+            btn.querySelector('.btn-text').textContent = 'Cambiar contraseña';
+        }
+    });
+
+    // ============================================
+    // TOGGLE PASSWORD EN MODAL
+    // ============================================
+    window.togglePasswordModal = function(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        icon.classList.toggle('bi-eye', !isPassword);
+        icon.classList.toggle('bi-eye-slash', isPassword);
+    };
+
+    // ============================================
+    // AUTO-VERIFICAR CÓDIGO ACTIVO AL REABRIR
+    // ============================================
+    // Escuchar cuando se abre el modal y el usuario ya escribió email
+    document.getElementById('emailRecuperacion')?.addEventListener('blur', async function() {
+        const email = this.value.trim();
+        if (!email) return;
+
+        try {
+            const res = await fetch('/password/verificar-codigo-activo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await res.json();
+
+            if (data.success && data.activo) {
+                emailActual = email;
+                segundosRestantes = data.segundos_restantes;
+                document.getElementById('emailMostrado').textContent = email;
+                irAPaso(2);
+                iniciarContador();
+                iniciarReenvio();
+
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Código activo',
+                    text: `Tienes un código activo. Expira en ${Math.ceil(data.segundos_restantes / 60)} min.`,
+                    timer: 2500,
+                    showConfirmButton: false
+                });
+            }
+        } catch (err) {
+            // Ignorar silenciosamente
+        }
+    });
+
+    // Inicializar
+    document.addEventListener('DOMContentLoaded', initModal);
+
+})();

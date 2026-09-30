@@ -73,7 +73,7 @@ return new class extends Migration
         }
 
         // MARKETING: Ve promociones y sistema
-        $tiposMarketing = ['promociones', 'sistema'];
+        $tiposMarketing = ['promociones', 'sistema','usuario'];
         foreach ($tipos as $slug => $id) {
             $permisos[] = [
                 'rol_id' => $rolMarketing,
@@ -85,7 +85,7 @@ return new class extends Migration
         }
 
         // DEVELOPER: Ve sistema, seguridad y errores
-        $tiposDeveloper = ['sistema', 'seguridad', 'error-sistema'];
+        $tiposDeveloper = ['sistema', 'seguridad', 'error-sistema','usuario'];
         foreach ($tipos as $slug => $id) {
             $permisos[] = [
                 'rol_id' => $rolDeveloper,
