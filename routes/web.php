@@ -13,7 +13,10 @@ use App\Models\ProductoVariacion;
 use App\Models\ProductoValoracion;
 use App\Models\Departamento;
 use App\Http\Controllers\BusquedaController;
+use App\Http\Controllers\NotificacionPanelController;
+use App\Http\Controllers\NotificacionController;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Auth\PasswordResetController;
 
 Route::get('/', [TiendaController::class, 'home'])->name('tienda.home');
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -35,6 +38,19 @@ Route::post('/logout-cliente', [TiendaController::class, 'logoutCliente'])->name
 Route::get('/categoria/{id}/productos', [TiendaController::class, 'productosCategoriaCompleta'])->name('categoria.productos.completa');
 Route::post('/producto/valorar', [TiendaController::class, 'valorarProducto'])->middleware('auth');
 Route::post('/toggle-dark-mode', [LoginController::class, 'toggleDarkMode'])->name('toggle-dark-mode');
+Route::prefix('password')->group(function () {
+    Route::post('/solicitar-codigo', [PasswordResetController::class, 'solicitarCodigo'])
+        ->name('password.solicitar-codigo');
+    
+    Route::post('/verificar-codigo-activo', [PasswordResetController::class, 'verificarCodigoActivo'])
+        ->name('password.verificar-codigo-activo');
+    
+    Route::post('/validar-codigo', [PasswordResetController::class, 'validarCodigo'])
+        ->name('password.validar-codigo');
+    
+    Route::post('/cambiar-password', [PasswordResetController::class, 'cambiarPassword'])
+        ->name('password.cambiar-password');
+});
 Route::get('/api/productos/{productoId}/variacion/{variacionId}/imagenes', function ($productoId, $variacionId) {
     try {
         $variacion = ProductoVariacion::with('imagenes')
@@ -143,6 +159,19 @@ Route::get('/api/mis-valoraciones/count', function() {
     })->name('api.mis-valoraciones.count');
 Route::get('/mis-valoraciones', [PerfilController::class, 'misValoraciones'])->name('perfil.mis-valoraciones');
 Route::get('/mis-valoraciones/data', [PerfilController::class, 'misValoraciones'])->name('perfil.mis-valoraciones.data');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/notificaciones/usuario', [NotificacionController::class, 'usuarioNotificaciones'])
+        ->name('notificaciones.usuario');
+    
+    Route::post('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida'])
+        ->name('notificaciones.marcar-leida');
+    
+    Route::post('/notificaciones/marcar-todas-leidas', [NotificacionController::class, 'marcarTodasLeidas'])
+        ->name('notificaciones.marcar-todas');
+    
+    Route::get('/notificaciones/no-leidas/count', [NotificacionController::class, 'countNoLeidas'])
+        ->name('notificaciones.count');
+});
 
 // =============================================
 // RUTAS PARA UBICACIÓN (Departamentos, Provincias, Distritos)
@@ -193,7 +222,21 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/configuracion', [PerfilController::class, 'index'])->name('perfil.configuracion');
     Route::post('/perfil/obtener', [PerfilController::class, 'obtenerDatos']);
     Route::post('/perfil/actualizar', [PerfilController::class, 'actualizar']);
-
+    Route::get('/notificaciones', [NotificacionPanelController::class, 'vista'])
+        ->name('notificaciones.panel.vista');
+    
+    Route::prefix('notificaciones/panel')->group(function () {
+        Route::get('no-leidas/count', [NotificacionPanelController::class, 'countNoLeidas'])
+            ->name('notificaciones.panel.count');
+        Route::post('marcar-todas-leidas', [NotificacionPanelController::class, 'marcarTodasLeidas'])
+            ->name('notificaciones.panel.marcar-todas');
+        Route::get('/', [NotificacionPanelController::class, 'index'])
+            ->name('notificaciones.panel.index');
+        Route::get('no-leidas', [NotificacionPanelController::class, 'noLeidas'])
+            ->name('notificaciones.panel.no-leidas');
+        Route::post('{id}/leer', [NotificacionPanelController::class, 'marcarLeida'])
+            ->name('notificaciones.panel.leer');
+    });
     Route::get('/main', [LoginController::class, 'main'])->name('main');
     Route::get('{controlador}/{metodo}', function ($controlador, $metodo) {
         $controllerClass = 'App\\Http\\Controllers\\' . ucfirst($controlador);

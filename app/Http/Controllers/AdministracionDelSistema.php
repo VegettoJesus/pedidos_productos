@@ -14,6 +14,10 @@ use App\Models\Provincia;
 use App\Models\User;
 use App\Models\UsuarioDato;
 use App\Services\MenuService;
+use App\Models\Notificacion;
+use App\Models\TipoNotificacion;
+use App\Models\PermisoNotificacion;
+use App\Models\ExcepcionNotificacionUsuario;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -68,7 +72,9 @@ class AdministracionDelSistema extends Controller
 
                 case 'Permisos':
                     $idMenu = $request->input('id_menu');
-                    $roles = Rol::all();
+                    $roles = Rol::where('id', '!=', 2)  
+                    ->orderBy('name')
+                    ->get();
 
                     // Obtener solo el campo 'permisos' sin decodificar, porque ya es array
                     $permisos = Permiso::where('id_menus', $idMenu)
@@ -87,6 +93,12 @@ class AdministracionDelSistema extends Controller
                     $idRol = $request->input('id_rol');
                     $campo = $request->input('campo');
                     $valor = $request->input('valor') ? true : false;
+
+                    if ($idRol == 2) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'No puedes modificar permisos del rol cliente.';
+                        break;
+                    }
 
                     try {
                         $menu = Menu::find($idMenu);
@@ -549,7 +561,9 @@ class AdministracionDelSistema extends Controller
             $data->css = 'css/administracion.css';
             $data->contenido = 'administracionDelSistema.administrarMenu';
             $data->padres = Menu::whereNull('padre')->orWhere('padre', 0)->get();
-            $data->roles = Rol::all();
+            $data->roles = Rol::where('id', '!=', 2)
+            ->orderBy('name')
+            ->get();
             $data->iconos = Icons::all();
             return view('layouts.contenido', (array) $data);
         }
@@ -696,12 +710,17 @@ class AdministracionDelSistema extends Controller
                         return response()->json($data);
                     }
 
-                    if (UsuarioDato::where('tipoDoc', $tipoDoc)->where('numeroDoc', $numeroDoc)
-                        ->when($id_user != "0", function($query) use ($id_user){
-                            return $query->where('id_usuario', '!=', $id_user);
-                        })->exists()) {
+                    if (UsuarioDato::where('tipoDoc', $tipoDoc)
+                            ->where('numeroDoc', $numeroDoc)
+                            ->whereHas('user', function($q) use ($request, $id_user) {
+                                $q->where('id_rol', $request->input('id_rol'))
+                                ->when($id_user != "0", function($query) use ($id_user) {
+                                    return $query->where('id', '!=', $id_user);
+                                });
+                            })
+                            ->exists()) {
                         $data->respuesta = 'error';
-                        $data->mensaje = 'El número de documento ingresado ya tiene una cuenta asociada.';
+                        $data->mensaje = 'Ya existe un usuario con el mismo tipo de documento, número de documento y rol.';
                         return response()->json($data);
                     }
 
@@ -738,6 +757,11 @@ class AdministracionDelSistema extends Controller
                             'provincia' => $request->input('provincia_id'),
                             'departamento' => $request->input('departamento_id'),
                         ];
+
+                        $valoresAnteriores = [];
+                        $valoresNuevos = [];
+                        $valoresAnterioresDato = [];
+                        $valoresNuevosDato = [];
                         
                         if ($esCreacion) {
                             $user = new User();
@@ -862,6 +886,39 @@ class AdministracionDelSistema extends Controller
                         }
                         
                         DB::commit();
+
+                        if ($esCreacion) {
+                            $this->crearNotificacionParaUsuario(
+                                $user,
+                                '¡Bienvenido al sistema!',
+                                "Hola {$user->nombres}, tu cuenta ha sido creada exitosamente. " .
+                                "Ya puedes comenzar a usar el panel de administración.",
+                                [
+                                    'tipo_evento' => 'bienvenida',
+                                    'email' => $user->email,
+                                ],
+                                url('/main'),
+                                'Ir al panel'
+                            );
+                        } else {
+                            $camposCambiados = $this->detectarCambiosUsuario($valoresAnteriores, $valoresNuevos, $valoresAnterioresDato ?? [], $valoresNuevosDato ?? []);
+                            
+                            $resumenCambios = !empty($camposCambiados)
+                                ? 'Campos actualizados: ' . implode(', ', $camposCambiados) . '.'
+                                : 'Se actualizaron los datos de tu cuenta.';
+
+                            $this->crearNotificacionParaUsuario(
+                                $user,
+                                'Tu cuenta fue actualizada',
+                                "Hola {$user->nombres}, un administrador ha actualizado tu cuenta. {$resumenCambios}",
+                                [
+                                    'tipo_evento' => 'actualizacion_admin',
+                                    'campos_actualizados' => $camposCambiados,
+                                ],
+                                null,
+                                null
+                            );
+                        }
                         
                         $data->respuesta = 'ok';
                         $data->mensaje = $esCreacion ? 'Usuario registrado correctamente' : 'Usuario actualizado correctamente';
@@ -1119,6 +1176,408 @@ class AdministracionDelSistema extends Controller
         }
     }
 
+    public function permisosNotificaciones(Request $request)
+    {
+        if ($request->isMethod('post')) {
+            $opcion = $request->input('opcion');
+            $data = new \stdClass();
+
+            switch ($opcion) {
+                case 'Listar':
+                    $roles = $roles = Rol::where('id', '!=', 2)
+                    ->orderBy('name')->get();
+                    $tipos = TipoNotificacion::where('activo', true)
+                        ->orderBy('nombre')
+                        ->get();
+
+                    // Construir matriz de permisos
+                    $permisosRoles = [];
+                    $permisosDb = PermisoNotificacion::all();
+
+                    foreach ($roles as $rol) {
+                        $permisosRoles[$rol->id] = [];
+                        foreach ($tipos as $tipo) {
+                            $permiso = $permisosDb
+                                ->where('rol_id', $rol->id)
+                                ->where('tipo_notificacion_id', $tipo->id)
+                                ->first();
+                            
+                            $permisosRoles[$rol->id][$tipo->id] = $permiso ? $permiso->puede_ver : false;
+                        }
+                    }
+
+                    $data->respuesta = 'ok';
+                    $data->roles = $roles;
+                    $data->tiposNotificacion = $tipos;
+                    $data->permisosRoles = $permisosRoles;
+                    break;
+
+                case 'ActualizarPermisoRol':
+                    $rolId = $request->input('rol_id');
+                    $tipoId = $request->input('tipo_notificacion_id');
+                    $puedeVer = $request->input('puede_ver', false);
+
+                    $rol = Rol::find($rolId);
+                    $tipo = TipoNotificacion::find($tipoId);
+
+                    if (!$rol || !$tipo) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Rol o tipo de notificación no encontrado';
+                        break;
+                    }
+
+                    // No permitir quitar permisos al admin
+                    if ($rol->name === 'admin' && !$puedeVer) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'No puedes quitar permisos al rol admin.';
+                        break;
+                    }
+
+                    DB::beginTransaction();
+                    try {
+                        $permisoAnterior = PermisoNotificacion::where('rol_id', $rolId)
+                            ->where('tipo_notificacion_id', $tipoId)
+                            ->first();
+
+                        $valorAnterior = $permisoAnterior ? $permisoAnterior->puede_ver : null;
+
+                        $permiso = PermisoNotificacion::updateOrCreate(
+                            [
+                                'rol_id' => $rolId,
+                                'tipo_notificacion_id' => $tipoId
+                            ],
+                            [
+                                'puede_ver' => $puedeVer
+                            ]
+                        );
+
+                        if ($valorAnterior !== $puedeVer) {
+                            $estado = $puedeVer ? 'concedido' : 'revocado';
+
+                            $this->registrarAuditoria(
+                                'Actualizar',
+                                'permisos_notificaciones',
+                                $permiso->id,
+                                "Permiso: {$tipo->nombre} / {$rol->name}",
+                                ['puede_ver' => $valorAnterior],
+                                ['puede_ver' => $puedeVer],
+                                "Permiso {$estado} para el rol {$rol->name} sobre {$tipo->nombre}"
+                            );
+                        }
+
+                        DB::commit();
+
+                        $data->respuesta = 'ok';
+                        $data->mensaje = 'Permiso actualizado correctamente';
+
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Error: ' . $e->getMessage();
+                    }
+                    break;
+
+                case 'BuscarUsuarios':
+                    $query = $request->input('query', '');
+
+                    if (strlen($query) < 2) {
+                        $data->respuesta = 'ok';
+                        $data->usuarios = [];
+                        break;
+                    }
+
+                    $usuarios = User::with('rol')
+                        ->where(function($q) use ($query) {
+                            $q->where('nombres', 'LIKE', "%{$query}%")
+                            ->orWhere('apellidos', 'LIKE', "%{$query}%")
+                            ->orWhere('email', 'LIKE', "%{$query}%");
+                        })
+                        ->where('id_rol', '!=', 2)
+                        ->whereHas('rol', function($q) {
+                            $q->where('name', '!=', 'admin');
+                        })
+                        ->where('estado', true)
+                        ->limit(10)
+                        ->get(['id', 'nombres', 'apellidos', 'email', 'id_rol']);
+
+                    $data->respuesta = 'ok';
+                    $data->usuarios = $usuarios;
+                    break;
+
+                case 'ObtenerExcepcionesUsuario':
+                    $usuarioId = $request->input('usuario_id');
+
+                    $usuario = User::with('rol')->find($usuarioId);
+                    if (!$usuario) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Usuario no encontrado';
+                        break;
+                    }
+
+                    if ($usuario->id_rol == 2) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Los clientes tienen su propio flujo de notificaciones.';
+                        break;
+                    }
+
+                    // Matriz de permisos efectivos
+                    $matriz = PermisoNotificacion::matrizPermisosUsuario($usuario);
+
+                    $data->respuesta = 'ok';
+                    $data->usuario = [
+                        'id' => $usuario->id,
+                        'nombres' => $usuario->nombres,
+                        'apellidos' => $usuario->apellidos,
+                        'email' => $usuario->email,
+                        'rol_id' => $usuario->id_rol,
+                        'rol_nombre' => $usuario->rol->name ?? 'Sin rol',
+                    ];
+                    $data->matriz = $matriz;
+                    break;
+
+                case 'GuardarExcepcionUsuario':
+                    $usuarioId = $request->input('usuario_id');
+                    $tipoId = $request->input('tipo_notificacion_id');
+                    $tipoExcepcion = $request->input('tipo_excepcion'); 
+                    $motivo = $request->input('motivo');
+
+                    if (!$usuarioId || !$tipoId || !in_array($tipoExcepcion, ['permitir', 'denegar'])) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Datos inválidos';
+                        break;
+                    }
+
+                    $usuario = User::with('rol')->find($usuarioId);
+                    if (!$usuario) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Usuario no encontrado';
+                        break;
+                    }
+
+                    // No permitir excepciones a admins
+                    if ($usuario->rol && $usuario->rol->name === 'admin') {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'No se pueden crear excepciones para administradores.';
+                        break;
+                    }
+
+                    if ($usuario->id_rol == 2) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Los clientes tienen su propio flujo de notificaciones.';
+                        break;
+                    }
+
+                    DB::beginTransaction();
+                    try {
+                        $excepcionAnterior = ExcepcionNotificacionUsuario::obtener($usuarioId, $tipoId);
+                        $tipoAnterior = $excepcionAnterior ? $excepcionAnterior->tipo_excepcion : null;
+
+                        $excepcion = ExcepcionNotificacionUsuario::updateOrCreate(
+                            [
+                                'usuario_id' => $usuarioId,
+                                'tipo_notificacion_id' => $tipoId
+                            ],
+                            [
+                                'tipo_excepcion' => $tipoExcepcion,
+                                'motivo' => $motivo,
+                                'creado_por' => auth()->id(),
+                            ]
+                        );
+
+                        $tipo = TipoNotificacion::find($tipoId);
+                        $accion = $tipoAnterior ? 'actualizada' : 'creada';
+
+                        $this->registrarAuditoria(
+                            $tipoAnterior ? 'Actualizar' : 'Crear',
+                            'excepciones_notificacion_usuario',
+                            $excepcion->id,
+                            "Excepción: {$usuario->nombres} {$usuario->apellidos}",
+                            ['tipo_excepcion' => $tipoAnterior],
+                            ['tipo_excepcion' => $tipoExcepcion],
+                            "Excepción {$accion} ({$tipoExcepcion}) para {$tipo->nombre}"
+                        );
+
+                        DB::commit();
+
+                        $data->respuesta = 'ok';
+                        $data->mensaje = "Excepción {$accion} correctamente";
+                        $data->excepcion = $excepcion;
+
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Error: ' . $e->getMessage();
+                    }
+                    break;
+
+                case 'EliminarExcepcionUsuario':
+                    $excepcionId = $request->input('excepcion_id');
+
+                    $excepcion = ExcepcionNotificacionUsuario::with(['usuario', 'tipoNotificacion'])
+                        ->find($excepcionId);
+
+                    if (!$excepcion) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Excepción no encontrada';
+                        break;
+                    }
+
+                    DB::beginTransaction();
+                    try {
+                        $nombreUsuario = $excepcion->usuario->nombres . ' ' . $excepcion->usuario->apellidos;
+                        $nombreTipo = $excepcion->tipoNotificacion->nombre;
+
+                        $excepcion->delete();
+
+                        $this->registrarAuditoria(
+                            'Eliminar',
+                            'excepciones_notificacion_usuario',
+                            $excepcionId,
+                            "Excepción: {$nombreUsuario}",
+                            null,
+                            null,
+                            "Excepción eliminada para {$nombreTipo}. El usuario vuelve al permiso del rol."
+                        );
+
+                        DB::commit();
+
+                        $data->respuesta = 'ok';
+                        $data->mensaje = 'Excepción eliminada';
+
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Error: ' . $e->getMessage();
+                    }
+                    break;
+
+                case 'ObtenerPermisosEfectivosUsuario':
+                    $usuarioId = $request->input('usuario_id');
+
+                    $usuario = User::with('rol')->find($usuarioId);
+                    if (!$usuario) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Usuario no encontrado';
+                        break;
+                    }
+
+                    if ($usuario->id_rol == 2) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Los clientes tienen su propio flujo de notificaciones.';
+                        break;
+                    }
+
+                    $tipos = TipoNotificacion::where('activo', true)->orderBy('nombre')->get();
+                    $resultado = [];
+
+                    foreach ($tipos as $tipo) {
+                        $permisoRol = PermisoNotificacion::puedeVerRol($usuario->id_rol, $tipo->id);
+                        $excepcion = ExcepcionNotificacionUsuario::obtener($usuario->id, $tipo->id);
+                        $permisoFinal = PermisoNotificacion::puedeVerUsuario($usuario, $tipo->id);
+
+                        $resultado[] = [
+                            'tipo_id' => $tipo->id,
+                            'tipo_nombre' => $tipo->nombre,
+                            'tipo_icono' => $tipo->icono,
+                            'tipo_color' => $tipo->color,
+                            'permiso_rol' => $permisoRol,
+                            'excepcion' => $excepcion ? [
+                                'id' => $excepcion->id,
+                                'tipo_excepcion' => $excepcion->tipo_excepcion,
+                                'motivo' => $excepcion->motivo,
+                            ] : null,
+                            'permiso_final' => $permisoFinal,
+                            'origen' => $excepcion ? 'excepcion' : 'rol',
+                        ];
+                    }
+
+                    $data->respuesta = 'ok';
+                    $data->usuario = [
+                        'id' => $usuario->id,
+                        'nombres' => $usuario->nombres,
+                        'apellidos' => $usuario->apellidos,
+                        'email' => $usuario->email,
+                        'rol_nombre' => $usuario->rol->name ?? 'Sin rol',
+                    ];
+                    $data->permisos = $resultado;
+                    break;
+
+                case 'ListarExcepciones':
+                    $excepciones = ExcepcionNotificacionUsuario::with([
+                        'usuario:id,nombres,apellidos,email',
+                        'tipoNotificacion:id,nombre,icono,color'
+                    ])
+                    ->whereHas('usuario', function($q) {
+                        $q->where('id_rol', '!=', 2);
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                    ->map(function($excepcion) {
+                        return [
+                            'id' => $excepcion->id,
+                            'usuario_id' => $excepcion->usuario_id,
+                            'usuario_nombre' => $excepcion->usuario->nombres . ' ' . $excepcion->usuario->apellidos,
+                            'usuario_email' => $excepcion->usuario->email,
+                            'tipo_id' => $excepcion->tipo_notificacion_id,
+                            'tipo_nombre' => $excepcion->tipoNotificacion->nombre,
+                            'tipo_icono' => $excepcion->tipoNotificacion->icono,
+                            'tipo_color' => $excepcion->tipoNotificacion->color,
+                            'tipo_excepcion' => $excepcion->tipo_excepcion,
+                            'motivo' => $excepcion->motivo,
+                            'created_at' => $excepcion->created_at->format('d/m/Y H:i'),
+                        ];
+                    });
+
+                    $data->respuesta = 'ok';
+                    $data->excepciones = $excepciones;
+                    break;
+
+                default:
+                    $data->respuesta = 'error';
+                    $data->mensaje = 'Opción inválida';
+                    break;
+            }
+
+            return response()->json($data);
+        } else {
+            $data = new \stdClass();
+            $data->script = 'js/permisosNotificaciones.js';
+            $data->css = 'css/administracion.css';
+            $data->contenido = 'administracionDelSistema.permisosNotificaciones';
+            
+            $data->roles = Rol::where('id', '!=', 2)
+            ->orderBy('name')->get();
+            $data->tiposNotificacion = TipoNotificacion::where('activo', true)
+                ->orderBy('nombre')
+                ->get();
+            
+            $permisosRoles = [];
+            $permisosDb = PermisoNotificacion::all();
+            
+            foreach ($data->roles as $rol) {
+                $permisosRoles[$rol->id] = [];
+                foreach ($data->tiposNotificacion as $tipo) {
+                    $permiso = $permisosDb
+                        ->where('rol_id', $rol->id)
+                        ->where('tipo_notificacion_id', $tipo->id)
+                        ->first();
+                    
+                    $permisosRoles[$rol->id][$tipo->id] = $permiso ? $permiso->puede_ver : false;
+                }
+            }
+            
+            $data->permisosRoles = $permisosRoles;
+            $data->excepciones = ExcepcionNotificacionUsuario::with([
+                'usuario:id,nombres,apellidos,email',
+                'tipoNotificacion:id,nombre,icono,color'
+            ])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+            return view('layouts.contenido', (array) $data);
+        }
+    }
+
     public function getProvincias($departamento_id)
     {
         $provincias = Provincia::where('departamento_id', $departamento_id)->get();
@@ -1129,6 +1588,88 @@ class AdministracionDelSistema extends Controller
     {
         $distritos = Distrito::where('provincia_id', $provincia_id)->get();
         return response()->json($distritos);
+    }
+
+    /**
+     * Detectar qué campos cambiaron entre el usuario anterior y el nuevo
+     */
+    private function detectarCambiosUsuario(array $antes, array $despues, array $antesDato = [], array $despuesDato = []): array
+    {
+        $cambios = [];
+        
+        $camposUser = ['nombres', 'apellidos', 'email', 'id_rol', 'estado'];
+        foreach ($camposUser as $campo) {
+            if (isset($antes[$campo]) && isset($despues[$campo]) && $antes[$campo] != $despues[$campo]) {
+                $cambios[] = $campo;
+            }
+        }
+        
+        $camposDato = ['tipoDoc', 'numeroDoc', 'celular', 'fecha_nacimiento', 'nacionalidad', 'distrito', 'provincia', 'departamento'];
+        foreach ($camposDato as $campo) {
+            if (isset($antesDato[$campo]) && isset($despuesDato[$campo]) && $antesDato[$campo] != $despuesDato[$campo]) {
+                $cambios[] = $campo;
+            }
+        }
+        
+        return $cambios;
+    }
+
+    /**
+     * Crear una notificación personal para un usuario
+     * 
+     * @param User $user        Usuario destinatario
+     * @param string $titulo    Título de la notificación
+     * @param string $mensaje   Mensaje completo
+     * @param array $dataExtra  Datos adicionales (opcional)
+     * @param string $url       URL del botón (opcional)
+     * @param string $botonTexto Texto del botón (opcional)
+     */
+    private function crearNotificacionParaUsuario(
+        User $user,
+        string $titulo,
+        string $mensaje,
+        array $dataExtra = [],
+        ?string $url = null,
+        ?string $botonTexto = null
+    ) {
+        // Obtener el tipo "Usuario"
+        $tipo = TipoNotificacion::where('slug', 'usuario')->first();
+        
+        if (!$tipo) {
+            \Log::warning('No existe el tipo de notificación "usuario"');
+            return null;
+        }
+
+        $notificacion = \App\Models\Notificacion::create([
+            'tipo_notificacion_id' => $tipo->id,
+            'creado_por'           => null, 
+            'titulo'               => $titulo,
+            'mensaje'              => $mensaje,
+            'mensaje_corto'        => mb_substr($mensaje, 0, 120),
+            'data_extra'           => array_merge($dataExtra, [
+                'fecha' => now()->toDateTimeString(),
+            ]),
+            'url'                  => $url,
+            'boton_texto'          => $botonTexto,
+            'prioridad'            => 'baja',
+            'fecha_inicio'         => now(),
+            'fecha_fin'            => null,
+            'usuario_id'           => $user->id,
+            'rol_id'               => null,      
+            'visible'              => true,
+            'eliminada'            => false,
+        ]);
+
+        // Forzar asignación en la tabla pivote (por si el evento created falla)
+        $notificacion->usuarios()->syncWithoutDetaching([
+            $user->id => [
+                'leida' => false,
+                'leida_en' => null,
+                'fecha_visualizacion' => null,
+            ]
+        ]);
+
+        return $notificacion;
     }
 
     /**

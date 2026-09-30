@@ -109,21 +109,12 @@ async function actualizarOpcionesPorTerminos(productoId, terminosIds) {
                 option.style.cursor = 'pointer';
                 option.title = option.textContent.trim();
                 
-                const stockBadge = document.createElement('span');
-                stockBadge.className = 'badge bg-success stock-badge ms-1';
-                stockBadge.textContent = 'Stock';
-                option.appendChild(stockBadge);
             } else {
                 option.classList.add('disabled');
                 option.style.opacity = '0.5';
                 option.style.pointerEvents = 'none';
                 option.style.cursor = 'not-allowed';
                 option.title = option.textContent.trim() + ' (Sin stock)';
-                
-                const stockBadge = document.createElement('span');
-                stockBadge.className = 'badge bg-danger stock-badge ms-1';
-                stockBadge.textContent = 'Sin stock';
-                option.appendChild(stockBadge);
             }
         });
     });

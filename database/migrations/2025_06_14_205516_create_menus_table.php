@@ -129,6 +129,23 @@ return new class extends Migration
                 'orden' => 1,
                 'icono' => 'bi bi-pin-map',
             ],
+
+            [
+                'id' => 13,
+                'nombre' => 'Permisos de Notificaciones',
+                'url' => 'AdministracionDelSistema/permisosNotificaciones',
+                'padre' => 1,  
+                'orden' => 3,  
+                'icono' => 'bi bi-bell-fill',
+            ],
+            [
+                'id' => 14,
+                'nombre' => 'Métodos de Pago',
+                'url' => 'AdministrarPagos/lista',
+                'padre' => 3,
+                'orden' => 4,
+                'icono' => 'bi bi-credit-card',
+            ],
         ];
 
         foreach ($menus as $menu) {

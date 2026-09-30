@@ -68,14 +68,6 @@
                     No tenemos productos que coincidan con tu búsqueda. 
                     Prueba con otras palabras o explora nuestras categorías.
                 </p>
-                <div class="suggestions-box mt-4">
-                    <p class="text-muted small">Sugerencias:</p>
-                    <ul class="list-unstyled d-flex flex-wrap justify-content-center gap-2">
-                        <li><span class="badge bg-light text-dark p-2">Revisa la ortografía</span></li>
-                        <li><span class="badge bg-light text-dark p-2">Usa términos más generales</span></li>
-                        <li><span class="badge bg-light text-dark p-2">Prueba con menos palabras</span></li>
-                    </ul>
-                </div>
                 <a href="{{ route('tienda.home') }}" class="btn-primary-custom mt-3">
                     <i class="bi bi-house me-2"></i> Volver al inicio
                 </a>

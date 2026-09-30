@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const toggleBtn = document.getElementById('toggleSidebar');
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const overlay = document.getElementById('sidebarOverlay');
-
+    
     let isExpanded = false;
     let isMobile = window.innerWidth <= 768;
 
@@ -193,6 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
         });
     }
+    actualizarContador()
 });
 
 
@@ -396,4 +397,33 @@ function bindBotones(contenedor, inputHidden) {
             inputHidden.value = btn.dataset.icon;
         });
     });
+}
+async function actualizarContador() {
+    try {
+        const res = await fetch(`/notificaciones/panel/no-leidas/count`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            actualizarBadgeSidebar(data.count);
+            const statNoLeidas = document.getElementById('statNoLeidas');
+            if (statNoLeidas) {
+                statNoLeidas.textContent = data.count;
+            }
+        }
+    } catch (err) {
+        console.error('Error contador:', err);
+    }
+}
+function actualizarBadgeSidebar(count) {
+    const badge = document.getElementById('badgeNotificaciones');
+    if (!badge) return;
+
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.setProperty('display', 'block', 'important');
+    } else {
+        badge.style.setProperty('display', 'none', 'important');
+    }
 }

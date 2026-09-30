@@ -1318,3 +1318,304 @@ window.updateAuthUI = updateAuthUI;
         }
     }
     
+// =============================================
+// SISTEMA DE NOTIFICACIONES - SOLO CARGA INICIAL
+// =============================================
+
+let isNotificationsOpen = false;
+
+/**
+ * Cargar notificaciones del usuario (solo una vez)
+ */
+async function loadNotifications() {
+    const list = document.getElementById('notificationsList');
+    const count = document.getElementById('notificationsCount');
+    const wrapper = document.querySelector('.notification-btn-wrapper');
+    
+    if (!list) return;
+    
+    try {
+        const response = await fetch('/notificaciones/usuario', {
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                'Accept': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const notificaciones = data.data || [];
+            const noLeidas = data.no_leidas || 0;
+            
+            // Actualizar contador
+            if (count) {
+                count.textContent = noLeidas;
+                if (noLeidas > 0) {
+                    count.classList.add('has-notifications');
+                    if (wrapper) wrapper.classList.add('has-notifications');
+                } else {
+                    count.classList.remove('has-notifications');
+                    if (wrapper) wrapper.classList.remove('has-notifications');
+                }
+            }
+            
+            // Renderizar lista
+            if (notificaciones.length === 0) {
+                list.innerHTML = `
+                    <div id="notificationsEmpty">
+                        <i class="bi bi-bell-slash"></i>
+                        <div>No tienes notificaciones</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = notificaciones.map(notif => {
+                const isUnread = !notif.leida;
+                const icon = notif.tipo?.icono || 'bi-bell';
+                const color = notif.tipo?.color || '#3498db';
+                const time = notif.created_at ? new Date(notif.created_at) : null;
+                const timeStr = time ? formatTimeAgo(time) : '';
+                
+                return `
+                    <a href="${notif.url || '#'}" 
+                       class="notification-item ${isUnread ? 'unread' : 'read'}" 
+                       data-id="${notif.id}"
+                       onclick="markAsRead(${notif.id}, event)">
+                        <div class="notification-icon-wrapper" style="background: ${color}20; color: ${color};">
+                            <i class="bi ${icon}"></i>
+                        </div>
+                        <div class="notification-content">
+                            <div class="title">${escapeHtml(notif.titulo)}</div>
+                            <div class="message">${escapeHtml(notif.mensaje_corto || notif.mensaje)}</div>
+                            <div class="time"><i class="bi bi-clock"></i> ${timeStr}</div>
+                        </div>
+                        ${isUnread ? '<span class="notification-badge"></span>' : ''}
+                    </a>
+                `;
+            }).join('');
+        }
+    } catch (error) {
+        console.error('Error al cargar notificaciones:', error);
+        list.innerHTML = `
+            <div id="notificationsEmpty">
+                <i class="bi bi-exclamation-triangle" style="color: #e74c3c;"></i>
+                <div>Error al cargar notificaciones</div>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Marcar notificación como leída
+ */
+async function markAsRead(notificacionId, event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    try {
+        const response = await fetch(`/notificaciones/${notificacionId}/leer`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Recargar notificaciones para actualizar la lista
+            await loadNotifications();
+            
+            const item = document.querySelector(`.notification-item[data-id="${notificacionId}"]`);
+            if (item) {
+                const url = item.getAttribute('href');
+                if (url && url !== '#') {
+                    setTimeout(() => {
+                        window.location.href = url;
+                    }, 300);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error al marcar como leída:', error);
+    }
+}
+
+/**
+ * Marcar todas como leídas
+ */
+async function markAllAsRead() {
+    try {
+        const response = await fetch('/notificaciones/marcar-todas-leidas', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            await loadNotifications();
+            closeNotificationsDropdown();
+        }
+    } catch (error) {
+        console.error('Error al marcar todas como leídas:', error);
+    }
+}
+
+/**
+ * Formatear tiempo
+ */
+function formatTimeAgo(date) {
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    
+    if (diff < 60) return 'Hace unos segundos';
+    if (diff < 3600) return `Hace ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `Hace ${Math.floor(diff / 3600)} h`;
+    if (diff < 604800) return `Hace ${Math.floor(diff / 86400)} d`;
+    
+    return date.toLocaleDateString('es-ES', { 
+        day: '2-digit', 
+        month: 'short' 
+    });
+}
+
+/**
+ * Escapar HTML
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Abrir dropdown de notificaciones
+ */
+function openNotificationsDropdown() {
+    const dropdown = document.getElementById('notificationsDropdown');
+    if (!dropdown) {
+        console.warn('Dropdown no encontrado');
+        return;
+    }
+    
+    dropdown.classList.add('show');
+    isNotificationsOpen = true;
+    // No recargamos notificaciones al abrir, ya se cargaron al inicio
+}
+
+/**
+ * Cerrar dropdown de notificaciones
+ */
+function closeNotificationsDropdown() {
+    const dropdown = document.getElementById('notificationsDropdown');
+    if (!dropdown) {
+        console.warn('Dropdown no encontrado');
+        return;
+    }
+    
+    dropdown.classList.remove('show');
+    isNotificationsOpen = false;
+}
+
+/**
+ * Toggle dropdown de notificaciones
+ */
+function toggleNotificationsDropdown() {
+    if (isNotificationsOpen) {
+        closeNotificationsDropdown();
+    } else {
+        openNotificationsDropdown();
+    }
+}
+
+// =============================================
+// INICIALIZACIÓN
+// =============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    loadNotifications();
+    
+    // ===== EVENTOS =====
+    
+    // Botón de notificaciones - Toggle
+    const notifBtn = document.getElementById('notificationsBtn');
+    if (notifBtn) {
+        notifBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleNotificationsDropdown();
+        });
+    }
+    
+    // Marcar todas como leídas
+    const markAllBtn = document.getElementById('markAllReadBtn');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            markAllAsRead();
+        });
+    }
+    
+    // Ver todas las notificaciones
+    const viewAllBtn = document.getElementById('viewAllNotificationsBtn');
+    if (viewAllBtn) {
+        viewAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeNotificationsDropdown();
+            window.location.href = '/notificaciones';
+        });
+    }
+    
+    // Cerrar en móvil
+    const closeMobileBtn = document.getElementById('closeNotificationsMobile');
+    if (closeMobileBtn) {
+        closeMobileBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            closeNotificationsDropdown();
+        });
+    }
+    
+    // Cerrar al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        const dropdown = document.getElementById('notificationsDropdown');
+        const btn = document.getElementById('notificationsBtn');
+        const wrapper = document.querySelector('.notification-btn-wrapper');
+        
+        if (!dropdown || !btn || !wrapper) return;
+        
+        if (!wrapper.contains(e.target) && dropdown.classList.contains('show')) {
+            closeNotificationsDropdown();
+        }
+    });
+    
+    // Cerrar con tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && isNotificationsOpen) {
+            closeNotificationsDropdown();
+        }
+    });
+    
+    // Prevenir cierre al hacer clic dentro del dropdown
+    const dropdown = document.getElementById('notificationsDropdown');
+    if (dropdown) {
+        dropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+    
+});

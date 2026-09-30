@@ -83,9 +83,12 @@
 
             <!-- Elementos estáticos adicionales (siempre visibles) -->
             <li class="menu-item">
-                <a href="{{ url('/notificaciones') }}" data-tooltip="Notificaciones">
+                <a href="{{ route('notificaciones.panel.vista') }}" 
+                data-tooltip="Notificaciones"
+                id="linkNotificaciones">
                     <i class="bi bi-bell"></i>
                     <span>Notificaciones</span>
+                    <span class="badge-notificaciones" id="badgeNotificaciones" style="display:none !important;"></span>
                 </a>
             </li>
             
