@@ -15,6 +15,8 @@ use App\Models\Departamento;
 use App\Http\Controllers\BusquedaController;
 use App\Http\Controllers\NotificacionPanelController;
 use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\CarritoController;
+use App\Http\Controllers\CheckoutController;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\PasswordResetController;
 
@@ -213,6 +215,23 @@ Route::get('/get-iconos', function () {
 Route::get('/main', [LoginController::class, 'main'])
     ->name('main')
     ->middleware('auth');
+
+Route::get('/carrito', [CarritoController::class, 'vista'])->name('carrito.vista');
+
+Route::middleware('auth')->prefix('carrito')->group(function () {
+    Route::get('/data', [CarritoController::class, 'index'])->name('carrito.index');
+    Route::post('/agregar', [CarritoController::class, 'agregar'])->name('carrito.agregar');
+    Route::put('/item/{itemId}', [CarritoController::class, 'actualizar'])->name('carrito.actualizar');
+    Route::delete('/item/{itemId}', [CarritoController::class, 'eliminar'])->name('carrito.eliminar');
+    Route::delete('/vaciar', [CarritoController::class, 'vaciar'])->name('carrito.vaciar');
+    Route::get('/count', [CarritoController::class, 'count'])->name('carrito.count');
+    Route::get('/cross-sells', [CarritoController::class, 'crossSellsHtml'])->name('carrito.cross-sells');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+    Route::post('/checkout/confirmar', [CheckoutController::class, 'confirmar'])->name('checkout.confirmar');
+});
 
 // =============================================
 // RUTAS CON MIDDLEWARE AUTH

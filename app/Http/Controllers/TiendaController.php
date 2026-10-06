@@ -17,6 +17,7 @@ use App\Models\Atributo;
 use App\Models\AtributoPrioridad;
 use App\Models\Notificacion;
 use App\Models\TipoNotificacion;
+use App\Models\Carrito;
 use App\Helpers\ConfiguracionHelper;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -1282,6 +1283,12 @@ class TiendaController extends Controller
     public function logoutCliente(Request $request)
     {
         if (Auth::check()) {
+            $carrito = Carrito::where('user_id', Auth::id())->first();
+            if ($carrito) {
+                $carrito->vaciar(true);
+                $carrito->delete();
+            }
+
             Auth::user()->update(['conectado' => false]);
             Auth::logout();
             $request->session()->invalidate();
@@ -1692,7 +1699,7 @@ class TiendaController extends Controller
     /**
      * Procesa una colección de productos para agregar variaciones_tarjeta
      */
-    private function procesarVariacionesTarjeta($productos)
+    public function procesarVariacionesTarjeta($productos)
     {
         return $productos->map(function($producto) {
             if ($producto->tipo_producto === 'variable') {

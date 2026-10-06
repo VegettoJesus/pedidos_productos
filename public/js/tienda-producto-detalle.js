@@ -120,9 +120,7 @@ async function actualizarOpcionesPorTerminos(productoId, terminosIds) {
     });
 }
 
-// 🔥 Función para obtener el atributo ID de un término
 function getAtributoIdByTermino(terminoId) {
-    // Buscar en todas las variaciones
     for (const variacion of variacionesDataGlobal) {
         if (variacion.atributos && Array.isArray(variacion.atributos)) {
             const found = variacion.atributos.find(a => a.id === terminoId);
@@ -132,7 +130,6 @@ function getAtributoIdByTermino(terminoId) {
         }
     }
     
-    // 🔥 Si no se encuentra, buscar en el DOM
     const option = document.querySelector(`.variation-option[data-termino-id="${terminoId}"]`);
     if (option) {
         const attrId = option.dataset.atributoId;
@@ -144,7 +141,6 @@ function getAtributoIdByTermino(terminoId) {
     return null;
 }
 
-// 🔥 Función para actualizar imágenes de la variación
 function actualizarImagenesVariacion(variacion) {
     const mainImage = document.getElementById('mainProductImage');
     let thumbnailList = document.querySelector('.thumbnail-list');
@@ -211,7 +207,6 @@ function actualizarUI(variacion) {
         return;
     }
     
-    // 1. ACTUALIZAR PRECIO
     const precioContainer = document.querySelector('.product-price-detailed');
     if (precioContainer) {
         const precioRegular = parseFloat(variacion.precio_regular) || 0;
@@ -232,7 +227,6 @@ function actualizarUI(variacion) {
         }
     }
     
-    // 2. ACTUALIZAR STOCK
     const stockDiv = document.querySelector('.product-stock');
     if (stockDiv) {
         const stock = parseInt(variacion.stock) || 0;
@@ -248,7 +242,6 @@ function actualizarUI(variacion) {
         stockDiv.innerHTML = estadoMap[estadoActual] || estadoMap['agotado'];
     }
     
-    // 3. ACTUALIZAR SKU
     const skuElement = document.getElementById('productSku');
     if (skuElement) {
         if (variacion.sku) {
@@ -258,7 +251,6 @@ function actualizarUI(variacion) {
         }
     }
 
-    // 4. ACTUALIZAR DESCRIPCIÓN CORTA
     const shortDescription = document.querySelector('.product-short-description');
     if (shortDescription) {
         if (variacion.descripcion) {
@@ -268,10 +260,8 @@ function actualizarUI(variacion) {
         }
     }
     
-    // 5. ACTUALIZAR IMÁGENES
     actualizarImagenesVariacion(variacion);
     
-    // 6. ACTUALIZAR CONTENEDOR DE INFORMACIÓN
     const infoDiv = document.getElementById('selectedVariationInfo');
     if (infoDiv) {
         infoDiv.style.display = 'block';
@@ -295,13 +285,8 @@ function actualizarUI(variacion) {
         }
     }
     
-    // 7. ACTUALIZAR ESPECIFICACIONES
     actualizarEspecificaciones(variacion);
-    
-    // 🔥 8. ACTUALIZAR SELECTOR DE CANTIDAD (NUEVO)
     actualizarSelectorCantidad(variacion);
-    
-    // 9. MOSTRAR BOTÓN DE CARRITO
     const cartActions = document.querySelector('.cart-actions');
     if (cartActions) {
         const estadoActual = variacion.estado_actual || 'agotado';
@@ -368,12 +353,9 @@ function actualizarSelectorCantidad(variacion) {
                              variacion.gestion_inventario === 'true';
     
     let maxValue = 99;
-    
-    // Si se vende individualmente, máximo 1
     if (vendidoIndividualmenteGlobal) {
         maxValue = 1;
     }
-    // 🔥 SOLO si el estado NO es 'por_pedido' ni 'agotado'
     else if (estadoActual !== 'por_pedido' && estadoActual !== 'agotado') {
         if (gestionInventario && stock > 0) {
             maxValue = stock;
@@ -530,7 +512,6 @@ async function obtenerOrdenAtributos(productoId) {
     } catch (error) {
     }
     
-    // Fallback: obtener del DOM
     const groups = document.querySelectorAll('.variation-options');
     ordenAtributos = [];
     groups.forEach(group => {
@@ -626,7 +607,6 @@ function actualizarMensajeSeleccion() {
     const tieneSeleccion = document.querySelector('.variation-option.active') !== null;
     
     if (productStock) {
-        // Verificar si todos los atributos están seleccionados
         let todosSeleccionados = true;
         let seleccionesValidas = 0;
         
@@ -639,11 +619,9 @@ function actualizarMensajeSeleccion() {
             }
         });
         
-        // 🔥 SOLO mostrar mensaje si hay al menos una selección y no están todos seleccionados
         if (tieneSeleccion && !todosSeleccionados) {
             productStock.innerHTML = '<span class="text-muted">⏳ Selecciona todas las opciones</span>';
         } else if (!tieneSeleccion) {
-            // Si no hay selección, mantener el mensaje inicial
             if (!productStock.dataset.mensajeInicial) {
                 productStock.dataset.mensajeInicial = productStock.innerHTML;
             }
@@ -670,7 +648,6 @@ function actualizarMensajeSeleccion() {
     }
 }
 
-// 🔥 MANEJADOR DE CLIC (SOLO PARA PRODUCTOS VARIABLES)
 async function handleVariacionClick(event) {
     const option = this;
     const parentGroup = option.closest('.variation-options');
@@ -679,32 +656,19 @@ async function handleVariacionClick(event) {
     if (option.classList.contains('disabled')) return;
     
     const atributoId = option.dataset.atributoId;
-    
-    // Remover active del grupo
     parentGroup.querySelectorAll('.variation-option').forEach(opt => {
         opt.classList.remove('active');
     });
     
-    // Activar esta opción
     option.classList.add('active');
-    
     const productoId = productoIdGlobal;
-    
-    // Limpiar selecciones posteriores
     limpiarSeleccionesPosteriores(atributoId);
-    
-    // Obtener términos seleccionados
     const terminosSeleccionados = getTerminosSeleccionadosHasta(atributoId);
-    
-    // Actualizar opciones disponibles
     if (terminosSeleccionados.length > 0) {
         await actualizarOpcionesPorTerminos(productoId, terminosSeleccionados);
     }
     
-    // ACTUALIZAR MENSAJE DE SELECCIÓN
     actualizarMensajeSeleccion();
-    
-    // VERIFICAR SI TODOS LOS ATRIBUTOS ESTÁN SELECCIONADOS
     const grupos = document.querySelectorAll('.variation-options');
     let todasSeleccionadas = true;
     const terminosFinales = [];
@@ -718,10 +682,8 @@ async function handleVariacionClick(event) {
         }
     });
     
-    // 🔥 SOLO SI TODOS LOS ATRIBUTOS ESTÁN SELECCIONADOS
     if (todasSeleccionadas && terminosFinales.length === grupos.length && terminosFinales.length > 0) {
         
-        // 🔥 Buscar la variación que coincide en variacionesDataGlobal
         const variacionExacta = variacionesDataGlobal.find(variacion => {
             if (!variacion || !variacion.atributos || !Array.isArray(variacion.atributos)) {
                 return false;
@@ -750,11 +712,9 @@ async function handleVariacionClick(event) {
             const detalle = await fetchVariacionDetalle(productoId, variacionExacta.id);
             
             if (detalle && tieneStockDisponible(detalle)) {
-                // ACTUALIZAR UI CON LA VARIACIÓN COMPLETA
                 actualizarUI(detalle);
                 variacionActual = detalle;
             } else {
-                // No tiene stock disponible
                 const productStock = document.querySelector('.product-stock');
                 if (productStock) {
                     const estadoActual = detalle?.estado_actual || 'agotado';
@@ -772,7 +732,6 @@ async function handleVariacionClick(event) {
                 }
             }
         } else {
-            // No se encontró variación
             const productStock = document.querySelector('.product-stock');
             if (productStock) {
                 productStock.innerHTML = '<span class="out-of-stock">Combinación no disponible</span>';
@@ -783,7 +742,6 @@ async function handleVariacionClick(event) {
             }
         }
     } else {
-        // No todos los atributos están seleccionados
         const cartActions = document.querySelector('.cart-actions');
         if (cartActions) {
             cartActions.style.display = 'none';
@@ -811,7 +769,6 @@ function mostrarEstadoInicial() {
         gruposMap[atributoId] = group;
     });
     
-    // Reordenar en el DOM según ordenAtributos
     ordenAtributos.forEach(atributoId => {
         const grupo = gruposMap[atributoId];
         if (grupo) {
@@ -819,7 +776,6 @@ function mostrarEstadoInicial() {
         }
     });
     
-    // Ahora aplicar estados
     document.querySelectorAll('.variation-options').forEach(group => {
         const atributoId = group.dataset.atributoId;
         const esPrimero = (String(atributoId) === String(primerAtributoId));
@@ -891,7 +847,6 @@ async function inicializarVariaciones() {
             }
         }
         
-        // Esperar a que el DOM se actualice
         await new Promise(resolve => setTimeout(resolve, 200));
         
         await obtenerOrdenAtributos(productoIdGlobal);
@@ -903,20 +858,17 @@ async function inicializarVariaciones() {
             descripcionOriginal = shortDesc.innerHTML;
         }
         
-        // OCULTAR CARRITO Y MOSTRAR MENSAJE POR DEFECTO
         const cartActions = document.querySelector('.cart-actions');
         if (cartActions) {
             cartActions.style.display = 'none';
         }
         
-        // ESTABLECER MENSAJE INICIAL
         const productStock = document.querySelector('.product-stock');
         if (productStock) {
             productStock.dataset.mensajeInicial = productStock.innerHTML;
             productStock.innerHTML = '<span class="text-muted">⏳ Selecciona todas las opciones</span>';
         }
         
-        // Asignar evento de clic
         document.querySelectorAll('.variation-option').forEach(option => {
             option.removeEventListener('click', handleVariacionClick);
             option.addEventListener('click', handleVariacionClick);
@@ -935,202 +887,378 @@ async function inicializarVariaciones() {
     }
 }
 
-// =============================================
-// INICIALIZACIÓN DOM
-// =============================================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     mostrarLoaderInicial();
-    // Inicializar variaciones
     setTimeout(inicializarVariaciones, 100);
-    
-    // Cambio de imagen principal al hacer clic en thumbnail
     document.querySelectorAll('.thumbnail').forEach(thumb => {
-        thumb.addEventListener('click', function() {
+        thumb.addEventListener('click', function () {
             document.getElementById('mainProductImage').src = this.dataset.image;
             document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
         });
     });
 
+    initSelectorCantidadSimple();
+    initSelectoresCantidadAgrupados();
+    initBotonAgregarSimple();
+    initBotonAgregarAgrupado();
+    initTabs();
+});
+
+function initSelectorCantidadSimple() {
     const minusBtn = document.querySelector('.cart-actions .qty-btn.minus:not(.grouped-minus)');
-    const plusBtn = document.querySelector('.cart-actions .qty-btn.plus:not(.grouped-plus)');
+    const plusBtn  = document.querySelector('.cart-actions .qty-btn.plus:not(.grouped-plus)');
     const qtyInput = document.querySelector('.cart-actions .qty-input:not(.grouped-qty-input)');
-    
-    if (minusBtn && plusBtn && qtyInput) {
-        // 🔥 Función que obtiene el max actual del input
-        function getCurrentMax() {
-            return parseInt(qtyInput.max) || parseInt(qtyInput.dataset.max) || 99;
-        }
-        
-        function updateButtons() {
-            let val = parseInt(qtyInput.value) || 1;
-            const maxVal = getCurrentMax();
-            minusBtn.disabled = val <= 1;
-            plusBtn.disabled = val >= maxVal;
-        }
-        
-        minusBtn.addEventListener('click', function() {
-            let val = parseInt(qtyInput.value);
-            if (val > 1) {
-                qtyInput.value = val - 1;
-                updateButtons();
-                qtyInput.dispatchEvent(new Event('change'));
-            }
-        });
-        
-        plusBtn.addEventListener('click', function() {
-            let val = parseInt(qtyInput.value);
-            const maxVal = getCurrentMax();
-            if (val < maxVal) {
-                qtyInput.value = val + 1;
-                updateButtons();
-                qtyInput.dispatchEvent(new Event('change'));
-            }
-        });
-        
-        qtyInput.addEventListener('change', function() {
-            const maxVal = getCurrentMax();
-            let val = parseInt(this.value) || 1;
-            if (val < 1) val = 1;
-            if (val > maxVal) val = maxVal;
-            this.value = val;
-            updateButtons();
-        });
-        
-        qtyInput.addEventListener('input', function() {
-            const maxVal = getCurrentMax();
-            let val = parseInt(this.value) || 1;
-            if (val < 1) val = 1;
-            if (val > maxVal) val = maxVal;
-            if (parseInt(this.value) > maxVal) {
-                this.style.borderColor = 'red';
-            } else {
-                this.style.borderColor = '';
-            }
-        });
-        
-        // Inicializar estado de los botones
-        updateButtons();
-        
-        // Si el max inicial es 1, deshabilitar
-        if (getCurrentMax() === 1) {
-            qtyInput.disabled = true;
-            qtyInput.value = 1;
-            minusBtn.disabled = true;
-            plusBtn.disabled = true;
-        }
+
+    if (!minusBtn || !plusBtn || !qtyInput) return;
+
+    function getCurrentMax() {
+        return parseInt(qtyInput.max) || parseInt(qtyInput.dataset.max) || 99;
     }
 
-    // Selectores de cantidad para productos agrupados
-    document.querySelectorAll('.grouped-qty').forEach(group => {
-        const minusBtn = group.querySelector('.grouped-minus');
-        const plusBtn = group.querySelector('.grouped-plus');
-        const qtyInput = group.querySelector('.grouped-qty-input');
-        
-        if (minusBtn && plusBtn && qtyInput) {
-            const maxValue = parseInt(qtyInput.dataset.max || qtyInput.max || 99);
-            const minValue = parseInt(qtyInput.dataset.min || qtyInput.min || 0);
+    function updateButtons() {
+        const val = parseInt(qtyInput.value) || 1;
+        const maxVal = getCurrentMax();
+        minusBtn.disabled = val <= 1;
+        plusBtn.disabled = val >= maxVal;
+    }
+
+    minusBtn.addEventListener('click', () => {
+        let val = parseInt(qtyInput.value);
+        if (val > 1) {
+            qtyInput.value = val - 1;
+            updateButtons();
             
-            function updateGroupedButtons() {
-                let val = parseInt(qtyInput.value) || 0;
-                minusBtn.disabled = val <= minValue;
-                plusBtn.disabled = val >= maxValue;
-            }
-            
-            minusBtn.addEventListener('click', () => {
-                let val = parseInt(qtyInput.value);
-                if (val > minValue) {
-                    qtyInput.value = val - 1;
-                    updateGroupedButtons();
-                    qtyInput.dispatchEvent(new Event('change'));
-                }
-            });
-            
-            plusBtn.addEventListener('click', () => {
-                let val = parseInt(qtyInput.value);
-                if (val < maxValue) {
-                    qtyInput.value = val + 1;
-                    updateGroupedButtons();
-                    qtyInput.dispatchEvent(new Event('change'));
-                }
-            });
-            
-            qtyInput.addEventListener('change', function() {
-                let val = parseInt(this.value) || 0;
-                if (val < minValue) val = minValue;
-                if (val > maxValue) val = maxValue;
-                this.value = val;
-                updateGroupedButtons();
-            });
-            
-            qtyInput.addEventListener('input', function() {
-                let val = parseInt(this.value) || 0;
-                if (val < minValue) val = minValue;
-                if (val > maxValue) val = maxValue;
-                if (parseInt(this.value) > maxValue || parseInt(this.value) < minValue) {
-                    this.style.borderColor = 'red';
-                } else {
-                    this.style.borderColor = '';
-                }
-            });
-            
-            updateGroupedButtons();
-            if (maxValue === 1 && minValue === 0) {
-                qtyInput.disabled = false;
-                qtyInput.value = 0;
-                updateGroupedButtons();
-            }
         }
     });
 
-    // Botón para añadir productos agrupados al carrito
-    const addGroupedBtn = document.getElementById('addGroupedToCart');
-    if (addGroupedBtn) {
-        addGroupedBtn.addEventListener('click', function() {
-            const items = [];
-            const productItems = document.querySelectorAll('.grouped-product-item');
-            let totalItems = 0;
-            
-            productItems.forEach(item => {
-                const qtyInput = item.querySelector('.grouped-qty-input');
-                if (qtyInput) {
-                    const productId = qtyInput.dataset.productId;
-                    const quantity = parseInt(qtyInput.value) || 0;
-                    
-                    if (quantity > 0) {
-                        items.push({
-                            id: productId,
-                            quantity: quantity
-                        });
-                        totalItems += quantity;
-                    }
-                }
-            });
-            
-            if (items.length === 0) {
-                const messageDiv = document.getElementById('groupedCartMessage');
-                messageDiv.innerHTML = '<div class="alert alert-warning">Por favor, selecciona al menos un producto (cantidad > 0).</div>';
-                setTimeout(() => { messageDiv.innerHTML = ''; }, 3000);
+    plusBtn.addEventListener('click', () => {
+        let val = parseInt(qtyInput.value);
+        const maxVal = getCurrentMax();
+        if (val < maxVal) {
+            qtyInput.value = val + 1;
+            updateButtons();
+        }
+    });
+
+    qtyInput.addEventListener('change', function () {
+        const maxVal = getCurrentMax();
+        let val = parseInt(this.value) || 1;
+        if (val < 1) val = 1;
+        if (val > maxVal) val = maxVal;
+        this.value = val;
+        updateButtons();
+    });
+
+    qtyInput.addEventListener('input', function () {
+        const maxVal = getCurrentMax();
+        let val = parseInt(this.value) || 1;
+        if (val < 1) val = 1;
+        if (val > maxVal) val = maxVal;
+        this.style.borderColor = parseInt(this.value) > maxVal ? 'red' : '';
+    });
+
+    updateButtons();
+
+    if (getCurrentMax() === 1) {
+        qtyInput.disabled = true;
+        qtyInput.value = 1;
+        minusBtn.disabled = true;
+        plusBtn.disabled = true;
+    }
+}
+
+function initSelectoresCantidadAgrupados() {
+    document.querySelectorAll('.grouped-qty').forEach(group => {
+        const minusBtn = group.querySelector('.grouped-minus');
+        const plusBtn  = group.querySelector('.grouped-plus');
+        const qtyInput = group.querySelector('.grouped-qty-input');
+
+        if (!minusBtn || !plusBtn || !qtyInput) return;
+
+        function getMax() {
+            let max = parseInt(qtyInput.dataset.max, 10);
+            if (isNaN(max)) max = parseInt(qtyInput.getAttribute('max'), 10);
+            if (isNaN(max)) max = 99;
+            return max;
+        }
+        function getMin() {
+            let min = parseInt(qtyInput.dataset.min, 10);
+            if (isNaN(min)) min = parseInt(qtyInput.getAttribute('min'), 10);
+            if (isNaN(min)) min = 0;
+            return min;
+        }
+
+        function updateButtons() {
+            const val = parseInt(qtyInput.value) || 0;
+            const maxValue = getMax();
+            const minValue = getMin();
+            minusBtn.disabled = val <= minValue;
+            plusBtn.disabled  = val >= maxValue;
+        }
+
+        minusBtn.addEventListener('click', () => {
+            let val = parseInt(qtyInput.value) || 0;
+            const minValue = getMin();
+            if (val > minValue) {
+                qtyInput.value = val - 1;
+                updateButtons();
+                actualizarEstadoBotonAgrupado(); // 🔥 NUEVO
+            }
+        });
+
+        plusBtn.addEventListener('click', () => {
+            let val = parseInt(qtyInput.value) || 0;
+            const maxValue = getMax();
+            if (val < maxValue) {
+                qtyInput.value = val + 1;
+                updateButtons();
+                actualizarEstadoBotonAgrupado(); 
+            }
+        });
+
+        qtyInput.addEventListener('change', function () {
+            const maxValue = getMax();
+            const minValue = getMin();
+            let val = parseInt(this.value) || 0;
+            if (val < minValue) val = minValue;
+            if (val > maxValue) val = maxValue;
+            this.value = val;
+            updateButtons();
+            actualizarEstadoBotonAgrupado(); 
+        });
+
+        qtyInput.addEventListener('input', function () {
+            const maxValue = getMax();
+            const minValue = getMin();
+            let val = parseInt(this.value) || 0;
+            if (val < minValue) val = minValue;
+            if (val > maxValue) val = maxValue;
+            this.style.borderColor =
+                (parseInt(this.value) > maxValue || parseInt(this.value) < minValue)
+                    ? 'red' : '';
+            actualizarEstadoBotonAgrupado();
+        });
+
+        updateButtons();
+    });
+
+    actualizarEstadoBotonAgrupado();
+}
+
+function initBotonAgregarSimple() {
+    document.addEventListener('click', async function (e) {
+        const btn = e.target.closest('.add-to-cart-btn');
+        if (!btn) return;
+        if (btn.closest('.grouped-cart-actions')) return; // excluir agrupado
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const container = document.querySelector('.product-detail-container');
+        if (!container) return;
+
+        const productoId = parseInt(container.dataset.productoId);
+
+        if (esProductoVariable) {
+            if (!variacionActual || !variacionActual.variacion_id) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Atención',
+                    text: 'Selecciona todas las opciones del producto',
+                    confirmButtonColor: '#f39c12',
+                });
                 return;
             }
-            
-            const messageDiv = document.getElementById('groupedCartMessage');
-            messageDiv.innerHTML = `<div class="alert alert-success">¡${totalItems} producto(s) añadido(s) al carrito!</div>`;
-            setTimeout(() => { messageDiv.innerHTML = ''; }, 3000);
+
+            const qtyInput = document.querySelector('.cart-actions .qty-input:not(.grouped-qty-input)');
+            const cantidad = parseInt(qtyInput?.value) || 1;
+
+            await ejecutarAgregarCarrito(
+                productoId,
+                variacionActual.variacion_id,
+                cantidad,
+                null,
+                btn
+            );
+        } else {
+            const qtyInput = document.querySelector('#qtyInput') ||
+                             document.querySelector('.cart-actions .qty-input:not(.grouped-qty-input)');
+            const cantidad = parseInt(qtyInput?.value) || 1;
+
+            await ejecutarAgregarCarrito(productoId, null, cantidad, null, btn);
+        }
+    });
+}
+
+function initBotonAgregarAgrupado() {
+    const btn = document.getElementById('addGroupedToCart');
+    if (!btn) return;
+
+    btn.addEventListener('click', async function (e) {
+        e.preventDefault();
+
+        const container = document.querySelector('.product-detail-container');
+        const padreId = parseInt(container?.dataset.productoId);
+
+        const seleccionados = [];
+        document.querySelectorAll('.grouped-product-item').forEach(item => {
+            const qtyInput = item.querySelector('.grouped-qty-input');
+            if (!qtyInput) return;
+            const cantidad = parseInt(qtyInput.value) || 0;
+            if (cantidad > 0) {
+                seleccionados.push({
+                    producto_id: parseInt(qtyInput.dataset.productId),
+                    cantidad,
+                });
+            }
         });
+
+        const messageDiv = document.getElementById('groupedCartMessage');
+
+        if (seleccionados.length === 0) {
+            if (messageDiv) {
+                messageDiv.innerHTML =
+                    '<div class="alert alert-warning">Selecciona al menos un producto (cantidad mayor a 0).</div>';
+                setTimeout(() => (messageDiv.innerHTML = ''), 3000);
+            } else {
+                Swal.fire('Atención', 'Selecciona al menos un producto', 'warning');
+            }
+            return;
+        }
+
+        btn.disabled = true;
+        btn.dataset.processing = '1'; 
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Añadiendo...';
+
+        let okCount = 0;
+        let mensajesError = [];
+
+        for (const s of seleccionados) {
+            const res = await ejecutarAgregarCarrito(
+                s.producto_id,
+                null,
+                s.cantidad,
+                padreId,
+                null,
+                true,   
+                true   
+            );
+            if (res?.ok) okCount++;
+            else if (res?.mensaje) mensajesError.push(res.mensaje);
+        }
+
+        btn.disabled = false;
+        btn.dataset.processing = '0';
+        btn.innerHTML = originalHtml;
+
+        if (okCount > 0) {
+            Swal.fire({
+                icon: 'success',
+                title: `${okCount} producto(s) añadido(s)`,
+                timer: 1600,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end',
+            });
+
+            // Resetear cantidades
+            document.querySelectorAll('.grouped-qty-input').forEach(input => {
+                input.value = 0;
+                input.dispatchEvent(new Event('change'));
+            });
+        } else {
+            Swal.fire(
+                'Error',
+                mensajesError.length ? mensajesError.join('<br>') : 'No se pudo añadir ningún producto',
+                'error'
+            );
+        }
+    });
+}
+
+function actualizarEstadoBotonAgrupado() {
+    const btn = document.getElementById('addGroupedToCart');
+    if (!btn) return;
+    if (btn.dataset.processing === '1') return;
+
+    let haySeleccion = false;
+
+    document.querySelectorAll('.grouped-product-item').forEach(item => {
+        const qtyInput = item.querySelector('.grouped-qty-input');
+        if (!qtyInput) return;
+
+        const cantidad = parseInt(qtyInput.value) || 0;
+        if (cantidad > 0) {
+            haySeleccion = true;
+        }
+    });
+
+    const container = btn.closest('.grouped-cart-actions') || btn;
+    container.style.display = haySeleccion ? '' : 'none';
+}
+
+async function ejecutarAgregarCarrito(
+    productoId,
+    variacionId,
+    cantidad,
+    padreId = null,
+    btn = null,
+    silencioso = false,       
+    actualizarStock = true    
+) {
+    if (!productoId) {
+        return { ok: false, mensaje: 'Producto no especificado' };
     }
 
-    // Pestañas (descripción / especificaciones / valoraciones)
+    if (cantidad < 1) cantidad = 1;
+
+    let originalHtml = '';
+    if (btn) {
+        originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Procesando...';
+    }
+
+    try {
+        const result = await agregarAlCarrito(productoId, variacionId, cantidad, padreId);
+
+        if (result?.requiere_login) {
+            return { ok: false, requiere_login: true };
+        }
+
+        if (result?.ok && actualizarStock) {
+            actualizarStockEnDOM(productoId, variacionId, cantidad);
+        }
+
+        if (!result?.ok && !silencioso) {
+            Swal.fire('Error', result?.mensaje || 'No se pudo agregar al carrito', 'error');
+        }
+
+        return result;
+    } catch (error) {
+        if (!silencioso) {
+            Swal.fire('Error', 'Error de conexión al agregar al carrito', 'error');
+        }
+        return { ok: false, mensaje: 'Error de conexión' };
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+}
+
+function initTabs() {
     document.querySelectorAll('.tabs-nav li').forEach(tab => {
         tab.addEventListener('click', () => {
             const targetTab = tab.dataset.tab;
             document.querySelectorAll('.tabs-nav li').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             const targetContent = document.getElementById(`tab-${targetTab}`);
-            if (targetContent) {
-                targetContent.classList.add('active');
-            }
+            if (targetContent) targetContent.classList.add('active');
         });
     });
-});
+}

@@ -18,7 +18,11 @@
     $productosHijos = $esAgrupado ? $producto->productosHijos()->where('estado', 'publicado')->get() : collect();
 @endphp
 
-<div class="product-detail-container" data-producto-id="{{ $producto->id }}" data-vendido-individualmente="{{ $vendidoIndividualmente ? 'true' : 'false' }}">
+<div class="product-detail-container" 
+     data-producto-id="{{ $producto->id }}" 
+     data-vendido-individualmente="{{ $vendidoIndividualmente ? 'true' : 'false' }}"
+     data-gestion-inventario="{{ $gestionaInventario ? 'true' : 'false' }}"
+     data-backorders="{{ $backordersPermitidos ? 'true' : 'false' }}">
     <div class="product-detail-grid">
         <div class="product-gallery">
             <div class="main-image">
@@ -49,7 +53,6 @@
             </div>
         </div>
 
-        <!-- Columna derecha: Info del producto -->
         <div class="product-info-detailed">
             <div class="product-brand-sku">
                 <span class="product-brand">{{ $producto->marca ?? 'Marca' }}</span>
@@ -61,7 +64,6 @@
             </div>
             <h1 class="product-title">{{ $producto->nombre }}</h1>
             
-            <!-- Rating -->
             @if($permiteValoraciones)
                 <div class="product-rating">
                     <div class="stars-wrapper" data-rating="{{ $producto->rating }}">
@@ -73,7 +75,6 @@
                 </div>
             @endif
 
-            <!-- Precio -->
             <div class="product-price-detailed" 
                 data-precio-regular="{{ $producto->precio_regular }}"
                 data-precio-rebajado="{{ $producto->precio_rebajado }}"
@@ -87,7 +88,6 @@
                 @endif
             </div>
 
-            <!-- Descripción corta -->
             <div class="product-short-description">
                 {!! nl2br(e(Str::limit($producto->descripcion, 200))) !!}
             </div>
@@ -192,12 +192,10 @@
                                             }
                                             
                                             $disponible = $variacion !== null;
-                                            // 🔥 OBTENER VALOR EXTRA (URL de imagen del término)
                                             $valorExtra = isset($valorExtraMap[$atributoId . '_' . $termino->id]) 
                                                 ? $valorExtraMap[$atributoId . '_' . $termino->id] 
                                                 : null;
                                             
-                                            // 🔥 PRIORIDAD: 1. valor_extra del término, 2. imagen de la variación
                                             $imagenUrl = null;
                                             if ($valorExtra) {
                                                 // Si valor_extra es una URL completa o relativa
@@ -234,7 +232,6 @@
                                 </div>
                                 
                             @else
-                                <!-- Label o Default -->
                                 <div class="variation-options label-options" data-tipo="label" data-shape="{{ $data->shape }}" data-atributo-id="{{ $atributoId }}">
                                     @foreach($terminosObjeto as $termino)
                                         @php
@@ -272,7 +269,6 @@
                     @endforeach
                 </div>
                 
-                <!-- DATOS JSON DE VARIACIONES -->
                 <script id="variacionesData" type="application/json">
                     {!! json_encode($producto->variaciones->map(function($v) {
                         return [
@@ -299,7 +295,6 @@
                 </script>
             @endif
 
-            <!-- Stock y cantidad -->
             @if(!$esAgrupado)
                 <div class="product-stock">
                     @if($producto->tipo_producto === 'variable')
@@ -319,7 +314,6 @@
                 </div>
             @endif
 
-            <!-- PARA PRODUCTOS AGRUPADOS: Mostrar cada producto hijo con su selector -->
             @if($esAgrupado && $productosHijos->count() > 0)
                 <div class="grouped-products-section">
                     <h4 class="grouped-title">Productos incluidos en este paquete</h4>
@@ -384,7 +378,9 @@
                                                 class="qty-input grouped-qty-input" 
                                                 data-product-id="{{ $hijo->id }}"
                                                 data-max="{{ $hijoMax }}"
-                                                data-min="{{ $hijoMin }}">
+                                                data-min="{{ $hijoMin }}"
+                                                data-gestion-inventario="{{ $hijoGestionaInventario ? '1' : '0' }}"
+                                                data-backorders="{{ $hijoBackorders ? '1' : '0' }}">
                                             <button class="qty-btn plus grouped-plus" 
                                                     data-id="{{ $hijo->id }}" 
                                                     {{ $hijoMax <= 0 ? 'disabled' : '' }}>+</button>
@@ -414,7 +410,6 @@
                 @endif
 
             @elseif(!$esAgrupado && $puedeComprar)
-                <!-- Selector de cantidad para productos normales -->
                 <div class="cart-actions" @if($producto->tipo_producto === 'variable') style="display: none;" @endif>
                     <div class="quantity-selector">
                         <button class="qty-btn minus" {{ $maxCantidad <= 1 ? 'disabled' : '' }}>-</button>
@@ -429,7 +424,6 @@
                         <button class="qty-btn plus" {{ $maxCantidad <= 1 ? 'disabled' : '' }}>+</button>
                     </div>
                     
-                    <!-- Mostrar mensaje si vendido_individualmente está activo -->
                     @if($vendidoIndividualmente)
                         <small class="text-muted ms-2">* Solo se permite 1 unidad por pedido</small>
                     @endif
@@ -446,7 +440,6 @@
                 </div>
             @endif
 
-            <!-- Categorías y etiquetas MEJORADAS -->
             <div class="product-meta">
                 <div class="meta-item">
                     <i class="bi bi-folder me-2"></i>
@@ -481,7 +474,6 @@
         </div>
     </div>
 
-    <!-- Descripción completa -->
     <div class="product-description-tabs">
         <ul class="tabs-nav">
             <li class="active" data-tab="description">Descripción</li>
@@ -602,7 +594,6 @@
         @endif
     </div>
 
-    <!-- Productos relacionados (opcional) -->
     @if($producto->productosRelacionados->count())
         <div class="related-products">
             <h3>Productos relacionados</h3>
