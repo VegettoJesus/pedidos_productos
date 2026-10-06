@@ -105,6 +105,7 @@
     </div>
 
     {{-- Scripts que ya tenías --}}
+    <script src="{{ asset('js/carrito.js') }}"></script>
     <script src="{{ asset('js/tiendaMain.js') }}"></script>
     @isset($script)
         <script src="{{ asset($script) }}"></script>

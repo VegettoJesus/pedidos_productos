@@ -180,9 +180,9 @@
             <a href="{{ route('producto.detalle', $producto->id) }}" class="btn-view">
                 Ver detalles <i class="bi bi-eye"></i>
             </a>
-            <button class="btn-add-to-cart-quick" data-id="{{ $producto->id }}" title="Agregar al carrito">
+            <!-- <button class="btn-add-to-cart-quick" data-id="{{ $producto->id }}" title="Agregar al carrito">
                 <i class="bi bi-cart-plus"></i>
-            </button>
+            </button> -->
         </div>
     </div>
 </div>

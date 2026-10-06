@@ -1316,6 +1316,10 @@ window.updateAuthUI = updateAuthUI;
                 ${user.nombres}
             `;
         }
+        
+        if (window.actualizarContadorCarrito) {
+            window.actualizarContadorCarrito();
+        }
     }
     
 // =============================================

@@ -133,10 +133,42 @@
                     <i class="bi bi-star"></i>
                     <span class="badge" id="valoracionesCount">0</span>
                 </a>
-                <button class="action-btn" title="Carrito de compras">
-                    <i class="bi bi-cart3"></i>
-                    <span class="badge">5</span>
-                </button>
+                <div class="cart-btn-wrapper" id="cartBtnWrapper">
+                    <button class="action-btn" id="cartBtn" title="Carrito de compras">
+                        <i class="bi bi-cart3"></i>
+                        <span class="badge" id="cartBadge" style="display:none;">0</span>
+                    </button>
+
+                    {{-- Dropdown mini carrito --}}
+                    <div class="cart-dropdown" id="cartDropdown">
+                        <div class="cart-dropdown-header">
+                            <h6><i class="bi bi-cart3"></i> Mi carrito</h6>
+                            <button class="btn-close-cart" id="closeCartDropdown">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+
+                        <div class="cart-dropdown-body" id="cartDropdownBody">
+                            <div class="cart-empty">
+                                <i class="bi bi-cart-x"></i>
+                                <p>Tu carrito está vacío</p>
+                            </div>
+                        </div>
+
+                        <div class="cart-dropdown-footer" id="cartDropdownFooter" style="display:none;">
+                            <div class="cart-total-row">
+                                <span>Total:</span>
+                                <strong id="cartDropdownTotal">S/. 0.00</strong>
+                            </div>
+                            <a href="{{ route('carrito.vista') }}" class="btn-ver-carrito">
+                                <i class="bi bi-eye"></i> Ver carrito
+                            </a>
+                            <a href="{{ route('checkout.index') }}" class="btn-ir-checkout">
+                                <i class="bi bi-credit-card"></i> Ir a pagar
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
