@@ -16,3 +16,11 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+/public/evidencias_pedidos/
+/public/image_producto/
+/public/iconos/
+/public/iconos_footer/
+/public/image_termino/
+/public/metodos_pago/
+/public/perfil_usuario/
+/public/vouchers/

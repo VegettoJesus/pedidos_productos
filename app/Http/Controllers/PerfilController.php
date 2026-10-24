@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/PerfilController.php
 
 namespace App\Http\Controllers;
 
@@ -12,6 +11,7 @@ use App\Models\ProductoValoracion;
 use App\Models\ConfiguracionSistema;
 use App\Models\TipoNotificacion;
 use App\Models\Notificacion;
+use App\Models\Pedido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -294,5 +294,34 @@ class PerfilController extends Controller
             'valoraciones' => $valoraciones,
             'show_auth_modal' => false
         ]);
+    }
+
+    public function misCompras()
+    {
+        if (!Auth::check() || Auth::user()->id_rol !== 2) {
+            return redirect()->route('tienda.home')
+                ->with('info', 'Inicia sesión para ver tus compras.');
+        }
+
+        $user = Auth::user();
+        $pedidos = Pedido::with(['items', 'metodoPago'])
+            ->where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        $base = [
+            'titulo_site' => ConfiguracionSistema::first()?->titulo_site,
+            'authUser' => [
+                'nombres' => $user->nombres,
+                'apellidos' => $user->apellidos,
+                'email' => $user->email,
+                'foto' => asset('img/user.png'),
+            ],
+        ];
+
+        return view('layouts.contenido2', array_merge($base, [
+            'contenido2' => 'perfil.mis-compras',
+            'pedidos' => $pedidos
+        ]));
     }
 }

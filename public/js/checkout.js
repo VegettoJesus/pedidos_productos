@@ -2,64 +2,31 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     const SUBTOTAL = parseFloat(document.getElementById('subtotalDisplay')?.dataset.subtotal || 0);
-    const COSTO_ENVIO_ACTUAL = { valor: 0 };
     const METODOS_PAGO = JSON.parse(document.getElementById('metodosPagoData')?.textContent || '[]');
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-    // ==========================================
-    // TOGGLE DELIVERY / RETIRO
-    // ==========================================
-    const radiosTipoEntrega = document.querySelectorAll('[name="tipo_entrega"]');
-    radiosTipoEntrega.forEach(r => {
+    function getMetodoPagoSeleccionado() {
+        return document.querySelector('[name="tipo_pago"]:checked');
+    }
+
+    function getTipoEntrega() {
+        return document.querySelector('[name="tipo_entrega"]:checked')?.value;
+    }
+
+    document.querySelectorAll('[name="tipo_entrega"]').forEach(r => {
         r.addEventListener('change', () => {
-            const esDelivery = document.querySelector('[name="tipo_entrega"]:checked').value === 'delivery';
+            const esDelivery = getTipoEntrega() === 'delivery';
             document.getElementById('deliveryFields').style.display = esDelivery ? 'block' : 'none';
             document.getElementById('retiroFields').style.display = esDelivery ? 'none' : 'block';
-
-            recalcularTodo();   // 🔥 en vez de actualizarResumen(0)
+            recalcularTodo();
         });
     });
 
-    // ==========================================
-    // PRE-CARGAR UBICACIÓN DEL CLIENTE
-    // ==========================================
-    const ubicacionValida = document.getElementById('ubicacionValida')?.value === '1';
-
-    if (ubicacionValida) {
-        const deptoId = document.getElementById('clienteDepartamento')?.value;
-        const provId = document.getElementById('clienteProvincia')?.value;
-        const distId = document.getElementById('clienteDistrito')?.value;
-        const direccionCliente = document.getElementById('clienteDireccion')?.value;
-
-        // Disparar carga de provincias del depto pre-seleccionado
-        if (deptoId) {
-            cargarProvincias(deptoId).then(() => {
-                const provSelect = document.getElementById('provinciaSelect');
-                if (provSelect && provId) {
-                    provSelect.value = provId;
-                    provSelect.dispatchEvent(new Event('change'));
-
-                    // Esperar un tick para que se carguen distritos
-                    setTimeout(() => {
-                        const distSelect = document.getElementById('distritoSelect');
-                        if (distSelect && distId) {
-                            distSelect.value = distId;
-                            distSelect.dispatchEvent(new Event('change'));
-                        }
-                    }, 300);
-                }
-            });
-        }
-
-        // Pre-llenar dirección
-        const dirInput = document.getElementById('direccionEntrega');
-        if (dirInput && direccionCliente) {
-            dirInput.value = direccionCliente;
-        }
-    }
-
-    // ==========================================
-    // CARGAR PROVINCIAS
-    // ==========================================
     async function cargarProvincias(deptoId) {
         const provincia = document.getElementById('provinciaSelect');
         const distrito = document.getElementById('distritoSelect');
@@ -74,18 +41,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         provincia.disabled = false;
-        const res = await fetch(`/get-provincias/${deptoId}`);
-        const data = await res.json();
 
-        data.forEach(p => {
-            provincia.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
-        });
+        try {
+            const res = await fetch(`/get-provincias/${deptoId}`);
+            const data = await res.json();
+            data.forEach(p => {
+                provincia.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+            });
+        } catch (e) {
+            console.error('Error cargando provincias:', e);
+        }
     }
 
-    // ==========================================
-    // CARGAR DISTRITOS
-    // ==========================================
-    async function cargarDistritos(provId) {
+    async function cargarDistritos(provId, distritoSeleccionar = null) {
         const distrito = document.getElementById('distritoSelect');
         distrito.innerHTML = '<option value="">Seleccione</option>';
 
@@ -95,39 +63,71 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         distrito.disabled = false;
-        const res = await fetch(`/get-distritos/${provId}`);
-        const data = await res.json();
 
-        data.forEach(d => {
-            distrito.innerHTML += `<option value="${d.id}" data-costo="${d.costo_envio}">${d.nombre}</option>`;
-        });
+        try {
+            const res = await fetch(`/get-distritos/${provId}`);
+            const data = await res.json();
+
+            data.forEach(d => {
+                distrito.innerHTML += `<option value="${d.id}" data-costo="${d.costo_envio}">${d.nombre}</option>`;
+            });
+
+            if (distritoSeleccionar) {
+                distrito.value = String(distritoSeleccionar);
+            }
+
+            recalcularTodo();
+
+        } catch (e) {
+            console.error('Error cargando distritos:', e);
+        }
     }
 
-    // ==========================================
-    // EVENTOS DE LOS SELECTS
-    // ==========================================
-    document.getElementById('departamentoSelect')?.addEventListener('change', function () {
-        cargarProvincias(this.value);
+    (async function precargarUbicacion() {
+        const ubicacionValida = document.getElementById('ubicacionValida')?.value === '1';
+        if (!ubicacionValida) return;
+
+        const deptoId  = document.getElementById('clienteDepartamento')?.value;
+        const provId   = document.getElementById('clienteProvincia')?.value;
+        const distId   = document.getElementById('clienteDistrito')?.value;
+        const direccionCliente = document.getElementById('clienteDireccion')?.value;
+
+        if (!deptoId) return;
+
+        await cargarProvincias(deptoId);
+
+        const provSelect = document.getElementById('provinciaSelect');
+        if (provSelect && provId) {
+            provSelect.value = String(provId);
+            await cargarDistritos(provId, distId); 
+        }
+
+        const dirInput = document.getElementById('direccionEntrega');
+        if (dirInput && direccionCliente) {
+            dirInput.value = direccionCliente;
+        }
+    })();
+
+    document.getElementById('departamentoSelect')?.addEventListener('change', async function () {
+        await cargarProvincias(this.value);
+        const distrito = document.getElementById('distritoSelect');
+        distrito.innerHTML = '<option value="">Seleccione</option>';
+        distrito.disabled = true;
         recalcularTodo();
     });
 
-    document.getElementById('provinciaSelect')?.addEventListener('change', function () {
-        cargarDistritos(this.value);
+    document.getElementById('provinciaSelect')?.addEventListener('change', async function () {
+        await cargarDistritos(this.value); 
+    });
+
+    document.getElementById('distritoSelect')?.addEventListener('change', () => {
         recalcularTodo();
     });
 
-    document.getElementById('distritoSelect')?.addEventListener('change', function () {
-        recalcularTodo();
-    });
-
-    // ==========================================
-    // 🔥 RECALCULAR ENVÍO SEGÚN REGLAS
-    // ==========================================
     function recalcularTodo() {
-        const tipoEntrega = document.querySelector('[name="tipo_entrega"]:checked')?.value;
-        const metodoRadio = document.querySelector('[name="tipo_pago"]:checked');
+        const tipoEntrega = getTipoEntrega();
+        const metodoRadio = getMetodoPagoSeleccionado();
 
-        // 1. ENVÍO (solo delivery)
         let costoEnvio = 0;
         if (tipoEntrega === 'delivery') {
             const distSelect = document.getElementById('distritoSelect');
@@ -135,31 +135,48 @@ document.addEventListener('DOMContentLoaded', () => {
             costoEnvio = parseFloat(distOpt?.dataset.costo || 0);
         }
 
-        // 2. CARGO del método de pago (base + impuesto)
         let cargoBase = 0;
         let impuestoCargo = 0;
         let totalCargo = 0;
         let tasaImpuestoCargo = 0;
 
         if (metodoRadio) {
-            const label = metodoRadio.closest('.metodo-pago-label');
-            cargoBase = parseFloat(label?.dataset.cargoBase || 0);
-            impuestoCargo = parseFloat(label?.dataset.impuestoCargo || 0);
-            totalCargo = parseFloat(label?.dataset.totalCargo || 0);
-
-            // Obtener la tasa de impuesto del JSON
             const metodoData = METODOS_PAGO.find(m => m.slug === metodoRadio.value);
-            const config = metodoData?.configuracion || {};
-            const cargo = config.cargo_adicional || {};
-            if (cargo.impuesto_activo) {
-                tasaImpuestoCargo = parseFloat(cargo.impuesto_porcentaje || 0);
+            if (metodoData && metodoData.disponible) {
+                const cargo = metodoData.configuracion?.cargo_adicional || {};
+                let baseCargo = SUBTOTAL; 
+                let incluyeImpuestos = cargo.incluir_en_total?.impuestos === true;
+                let incluyeEnvio = cargo.incluir_en_total?.envio === true;
+
+                if (incluyeImpuestos) {
+                    baseCargo += 0; 
+                }
+                if (incluyeEnvio) {
+                    baseCargo += costoEnvio; 
+                }
+
+                const tipo = cargo.tipo || 'porcentaje';
+                const valor = parseFloat(cargo.valor || 0);
+
+                if (valor > 0) {
+                    if (tipo === 'fijo') {
+                        cargoBase = valor;
+                    } else {
+                        cargoBase = baseCargo * (valor / 100);
+                    }
+                }
+
+                if (cargo.impuesto_activo && cargoBase > 0) {
+                    tasaImpuestoCargo = parseFloat(cargo.impuesto_porcentaje || 0);
+                    impuestoCargo = cargoBase * (tasaImpuestoCargo / 100);
+                }
+
+                totalCargo = cargoBase + impuestoCargo;
             }
         }
 
-        // 3. ACTUALIZAR UI
         document.getElementById('envioDisplay').textContent = `S/ ${costoEnvio.toFixed(2)}`;
 
-        // Cargo base
         const cargoLinea = document.getElementById('cargoLinea');
         if (cargoBase > 0) {
             cargoLinea.style.display = 'flex';
@@ -168,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
             cargoLinea.style.display = 'none';
         }
 
-        // Impuesto del cargo
         const impuestoLinea = document.getElementById('impuestoCargoLinea');
         if (impuestoCargo > 0) {
             impuestoLinea.style.display = 'flex';
@@ -178,34 +194,32 @@ document.addEventListener('DOMContentLoaded', () => {
             impuestoLinea.style.display = 'none';
         }
 
-        // Total
         const total = SUBTOTAL + costoEnvio + totalCargo;
         document.getElementById('totalDisplay').textContent = `S/ ${total.toFixed(2)}`;
+        document.querySelectorAll('.badge-cargo').forEach(b => b.style.display = 'none');
+
+        if (metodoRadio && totalCargo > 0) {
+            const labelSeleccionado = metodoRadio.closest('.metodo-pago-label');
+            let badge = labelSeleccionado.querySelector('.badge-cargo');
+            
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'badge-cargo';
+                badge.style = 'margin-left:auto;background:#f4ab27;color:#fff;font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:20px;';
+                labelSeleccionado.querySelector('.metodo-pago-header').appendChild(badge);
+            }
+            
+            badge.textContent = `+ S/ ${totalCargo.toFixed(2)}`;
+            badge.style.display = 'inline-block';
+        }
     }
-
-    // ==========================================
-    // ACTUALIZAR RESUMEN (envío + total)
-    // ==========================================
-    function actualizarResumen(costoEnvio) {
-        const envioEl = document.getElementById('envioDisplay');
-        const totalEl = document.getElementById('totalDisplay');
-
-        envioEl.textContent = `S/ ${costoEnvio.toFixed(2)}`;
-        const total = SUBTOTAL + costoEnvio;
-        totalEl.textContent = `S/ ${total.toFixed(2)}`;
-    }
-
-    // ==========================================
-    // 🔥 MOSTRAR INFO DEL MÉTODO DE PAGO SELECCIONADO
-    // ==========================================
+    
     function mostrarInfoMetodoPago(slug) {
-        // Ocultar todos los paneles
         document.querySelectorAll('.metodo-pago-info').forEach(el => {
             el.style.display = 'none';
             el.innerHTML = '';
         });
 
-        // Quitar borde activo
         document.querySelectorAll('.metodo-pago-label').forEach(el => {
             el.style.borderColor = '#eee';
             el.style.background = 'transparent';
@@ -226,7 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const config = metodo.configuracion || {};
         let html = '';
 
-        // CONTRA ENTREGA
         if (slug === 'contra_entrega') {
             if (config.descripcion) {
                 html += `<p style="margin:0 0 0.5rem;color:#666;font-size:0.88rem;">${escapeHtml(config.descripcion)}</p>`;
@@ -238,7 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // TRANSFERENCIA
         if (slug === 'transferencia') {
             if (config.descripcion) {
                 html += `<p style="margin:0 0 0.5rem;color:#666;font-size:0.88rem;">${escapeHtml(config.descripcion)}</p>`;
@@ -263,9 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // QR
         if (slug === 'qr') {
-            // 🔥 Título dinámico
             if (config.titulo) {
                 html += `<div style="font-weight:700;margin-bottom:0.5rem;">${escapeHtml(config.titulo)}</div>`;
             }
@@ -305,42 +315,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ==========================================
-    // EVENTOS DE LOS MÉTODOS DE PAGO
-    // ==========================================
     document.querySelectorAll('[name="tipo_pago"]').forEach(r => {
         r.addEventListener('change', function () {
             if (this.disabled) return;
             mostrarInfoMetodoPago(this.value);
-            recalcularTodo();
+            recalcularTodo(); 
         });
     });
 
-    // Cuando cambia tipo entrega o distrito
-    document.querySelectorAll('[name="tipo_entrega"]').forEach(r => {
-        r.addEventListener('change', recalcularTodo);
-    });
-    document.getElementById('distritoSelect')?.addEventListener('change', recalcularTodo);
-
-    // Mostrar info del primero al cargar
-    const primerMetodo = document.querySelector('[name="tipo_pago"]:checked');
+    const primerMetodo = getMetodoPagoSeleccionado();
     if (primerMetodo) {
         mostrarInfoMetodoPago(primerMetodo.value);
     }
 
-    // ==========================================
-    // UTILIDADES
-    // ==========================================
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // ==========================================
-    // SUBMIT
-    // ==========================================
     document.getElementById('checkoutForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('btnConfirmar');
@@ -383,14 +370,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Recalcular al cargar (por si hay valores por defecto)
     recalcularTodo();
 });
 
 document.addEventListener('click', (e) => {
     const img = e.target.closest('.qr-zoomable');
     if (!img) return;
-
     e.preventDefault();
     e.stopPropagation();
 
@@ -402,9 +387,7 @@ document.addEventListener('click', (e) => {
     if (!modalEl || !modalImg) return;
 
     modalImg.src = url;
-
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
 });
 
 document.addEventListener('keydown', (e) => {

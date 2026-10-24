@@ -22,4 +22,9 @@ class Rol extends Model
     {
         return $this->hasMany(User::class, 'id_rol');
     }
+
+    public function permisosNotificaciones()
+    {
+        return $this->hasMany(PermisoNotificacion::class, 'rol_id');
+    }
 }

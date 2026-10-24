@@ -1,5 +1,4 @@
 <?php
-// database/migrations/[timestamp]_create_menus_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -145,6 +144,26 @@ return new class extends Migration
                 'padre' => 3,
                 'orden' => 4,
                 'icono' => 'bi bi-credit-card',
+            ],
+            [
+                'id' => 15,
+                'nombre' => 'Ventas',
+                'url' => '#',
+                'padre' => 0,
+                'orden' => 5,
+                'icono' => 'bi bi-cart-check',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 16,
+                'nombre' => 'Pedidos',
+                'url' => 'Ventas/pedidos',
+                'padre' => 15,
+                'orden' => 1,
+                'icono' => 'bi bi-receipt',
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
         ];
 
