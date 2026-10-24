@@ -1,5 +1,4 @@
 <?php
-// database/migrations/[timestamp]_create_permisos_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -30,7 +29,7 @@ return new class extends Migration
         ]);
 
         // Insertar permisos para cada menú
-        for ($menuId = 1; $menuId <= 12; $menuId++) {
+        for ($menuId = 1; $menuId <= 16; $menuId++) {
             DB::table('permisos')->insert([
                 'id_rol' => 1,
                 'id_menus' => $menuId,

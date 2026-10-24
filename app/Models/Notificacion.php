@@ -1,9 +1,9 @@
 <?php
-// app/Models/Notificacion.php
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 
 class Notificacion extends Model
@@ -37,10 +37,6 @@ class Notificacion extends Model
         'visible' => 'boolean',
         'eliminada' => 'boolean'
     ];
-
-    // ============================================
-    // RELACIONES
-    // ============================================
     
     public function tipo()
     {
@@ -62,21 +58,12 @@ class Notificacion extends Model
         return $this->belongsTo(Rol::class, 'rol_id');
     }
 
-    /**
-     * 🔥 CORREGIDO: Relación con usuarios a través de la tabla pivote
-     * La tabla pivote se llama 'notificacion_usuario'
-     * La columna en la tabla pivote es 'usuario_id' (NO 'user_id')
-     */
     public function usuarios()
     {
         return $this->belongsToMany(User::class, 'notificacion_usuario', 'notificacion_id', 'usuario_id')
                     ->withPivot('leida', 'leida_en', 'fecha_visualizacion')
                     ->withTimestamps();
     }
-
-    // ============================================
-    // SCOPES (Filtros)
-    // ============================================
     
     /**
      * Notificaciones visibles (no eliminadas)
@@ -101,23 +88,23 @@ class Notificacion extends Model
     }
 
     /**
-     * Notificaciones no leídas (por usuario, desde la pivote)
+     * Notificaciones no leídas por usuario
      */
     public function scopeNoLeidasPorUsuario($query, $usuarioId)
     {
         return $query->whereHas('usuarios', function($q) use ($usuarioId) {
-            $q->where('notificacion_usuario.usuario_id', $usuarioId) // 🔥 CORREGIDO: usuario_id
+            $q->where('notificacion_usuario.usuario_id', $usuarioId) 
               ->where('notificacion_usuario.leida', false);
         });
     }
 
     /**
-     * Notificaciones leídas (por usuario, desde la pivote)
+     * Notificaciones leídas por usuario
      */
     public function scopeLeidasPorUsuario($query, $usuarioId)
     {
         return $query->whereHas('usuarios', function($q) use ($usuarioId) {
-            $q->where('notificacion_usuario.usuario_id', $usuarioId) // 🔥 CORREGIDO: usuario_id
+            $q->where('notificacion_usuario.usuario_id', $usuarioId)
               ->where('notificacion_usuario.leida', true);
         });
     }
@@ -144,17 +131,13 @@ class Notificacion extends Model
         });
     }
 
-    // ============================================
-    // MÉTODOS DE ESTADO POR USUARIO
-    // ============================================
-    
     /**
      * Verificar si la notificación está leída por un usuario
      */
     public function estaLeidaPorUsuario($usuarioId)
     {
         return $this->usuarios()
-                    ->where('notificacion_usuario.usuario_id', $usuarioId) // 🔥 CORREGIDO: usuario_id
+                    ->where('notificacion_usuario.usuario_id', $usuarioId) 
                     ->wherePivot('leida', true)
                     ->exists();
     }
@@ -164,9 +147,11 @@ class Notificacion extends Model
      */
     public function marcarComoLeidaPorUsuario($usuarioId)
     {
-        $this->usuarios()->syncWithPivotValues([$usuarioId], [
-            'leida' => true,
-            'leida_en' => now()
+        $this->usuarios()->syncWithoutDetaching([
+            $usuarioId => [
+                'leida' => true,
+                'leida_en' => now()
+            ]
         ]);
         
         return $this;
@@ -177,9 +162,11 @@ class Notificacion extends Model
      */
     public function marcarComoNoLeidaPorUsuario($usuarioId)
     {
-        $this->usuarios()->syncWithPivotValues([$usuarioId], [
-            'leida' => false,
-            'leida_en' => null
+        $this->usuarios()->syncWithoutDetaching([
+            $usuarioId => [
+                'leida' => false,
+                'leida_en' => null
+            ]
         ]);
         
         return $this;
@@ -197,10 +184,6 @@ class Notificacion extends Model
         return $this;
     }
 
-    // ============================================
-    // MÉTODOS ESTÁTICOS PARA CONSULTAS
-    // ============================================
-
     /**
      * Obtener solo notificaciones no leídas para un usuario
      */
@@ -212,7 +195,7 @@ class Notificacion extends Model
             ->porUsuario($userId)
             ->porRol($rolId)
             ->whereHas('usuarios', function($q) use ($userId) {
-                $q->where('notificacion_usuario.usuario_id', $userId) // 🔥 CORREGIDO: usuario_id
+                $q->where('notificacion_usuario.usuario_id', $userId) 
                   ->where('notificacion_usuario.leida', false);
             })
             ->orderBy('prioridad', 'desc')
@@ -238,10 +221,6 @@ class Notificacion extends Model
 
         return true;
     }
-
-    // ============================================
-    // MÉTODO PARA ASIGNAR USUARIOS
-    // ============================================
     
     /**
      * Asignar notificación a usuarios según el destino configurado
@@ -274,17 +253,15 @@ class Notificacion extends Model
 
         return $this;
     }
-
-    // ============================================
-    // EVENTOS DEL MODELO (Boot)
-    // ============================================
     
     protected static function boot()
     {
         parent::boot();
 
         static::created(function ($notificacion) {
-            $notificacion->asignarAUsuarios();
+            if ($notificacion->usuario_id || $notificacion->rol_id) {
+                $notificacion->asignarAUsuarios();
+            }
         });
 
         static::updated(function ($notificacion) {
@@ -302,18 +279,14 @@ class Notificacion extends Model
     {
         if (!$usuario) return false;
         
-        // Admin siempre puede ver todo
         if ($usuario->rol && $usuario->rol->name === 'admin') {
             return true;
         }
         
-        // Si la notificación es para un usuario específico
         if ($this->usuario_id && $this->usuario_id == $usuario->id) {
-            // Verificar si tiene permiso con excepciones
             return PermisoNotificacion::puedeVerUsuario($usuario, $this->tipo_notificacion_id);
         }
         
-        // Usar el nuevo método con excepciones
         return PermisoNotificacion::puedeVerUsuario($usuario, $this->tipo_notificacion_id);
     }
 
@@ -339,9 +312,14 @@ class Notificacion extends Model
         return self::visible()
             ->enFecha()
             ->desdeRegistroUsuario($userId)
-            ->porUsuario($userId)
-            ->porRol($rolId)
+            ->where(function($q) use ($userId) {
+                $q->whereNull('usuario_id')
+                  ->orWhere('usuario_id', $userId);
+            })
             ->whereIn('tipo_notificacion_id', $tiposPermitidos)
+            ->whereHas('usuarios', function($q) use ($userId) {
+                $q->where('notificacion_usuario.usuario_id', $userId);
+            })
             ->orderBy('prioridad', 'desc')
             ->orderBy('created_at', 'desc')
             ->limit($limit)
@@ -370,7 +348,7 @@ class Notificacion extends Model
             ->porRol($rolId)
             ->whereIn('tipo_notificacion_id', $tiposPermitidos)
             ->whereHas('usuarios', function($q) use ($userId) {
-                $q->where('notificacion_usuario.usuario_id', $userId) // 🔥 CORREGIDO: usuario_id
+                $q->where('notificacion_usuario.usuario_id', $userId) 
                   ->where('notificacion_usuario.leida', false);
             })
             ->count();
@@ -384,7 +362,6 @@ class Notificacion extends Model
             return collect();
         }
 
-        // 🔥 Obtener tipos permitidos aplicando excepciones
         $tiposPermitidos = PermisoNotificacion::tiposPermitidosUsuario($usuario);
         
         if (empty($tiposPermitidos)) {
@@ -410,7 +387,7 @@ class Notificacion extends Model
     /**
      * Contar notificaciones no leídas para un usuario del PANEL
      */
-    public static function countNoLeidasPanel($userId)
+        public static function countNoLeidasPanel($userId)
     {
         $usuario = User::with('rol')->find($userId);
         
@@ -427,12 +404,10 @@ class Notificacion extends Model
         return self::visible()
             ->enFecha()
             ->desdeRegistroUsuario($userId)
-            ->porUsuario($userId)
-            ->porRol($usuario->id_rol)
             ->whereIn('tipo_notificacion_id', $tiposPermitidos)
             ->whereHas('usuarios', function($q) use ($userId) {
                 $q->where('notificacion_usuario.usuario_id', $userId)
-                ->where('notificacion_usuario.leida', false);
+                  ->where('notificacion_usuario.leida', false);      
             })
             ->count();
     }
@@ -440,7 +415,7 @@ class Notificacion extends Model
     /**
      * Obtener notificaciones no leídas para un usuario del PANEL
      */
-    public static function getNoLeidasPanel($userId, $limit = 20)
+        public static function getNoLeidasPanel($userId, $limit = 20)
     {
         $usuario = User::with('rol')->find($userId);
         
@@ -457,12 +432,10 @@ class Notificacion extends Model
         return self::visible()
             ->enFecha()
             ->desdeRegistroUsuario($userId)
-            ->porUsuario($userId)
-            ->porRol($usuario->id_rol)
             ->whereIn('tipo_notificacion_id', $tiposPermitidos)
             ->whereHas('usuarios', function($q) use ($userId) {
                 $q->where('notificacion_usuario.usuario_id', $userId)
-                ->where('notificacion_usuario.leida', false);
+                  ->where('notificacion_usuario.leida', false);
             })
             ->orderBy('prioridad', 'desc')
             ->orderBy('created_at', 'desc')
@@ -473,7 +446,7 @@ class Notificacion extends Model
     /**
      * Marcar todas las notificaciones como leídas para un usuario del PANEL
      */
-    public static function marcarTodasLeidasPanel($userId)
+        public static function marcarTodasLeidasPanel($userId)
     {
         $usuario = User::with('rol')->find($userId);
         
@@ -489,9 +462,11 @@ class Notificacion extends Model
 
         $notificaciones = self::visible()
             ->enFecha()
-            ->porUsuario($userId)
-            ->porRol($usuario->id_rol)
             ->whereIn('tipo_notificacion_id', $tiposPermitidos)
+            ->whereHas('usuarios', function($q) use ($userId) {
+                $q->where('notificacion_usuario.usuario_id', $userId)
+                  ->where('notificacion_usuario.leida', false);
+            })
             ->get();
 
         foreach ($notificaciones as $notificacion) {
@@ -506,13 +481,13 @@ class Notificacion extends Model
         $usuario = User::with('rol')->find($userId);
         
         if (!$usuario || !$usuario->rol) {
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+            return new LengthAwarePaginator([], 0, $perPage);
         }
 
         $tiposPermitidos = PermisoNotificacion::tiposPermitidosUsuario($usuario);
         
         if (empty($tiposPermitidos)) {
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+            return new LengthAwarePaginator([], 0, $perPage);
         }
         
         $paginadas = self::visible()
@@ -525,7 +500,6 @@ class Notificacion extends Model
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
         
-        // Agregar estado "leida" a cada item
         $paginadas->getCollection()->transform(function($notificacion) use ($userId) {
             $notificacion->leida = $notificacion->estaLeidaPorUsuario($userId);
             return $notificacion;

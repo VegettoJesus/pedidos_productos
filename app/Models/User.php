@@ -57,4 +57,21 @@ class User extends Authenticatable
         return $this->hasMany(Auditoria::class, 'user_id'); 
     }
 
+    public function permisosNotificaciones()
+    {
+        return $this->hasManyThrough(
+            PermisoNotificacion::class, 
+            Rol::class, 
+            'id',       // FK en roles (id)
+            'rol_id',   // FK en permisos_notificaciones
+            'id_rol',   // Local key en users
+            'id'        // Local key en roles
+        );
+    }
+
+    public function excepcionesNotificaciones()
+    {
+        return $this->hasMany(ExcepcionNotificacionUsuario::class, 'usuario_id');
+    }
+
 }

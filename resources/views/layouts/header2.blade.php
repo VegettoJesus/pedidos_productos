@@ -46,7 +46,7 @@
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="#">
+                                <a class="dropdown-item" href="{{ route('perfil.mis-compras') }}">
                                     <i class="bi bi-box-seam me-2"></i> Mis pedidos
                                 </a>
                             </li>
@@ -314,7 +314,7 @@
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item" href="#">
+                            <a class="dropdown-item" href="{{ route('perfil.mis-compras') }}">
                                 <i class="bi bi-box-seam me-2"></i> Mis pedidos
                             </a>
                         </li>
@@ -351,7 +351,7 @@
             </div>
         </div>
         
-        <!-- Pantallas dinámicas de subcategorías (generadas con JS o aquí directamente) -->
+        <!-- Pantallas dinámicas de subcategorías -->
         @foreach($categorias as $categoria)
             @if($categoria->subcategorias->count() > 0)
             <div class="mobile-screen" id="subcatScreen{{ $categoria->id }}">

@@ -9,6 +9,7 @@ use App\Http\Middleware\VerificarPermisoMenu;
 use App\Services\MenuService;
 use App\Models\User;
 use App\Models\Producto;
+use App\Models\Pedido;
 use App\Models\ProductoVariacion;
 use App\Models\ProductoValoracion;
 use App\Models\Departamento;
@@ -211,6 +212,43 @@ Route::get('/get-iconos', function () {
     return response(file_get_contents($path), 200)
         ->header('Content-Type', 'text/plain'); 
 });
+
+Route::get('/pedido/gracias/{id}', function($id) {
+    if (!Auth::check() || Auth::user()->id_rol !== 2) {
+        return redirect()->route('tienda.home')
+            ->with('info', 'Inicia sesión para ver los detalles de tu pedido.');
+    }
+    $pedido = Pedido::where('user_id', Auth::id())->findOrFail($id);
+    return view('layouts.contenido2', [
+        'contenido2' => 'tienda.gracias',
+        'pedido' => $pedido,
+        'titulo_site' => '¡Gracias por tu compra!',
+        'authUser' => [
+            'nombres' => Auth::user()->nombres,
+            'apellidos' => Auth::user()->apellidos,
+            'email' => Auth::user()->email,
+            'foto' => asset('img/user.png'),
+        ]
+    ]);
+})->name('pedido.gracias');
+Route::get('/pedido/detalle/{id}', function($id) {
+    if (!Auth::check() || Auth::user()->id_rol !== 2) {
+        return redirect()->route('tienda.home')
+            ->with('info', 'Inicia sesión para ver los detalles de tu pedido.');
+    }
+    $pedido = Pedido::where('user_id', Auth::id())->findOrFail($id);
+    return view('layouts.contenido2', [
+        'contenido2' => 'tienda.detalle-compra',
+        'pedido' => $pedido,
+        'authUser' => [
+            'nombres' => Auth::user()->nombres,
+            'apellidos' => Auth::user()->apellidos,
+            'email' => Auth::user()->email,
+            'foto' => asset('img/user.png'),
+        ]
+    ]);
+})->name('pedido.detalle');
+Route::get('/mis-compras', [PerfilController::class, 'misCompras'])->name('perfil.mis-compras');
 
 Route::get('/main', [LoginController::class, 'main'])
     ->name('main')
