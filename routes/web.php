@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\AdministracionDelSistema;
 use App\Http\Controllers\TiendaController;
 use App\Http\Controllers\PerfilController;
+use App\Http\Controllers\ContactoMensajeController;
 use App\Http\Middleware\VerificarPermisoMenu;
 use App\Services\MenuService;
 use App\Models\User;
@@ -20,6 +21,7 @@ use App\Http\Controllers\CarritoController;
 use App\Http\Controllers\CheckoutController;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Auth\PasswordResetClienteController;
 
 Route::get('/', [TiendaController::class, 'home'])->name('tienda.home');
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -30,6 +32,7 @@ Route::get('/buscar/sugerencias', [BusquedaController::class, 'sugerencias'])->n
 Route::get('/ofertas', [TiendaController::class, 'ofertas'])->name('ofertas');
 Route::get('/nosotros', [TiendaController::class, 'nosotros'])->name('nosotros');
 Route::get('/contacto', [TiendaController::class, 'contacto'])->name('contacto');
+Route::post('/contacto', [TiendaController::class, 'enviarContacto'])->name('contacto.enviar');
 Route::get('/productos/categoria/{id}', [TiendaController::class, 'productosPorCategoria'])->name('productos.categoria');
 Route::get('/productos/subcategoria/{id}', [TiendaController::class, 'productosPorSubcategoria'])->name('productos.subcategoria');
 Route::get('/producto/{id}', [TiendaController::class, 'detalleProducto'])->name('producto.detalle');
@@ -53,6 +56,19 @@ Route::prefix('password')->group(function () {
     
     Route::post('/cambiar-password', [PasswordResetController::class, 'cambiarPassword'])
         ->name('password.cambiar-password');
+});
+Route::prefix('password-cliente')->group(function () {
+    Route::post('/solicitar-codigo', [PasswordResetClienteController::class, 'solicitarCodigo'])
+        ->name('password.cliente.solicitar-codigo');
+
+    Route::post('/verificar-codigo-activo', [PasswordResetClienteController::class, 'verificarCodigoActivo'])
+        ->name('password.cliente.verificar-codigo-activo');
+
+    Route::post('/validar-codigo', [PasswordResetClienteController::class, 'validarCodigo'])
+        ->name('password.cliente.validar-codigo');
+
+    Route::post('/cambiar-password', [PasswordResetClienteController::class, 'cambiarPassword'])
+        ->name('password.cliente.cambiar-password');
 });
 Route::get('/api/productos/{productoId}/variacion/{variacionId}/imagenes', function ($productoId, $variacionId) {
     try {
@@ -267,6 +283,15 @@ Route::middleware('auth')->prefix('carrito')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+    Route::post('/perfil-cliente/obtener', [PerfilController::class, 'obtenerDatosCliente'])
+        ->name('perfil.cliente.obtener');
+    Route::post('/perfil-cliente/actualizar', [PerfilController::class, 'actualizarCliente'])
+        ->name('perfil.cliente.actualizar');
+    Route::post('/perfil-cliente/actualizar-imagen', [PerfilController::class, 'actualizarImagenCliente'])
+    ->name('perfil.cliente.actualizar-imagen');
+});
+
+Route::middleware('auth')->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
     Route::post('/checkout/confirmar', [CheckoutController::class, 'confirmar'])->name('checkout.confirmar');
 });
@@ -281,7 +306,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/perfil/actualizar', [PerfilController::class, 'actualizar']);
     Route::get('/notificaciones', [NotificacionPanelController::class, 'vista'])
         ->name('notificaciones.panel.vista');
-    
     Route::prefix('notificaciones/panel')->group(function () {
         Route::get('no-leidas/count', [NotificacionPanelController::class, 'countNoLeidas'])
             ->name('notificaciones.panel.count');

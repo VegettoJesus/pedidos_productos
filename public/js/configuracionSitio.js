@@ -8,7 +8,6 @@ function inicializarSortable() {
     const container = document.getElementById('listaSeccionesHome');
     
     if (!container) {
-        console.error('No se encontró el contenedor listaSeccionesHome');
         return;
     }
     
@@ -17,7 +16,6 @@ function inicializarSortable() {
     }
     
     if (typeof Sortable === 'undefined') {
-        console.error('Sortable.js no está cargado. Incluye la librería Sortable.js');
         mostrarError('Error', 'La librería de arrastre no está cargada. Recarga la página.');
         return;
     }
@@ -38,7 +36,6 @@ function inicializarSortable() {
             }
         });
     } catch (error) {
-        console.error('Error al inicializar Sortable:', error);
     }
 }
 
@@ -191,7 +188,6 @@ function crearCardSeccion(seccion) {
 function abrirModalConfiguracion(seccionId) {
     const seccion = seccionesHome.find(s => s.id == seccionId);
     if (!seccion) {
-        console.error('Sección no encontrada:', seccionId);
         return;
     }
     productosSeleccionados = [];
@@ -262,7 +258,7 @@ function cargarConfiguracionEspecifica(seccion) {
                         </div>
                         
                         <div class="col-12 mb-3">
-                            <label class="form-label">Selección de productos (solo si criterio es manual)</label>
+                            <label class="form-label"></label>
                             
                             <!-- Campo de búsqueda -->
                             <div class="input-group mb-3">
@@ -488,8 +484,16 @@ function renderizarProductosSeleccionados() {
                                 ''
                             }
                             <span class="badge ${producto.tiene_oferta ? 'bg-danger' : 'bg-primary'}">
-                                $${producto.tiene_oferta ? producto.precio_rebajado : producto.precio_regular}
+                                ${producto.precio_mostrar 
+                                    || (producto.tiene_oferta && producto.precio_rebajado 
+                                        ? '$' + producto.precio_rebajado 
+                                        : (producto.precio_regular 
+                                            ? '$' + producto.precio_regular 
+                                            : '—'))}
                             </span>
+                            ${producto.descuento_porcentaje 
+                                ? `<span class="badge bg-warning text-dark ms-1">-${producto.descuento_porcentaje}%</span>` 
+                                : ''}
                         </div>
                     </div>
                 </div>
@@ -743,7 +747,7 @@ function renderizarResultadosBusqueda(productos) {
                                 ''
                             }
                             <span class="badge ${producto.tiene_oferta ? 'bg-danger' : 'bg-primary'}">
-                                $${producto.tiene_oferta ? producto.precio_rebajado : producto.precio_regular}
+                                ${producto.precio_mostrar || ('$' + (producto.tiene_oferta ? producto.precio_rebajado : producto.precio_regular))}
                             </span>
                         </div>
                     </div>
@@ -751,13 +755,17 @@ function renderizarResultadosBusqueda(productos) {
                 
                 <!-- Botón agregar -->
                 <div class="flex-shrink-0">
-                    <button type="button" class="btn btn-sm btn-outline-success btn-agregar-producto" 
+                    <button class="btn btn-sm btn-outline-success btn-agregar-producto" 
                             data-id="${producto.id}"
                             data-nombre="${producto.nombre}"
                             data-sku="${producto.sku}"
                             data-imagen="${producto.imagen}"
-                            data-precio="${producto.tiene_oferta ? producto.precio_rebajado : producto.precio_regular}"
-                            data-tiene-oferta="${producto.tiene_oferta}"
+                            data-precio-regular="${producto.precio_regular ?? ''}"
+                            data-precio-rebajado="${producto.precio_rebajado ?? ''}"
+                            data-precio-mostrar="${producto.precio_mostrar ?? ''}"
+                            data-descuento="${producto.descuento_porcentaje ?? ''}"
+                            data-tiene-oferta="${producto.tiene_oferta ? '1' : '0'}"
+                            data-tipo="${producto.tipo_producto ?? 'simple'}"
                             title="Agregar producto">
                         <i class="bi bi-plus"></i>
                     </button>
@@ -802,13 +810,16 @@ function agregarProductoSeleccionado(productoData) {
     }
     
     productosSeleccionados.push({
-        id: productoData.id,
-        nombre: productoData.nombre,
-        sku: productoData.sku,
-        imagen: productoData.imagen,
-        precio_regular: productoData.precio,
-        tiene_oferta: productoData.tiene_oferta === 'true',
-        precio_rebajado: productoData.tiene_oferta === 'true' ? productoData.precio : null
+        id:               productoData.id,
+        nombre:           productoData.nombre,
+        sku:              productoData.sku,
+        imagen:           productoData.imagen,
+        tipo_producto:    productoData.tipo_producto,
+        precio_regular:   productoData.precio_regular,
+        precio_rebajado:  productoData.precio_rebajado,
+        precio_mostrar:   productoData.precio_mostrar,
+        descuento_porcentaje: productoData.descuento ? parseInt(productoData.descuento) : null,
+        tiene_oferta:     productoData.tiene_oferta,
     });
     
     actualizarListaProductosSeleccionados();
@@ -1000,7 +1011,6 @@ function validarFormulario() {
         $('#descripcion_corta').removeClass('is-invalid');
     }
     
-    // Validar email
     const email = $('#email_admin').val().trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -1009,7 +1019,6 @@ function validarFormulario() {
         isValid = false;
     }
     
-    // Validar max_entradas_home
     const maxEntradas = parseInt($('#max_entradas_home').val());
     if (maxEntradas < 1 || maxEntradas > 50 || isNaN(maxEntradas)) {
         $('#max_entradas_home').addClass('is-invalid');
@@ -1238,7 +1247,6 @@ function guardarConfiguracionSeccion() {
                 try {
                     productosIds = JSON.parse(idsInput);
                 } catch (e) {
-                    console.error('Error al parsear productos_ids:', e);
                     productosIds = productosSeleccionados.map(p => p.id);
                 }
             } else {
@@ -1365,15 +1373,19 @@ function inicializarModuloLayout() {
                 e.preventDefault();
                 e.stopPropagation();
                 
+                const $btn = $(this);
                 const productoData = {
-                    id: parseInt($(this).data('id')),
-                    nombre: $(this).data('nombre'),
-                    sku: $(this).data('sku'),
-                    imagen: $(this).data('imagen'),
-                    precio: $(this).data('precio'),
-                    tiene_oferta: $(this).data('tiene-oferta')
+                    id:              parseInt($btn.data('id')),
+                    nombre:          $btn.data('nombre'),
+                    sku:             $btn.data('sku'),
+                    imagen:          $btn.data('imagen'),
+                    tipo_producto:   $btn.data('tipo') || 'simple',
+                    precio_regular:  $btn.data('precio-regular') || null,
+                    precio_rebajado: $btn.data('precio-rebajado') || null,
+                    precio_mostrar:  $btn.data('precio-mostrar') || '',
+                    descuento:       $btn.data('descuento') || null,
+                    tiene_oferta:    String($btn.data('tiene-oferta')) === '1',
                 };
-                
                 agregarProductoSeleccionado(productoData);
             });
         }
@@ -1511,7 +1523,6 @@ $(document).ready(function() {
                 setup: function(editor) {
                     let limiteAlcanzado = false;
                     
-                    // Función para actualizar contador y estado del límite
                     function actualizarContador() {
                         let textoPlano = editor.getContent({ format: 'text' });
                         let longitud = textoPlano.length;
@@ -1543,23 +1554,17 @@ $(document).ready(function() {
                         }
                     }
                     
-                    // Función para verificar si se puede insertar texto
                     function permitirInsercion(event) {
                         let textoPlano = editor.getContent({ format: 'text' });
                         let longitud = textoPlano.length;
                         let max = 500;
-                        // Si ya alcanzó o superó el límite, bloquear inserción
                         if (longitud >= max) {
-                            // Permitir teclas de control: backspace, delete, flechas, Ctrl, etc.
                             let teclasPermitidas = [8, 46, 37, 38, 39, 40, 16, 17, 18, 20, 9, 27, 33, 34, 35, 36];
                             if (event.keyCode && teclasPermitidas.includes(event.keyCode)) {
                                 return true;
                             }
-                            // Si es una tecla que añade carácter (letras, números, espacio, etc.)
-                            // Prevenir evento
                             event.preventDefault();
                             event.stopPropagation();
-                            // Mostrar toast de advertencia una sola vez
                             if (!window.bloqueoAdvertido) {
                                 window.bloqueoAdvertido = true;
                                 Swal.fire({
@@ -1580,13 +1585,11 @@ $(document).ready(function() {
                         return true;
                     }
                     
-                    // Evento al cargar el contenido inicial
                     editor.on('init', function() {
                         editor.setContent(data.descripcion_corta || '');
                         actualizarContador();
                     });
                     
-                    // Evento de teclado antes de insertar
                     editor.on('KeyDown', function(e) {
                         if (!permitirInsercion(e)) {
                             e.preventDefault();
@@ -1595,7 +1598,6 @@ $(document).ready(function() {
                         }
                     });
                     
-                    // Evento de pegado (paste)
                     editor.on('Paste', function(e) {
                         let textoPlano = editor.getContent({ format: 'text' });
                         let longitud = textoPlano.length;
@@ -1614,11 +1616,9 @@ $(document).ready(function() {
                             });
                             return false;
                         }
-                        // Si hay espacio, se permite el pegado, pero después actualizamos
                         setTimeout(actualizarContador, 10);
                     });
                     
-                    // También bloquear comandos que inserten contenido (por ejemplo, deshacer podría traer más texto)
                     editor.on('BeforeExecCommand', function(e) {
                         if (e.command === 'mceInsertContent' || e.command === 'InsertUnorderedList' || e.command === 'InsertOrderedList') {
                             if (!permitirInsercion(e)) {
@@ -1628,7 +1628,6 @@ $(document).ready(function() {
                         }
                     });
                     
-                    // Actualizar contador después de cualquier cambio
                     editor.on('KeyUp Change SetContent', function() {
                         actualizarContador();
                     });
@@ -1637,7 +1636,6 @@ $(document).ready(function() {
         } else {
             $('#descripcion_corta').val(data.descripcion_corta || '');
 
-            // Función contador para textarea común
             function actualizarTextareaContador() {
                 let contenido = $('#descripcion_corta').val();
                 let longitud = contenido.length;
@@ -1649,7 +1647,7 @@ $(document).ready(function() {
                 }
             }
 
-            actualizarTextareaContador(); // inicializar
+            actualizarTextareaContador(); 
             $('#descripcion_corta').on('input keyup', actualizarTextareaContador);
         }
         $('#email_admin').val(data.email_admin || '');
@@ -1951,21 +1949,17 @@ $(document).ready(function() {
     });
 });
 
-// ===================== FOOTER GLOBAL VARIABLES =====================
 let footerColumns = [];
 let sortableFooter = null;
 let currentColumnIdForLinks = null;
 let currentColumnIdForContact = null;
 let currentColumnIdForSocial = null;
 
-// ===================== CARGAR DATOS INICIALES =====================
 function cargarFooterCompleto() {
-    console.log('🔄 cargarFooterCompleto llamada');
     cargarColumnasFooter();
 }
 
 function cargarColumnasFooter() {
-    console.log('📡 Haciendo petición ListarFooterColumns...');
     $.ajax({
         url: 'configuracionSitio',
         method: 'POST',
@@ -1983,7 +1977,6 @@ function cargarColumnasFooter() {
             `);
         },
         success: (response) => {
-            console.log('✅ Respuesta ListarFooterColumns:', response);
             if (response.success) {
                 footerColumns = response.data;
                 renderizarColumnasFooter();
@@ -1994,7 +1987,6 @@ function cargarColumnasFooter() {
             }
         },
         error: (xhr) => {
-            console.error('❌ Error en ListarFooterColumns:', xhr);
             $('#listaColumnasFooter').html(`
                 <div class="alert alert-danger">
                     <i class="bi bi-exclamation-triangle"></i> Error al cargar columnas.
@@ -2056,7 +2048,6 @@ function renderizarColumnasFooter() {
         container.append(card);
     });
 
-    // Bind events con prevención de propagación
     $('.btn-editar-columna').off('click').on('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -2109,7 +2100,7 @@ function actualizarOrdenColumnas(orderedIds) {
         success: (response) => {
             if (response.success) {
                 toastr.success('Orden actualizado');
-                cargarColumnasFooter(); // recargar
+                cargarColumnasFooter(); 
             } else {
                 mostrarError('Error', response.message);
             }
@@ -2202,7 +2193,6 @@ function editarColumna(id) {
         cancelButtonText: 'Cancelar',
         width: '700px',
         didOpen: () => {
-            // Misma lógica de eventos que en btnNuevaColumna, pero con los mismos IDs
             const iconPicker = document.getElementById('iconPickerCol');
             const hiddenIcon = document.getElementById('iconoColHidden');
             const buscador = document.getElementById('buscadorIconosCol');
@@ -2216,7 +2206,6 @@ function editarColumna(id) {
             const imgPreview = $('#imgPreviewCol');
             const nombreArchivoSpan = $('#previewImagenCol span.flex-grow-1');
             const btnQuitar = $('#btnQuitarArchivoCol');
-            console.log(hiddenIcon)
             function cargarGrid(filtro = '') {
                 if (!iconPicker) return;
                 const iconos = window.iconosDisponibles || [];
@@ -2382,7 +2371,6 @@ function editarColumna(id) {
                     }
                 },
                 error: (xhr) => {
-                    console.error(xhr);
                     mostrarError('Error', 'Error al guardar la columna');
                 }
             });
@@ -2404,16 +2392,14 @@ function guardarColumna(id, data) {
         },
         dataType: 'json',
         success: (response) => {
-            console.log('Respuesta guardar columna:', response);
             if (response.success) {
                 toastr.success('Columna guardada');
-                cargarFooterCompleto(); // ✅ Recargar la lista
+                cargarFooterCompleto(); 
             } else {
                 mostrarError('Error', response.message);
             }
         },
         error: (xhr) => {
-            console.error('Error AJAX:', xhr);
             mostrarError('Error', 'No se pudo guardar la columna');
         }
     });
@@ -2441,7 +2427,7 @@ function eliminarColumna(id) {
                 success: (response) => {
                     if (response.success) {
                         toastr.success('Columna eliminada');
-                        cargarFooterCompleto(); // ✅ Recargar
+                        cargarFooterCompleto(); 
                     } else {
                         mostrarError('Error', response.message);
                     }
@@ -2463,7 +2449,6 @@ function actualizarSelectoresColumnas() {
     colMixed.forEach(c => optsMixed += `<option value="${c.id}">${escapeHtml(c.title)}</option>`);
     $('#selectColumnaContact, #selectColumnaSocial').html(optsMixed);
     
-    // Eventos cambio
     $('#selectColumnaLinks').off('change').on('change', function() {
         currentColumnIdForLinks = $(this).val();
         $('#btnNuevoEnlace').prop('disabled', !currentColumnIdForLinks);
@@ -2546,7 +2531,6 @@ function renderizarEnlaces(enlaces) {
     });
 }
 
-// Editar enlace existente
 function editarEnlace(id) {
     $.ajax({
         url: 'configuracionSitio',
@@ -2809,7 +2793,6 @@ function editarEnlace(id) {
                                 }
                             },
                             error: (xhr) => {
-                                console.error(xhr);
                                 mostrarError('Error', 'Error al guardar el enlace');
                             }
                         });
@@ -2821,7 +2804,6 @@ function editarEnlace(id) {
 }
 
 function guardarEnlace(id, data) {
-    console.log(data)
     $.ajax({
         url: 'configuracionSitio',
         method: 'POST',
@@ -2878,7 +2860,6 @@ function eliminarEnlace(id) {
     });
 }
 
-// Botón "Agregar Enlace"
 $('#btnNuevoEnlace').click(function() {
     if (!currentColumnIdForLinks) return;
 
@@ -3113,19 +3094,15 @@ $('#btnNuevoEnlace').click(function() {
                     }
                 },
                 error: (xhr) => {
-                    console.error(xhr);
                     mostrarError('Error', 'Error al guardar el enlace');
                 }
             });
         }
     });
 });
-// Función genérica para inicializar un selector de ícono (para teléfono, email o dirección)
 function initContactIconSelector(tipo, contenedorId, hiddenId, buscadorId, uploadAreaId, fileInputId, previewDivId, imgPreviewId, nombreArchivoId, btnQuitarId, radioLibreriaId, radioImagenId, panelLibreriaId, panelImagenId) {
     let archivoSeleccionado = null;
-    let rutaImagenActual = ''; // para cuando se carga un icono ya guardado
-
-    // Función para cargar el grid (reutiliza generarGridIconos)
+    let rutaImagenActual = ''; 
     function cargarGrid(filtro = '') {
         const container = document.getElementById(contenedorId);
         if (!container) return;
@@ -3156,13 +3133,11 @@ function initContactIconSelector(tipo, contenedorId, hiddenId, buscadorId, uploa
             `;
         });
         container.innerHTML = html;
-        // Bind eventos de click
         container.querySelectorAll('.icon-btn-modern').forEach(btn => {
             btn.addEventListener('click', () => {
                 container.querySelectorAll('.icon-btn-modern').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
                 if (currentHidden) currentHidden.value = btn.dataset.icon;
-                // Si se selecciona un icono de librería, limpiamos cualquier archivo pendiente
                 archivoSeleccionado = null;
                 rutaImagenActual = '';
                 $(`#${previewDivId}`).hide();
@@ -3170,13 +3145,11 @@ function initContactIconSelector(tipo, contenedorId, hiddenId, buscadorId, uploa
         });
     }
 
-    // Buscador
     const buscador = document.getElementById(buscadorId);
     if (buscador) {
         buscador.addEventListener('input', () => cargarGrid(buscador.value));
     }
 
-    // Cambio entre pestañas
     $(`#${radioLibreriaId}`).on('change', function() {
         if ($(this).is(':checked')) {
             $(`#${panelLibreriaId}`).show();
@@ -3191,7 +3164,6 @@ function initContactIconSelector(tipo, contenedorId, hiddenId, buscadorId, uploa
         }
     });
 
-    // Subida de archivo
     const uploadArea = document.getElementById(uploadAreaId);
     const fileInput = document.getElementById(fileInputId);
     const previewDiv = $(`#${previewDivId}`);
@@ -3207,7 +3179,6 @@ function initContactIconSelector(tipo, contenedorId, hiddenId, buscadorId, uploa
             previewDiv.show();
             btnQuitar.show();
             archivoSeleccionado = file;
-            // Limpiar el hidden para que no se envíe el icono de librería
             $(`#${hiddenId}`).val('');
             rutaImagenActual = '';
         } else {
@@ -3223,7 +3194,6 @@ function initContactIconSelector(tipo, contenedorId, hiddenId, buscadorId, uploa
         nombreArchivoSpan.text('');
         archivoSeleccionado = null;
         fileInput.value = '';
-        // No borramos rutaImagenActual aquí porque podría ser la imagen existente
     }
 
     if (uploadArea) {
@@ -3258,7 +3228,7 @@ function initContactIconSelector(tipo, contenedorId, hiddenId, buscadorId, uploa
                 return;
             }
             if (iconValue.startsWith('/') || iconValue.match(/\.(ico|png|jpg|jpeg|gif|svg|webp)$/i)) {
-                // Es imagen
+                
                 rutaImagenActual = iconValue;
                 archivoSeleccionado = null;
                 $(`#${radioLibreriaId}`).prop('checked', false);
@@ -3271,7 +3241,6 @@ function initContactIconSelector(tipo, contenedorId, hiddenId, buscadorId, uploa
                 btnQuitar.show();
                 $(`#${hiddenId}`).val('');
             } else {
-                // Es clase CSS
                 const match = iconValue.match(/bi bi-(.+)/);
                 if (match) {
                     $(`#${hiddenId}`).val(match[1]);
@@ -3300,7 +3269,6 @@ function initContactIconSelector(tipo, contenedorId, hiddenId, buscadorId, uploa
     };
 }
 
-// Inicializar los tres selectores
 let phoneSelector, emailSelector, addressSelector;
 
 function inicializarSelectoresContacto() {
@@ -3340,12 +3308,10 @@ function cargarContacto(columnId) {
                 $('#contact_phone').val(data.phone || '');
                 $('#contact_email').val(data.email || '');
                 $('#contact_address').val(data.address || '');
-                // Cargar iconos existentes
                 if (phoneSelector) phoneSelector.setExistingIcon(data.phone_icon);
                 if (emailSelector) emailSelector.setExistingIcon(data.email_icon);
                 if (addressSelector) addressSelector.setExistingIcon(data.address_icon);
             } else {
-                // Limpiar formulario
                 $('#contact_phone, #contact_email, #contact_address').val('');
                 if (phoneSelector) phoneSelector.setExistingIcon(null);
                 if (emailSelector) emailSelector.setExistingIcon(null);
@@ -3369,7 +3335,6 @@ function guardarContacto() {
     formData.append('address', $('#contact_address').val());
     formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
 
-    // Función para agregar icono de un campo
     function agregarIcono(selector, fieldName) {
         const result = selector.getValueToSend();
         if (result.type === 'class') {
@@ -3393,13 +3358,12 @@ function guardarContacto() {
         success: (response) => {
             if (response.success) {
                 toastr.success('Contacto guardado');
-                cargarContacto(currentColumnIdForContact); // recargar
+                cargarContacto(currentColumnIdForContact); 
             } else {
                 mostrarError('Error', response.message);
             }
         },
         error: (xhr) => {
-            console.error(xhr);
             mostrarError('Error', 'Error al guardar el contacto');
         }
     });
@@ -3435,7 +3399,6 @@ function renderizarRedesSociales(redes) {
     let html = '';
     redes.sort((a,b) => a.sort_order - b.sort_order).forEach(red => {
         let iconHtml = '';
-        // Si el icono contiene una ruta (empieza con / o contiene .ico, .png, etc.)
         if (red.icon && (red.icon.startsWith('/') || red.icon.match(/\.(ico|png|jpg|jpeg|gif|svg|webp)$/i))) {
             iconHtml = `<img src="${red.icon}" alt="icono" style="width: 20px; height: 20px; object-fit: contain;">`;
         } else {
@@ -3466,7 +3429,6 @@ function renderizarRedesSociales(redes) {
 }
 
 function editarRedSocial(id) {
-    // Primero obtener los datos actuales
     $.ajax({
         url: 'configuracionSitio',
         method: 'POST',
@@ -3480,22 +3442,18 @@ function editarRedSocial(id) {
             if (response.success) {
                 const red = response.data;
                 let tipoIcono = 'libreria';
-                let iconoSeleccionado = ''; // nombre del ícono de librería (ej. 'facebook')
-                let rutaImagenActual = '';   // ruta de la imagen si existe
+                let iconoSeleccionado = ''; 
+                let rutaImagenActual = '';   
                 let archivoSeleccionado = null;
-
-                // Determinar tipo y valor actual
                 if (red.icon && (red.icon.startsWith('/') || red.icon.match(/\.(ico|png|jpg|jpeg|gif|svg|webp)$/i))) {
                     tipoIcono = 'imagen';
                     rutaImagenActual = red.icon;
                 } else {
                     tipoIcono = 'libreria';
-                    // Extraer el nombre del ícono de la clase CSS, ej: "bi bi-facebook" -> "facebook"
                     const match = red.icon.match(/bi bi-(.+)/)
                     if (match) iconoSeleccionado = match[1];
                 }
 
-                // Abrir modal con los datos cargados
                 Swal.fire({
                     title: 'Editar Red Social',
                     html: `
@@ -3577,7 +3535,6 @@ function editarRedSocial(id) {
                         const nombreArchivoSpan = $('#nombreArchivoSocial');
                         const btnQuitar = $('#btnQuitarArchivo');
 
-                        // Cargar grid de íconos
                         function cargarGrid(filtro = '') {
                             if (!iconPicker) return;
                             const iconos = window.iconosDisponibles || [];
@@ -3619,7 +3576,6 @@ function editarRedSocial(id) {
                             buscador.addEventListener('input', () => cargarGrid(buscador.value));
                         }
 
-                        // Cambio entre pestañas
                         radioLibreria.on('change', function() {
                             if ($(this).is(':checked')) {
                                 tipoIcono = 'libreria';
@@ -3635,7 +3591,6 @@ function editarRedSocial(id) {
                             }
                         });
 
-                        // Manejo de archivo (solo previsualización local)
                         function mostrarPreview(file) {
                             if (file && file.name.toLowerCase().endsWith('.ico')) {
                                 const objectUrl = URL.createObjectURL(file);
@@ -3644,7 +3599,6 @@ function editarRedSocial(id) {
                                 previewDiv.show();
                                 btnQuitar.show();
                                 archivoSeleccionado = file;
-                                // Limpiar la ruta anterior para que no se envíe
                                 rutaImagenActual = '';
                             } else {
                                 toastr.error('Formato no válido. Solo se permiten archivos .ico');
@@ -3659,8 +3613,6 @@ function editarRedSocial(id) {
                             nombreArchivoSpan.text('');
                             archivoSeleccionado = null;
                             fileInput.value = '';
-                            // Si había una imagen anterior, mantenerla? Mejor mantenerla y si el usuario sube otra se reemplaza.
-                            // No hacemos nada con rutaImagenActual aquí, se conserva.
                         }
 
                         uploadArea.addEventListener('click', () => fileInput.click());
@@ -3706,7 +3658,6 @@ function editarRedSocial(id) {
                             iconValue = `bi bi-${iconName}`;
                             return { name, icon: iconValue, url, active: $('#new-red-active').is(':checked'), archivo: null };
                         } else {
-                            // Si el usuario seleccionó un nuevo archivo, usarlo; si no, mantener la ruta anterior
                             if (archivoSeleccionado) {
                                 return { name, icon: null, url, active: $('#new-red-active').is(':checked'), archivo: archivoSeleccionado };
                             } else if (rutaImagenActual) {
@@ -3751,7 +3702,6 @@ function editarRedSocial(id) {
                                 }
                             },
                             error: (xhr) => {
-                                console.error(xhr);
                                 mostrarError('Error', 'Error al guardar la red social');
                             }
                         });
@@ -3910,7 +3860,6 @@ $('#btnNuevaRedSocial').click(function() {
             const nombreArchivoSpan = $('#nombreArchivoSocial');
             const btnQuitar = $('#btnQuitarArchivo');
 
-            // ========== GRID DE ÍCONOS ==========
             function cargarGrid(filtro = '') {
                 if (!iconPicker) return;
                 const iconos = window.iconosDisponibles || [];
@@ -3952,7 +3901,6 @@ $('#btnNuevaRedSocial').click(function() {
                 buscador.addEventListener('input', () => cargarGrid(buscador.value));
             }
 
-            // ========== CAMBIO ENTRE TIPOS ==========
             radioLibreria.on('change', function() {
                 if ($(this).is(':checked')) {
                     tipoIcono = 'libreria';
@@ -3968,7 +3916,6 @@ $('#btnNuevaRedSocial').click(function() {
                 }
             });
 
-            // ========== SUBIDA DE ARCHIVO (solo previsualización local) ==========
             function mostrarPreview(file) {
                 if (file && file.name.toLowerCase().endsWith('.ico')) {
                     const objectUrl = URL.createObjectURL(file);
@@ -4035,7 +3982,6 @@ $('#btnNuevaRedSocial').click(function() {
                 iconValue = `bi bi-${iconName}`;
                 return { name, icon: iconValue, url, active: $('#new-red-active').is(':checked'), archivo: null };
             } else {
-                // Tipo imagen
                 if (!archivoSeleccionado) {
                     Swal.showValidationMessage('Debes seleccionar un archivo .ico');
                     return false;
@@ -4076,7 +4022,6 @@ $('#btnNuevaRedSocial').click(function() {
                     }
                 },
                 error: (xhr) => {
-                    console.error(xhr);
                     mostrarError('Error', 'Error al guardar la red social');
                 }
             });
@@ -4400,7 +4345,6 @@ $('#btnNuevaColumna').click(function() {
                     }
                 },
                 error: (xhr) => {
-                    console.error(xhr);
                     mostrarError('Error', 'Error al guardar la columna');
                 }
             });
@@ -4449,13 +4393,12 @@ function limpiarIconoColumna(id) {
                 success: (response) => {
                     if (response.success) {
                         toastr.success('Icono eliminado');
-                        cargarFooterCompleto(); // recarga la lista de columnas
+                        cargarFooterCompleto(); 
                     } else {
                         mostrarError('Error', response.message || 'No se pudo eliminar');
                     }
                 },
                 error: (xhr) => {
-                    console.error(xhr);
                     mostrarError('Error', 'Error al eliminar el icono');
                 }
             });
@@ -4494,7 +4437,6 @@ function limpiarIconoEnlace(id) {
                     }
                 },
                 error: (xhr) => {
-                    console.error(xhr);
                     mostrarError('Error', 'Error al eliminar el icono');
                 }
             });

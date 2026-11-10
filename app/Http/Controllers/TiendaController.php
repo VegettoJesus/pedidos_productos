@@ -17,10 +17,16 @@ use App\Models\Atributo;
 use App\Models\AtributoPrioridad;
 use App\Models\Notificacion;
 use App\Models\TipoNotificacion;
+use App\Models\EmpresaInformacion;
 use App\Models\Carrito;
+use App\Models\ContactoMensaje;
 use App\Helpers\ConfiguracionHelper;
+use App\Models\HomeConfiguracion;
+use App\Models\PermisoNotificacion;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 class TiendaController extends Controller
 {
@@ -50,16 +56,300 @@ class TiendaController extends Controller
 
     public function home()
     {
+        $config  = ConfiguracionSistema::first();
+        $maxHome = (int) ($config->max_entradas_home ?? 12);
+
+        $seccionesConfig = HomeConfiguracion::where('mostrar', true)
+            ->orderBy('orden', 'asc')
+            ->get();
+
+        $secciones = [];
+        $yaIncluidos = [];   
+        $restante = $maxHome;
+
+        foreach ($seccionesConfig as $sec) {
+            if ($restante <= 0) break;
+
+            $config   = $sec->configuracion_json ?? [];
+            $porTomar = min($sec->numero_elementos, $restante);
+
+            $productos = $this->obtenerProductosSeccion(
+                $sec->seccion,
+                $config,
+                $porTomar,
+                $yaIncluidos
+            );
+
+            if ($productos->isEmpty()) continue;
+
+            foreach ($productos as $p) {
+                $yaIncluidos[] = $p->id;
+            }
+
+            $restante -= $productos->count();
+
+            $secciones[] = [
+                'seccion'       => $sec->seccion,
+                'nombre'        => $this->nombreLegibleSeccion($sec->seccion),
+                'icono'         => $this->iconoSeccion($sec->seccion),
+                'configuracion' => $config,
+                'productos'     => $this->procesarVariacionesTarjeta($productos),
+            ];
+        }
+
         $base = $this->getBaseConfig();
         return view('layouts.contenido2', array_merge($base, [
-            'contenido2' => 'tienda.main',
+            'contenido2'   => 'tienda.main',
+            'secciones'    => $secciones,
+            'max_home'     => $maxHome,
+            'config_site'  => $config,
         ]));
+    }
+
+    /**
+     * Secciones que NO deben repetir productos ya mostrados arriba
+     */
+    private array $seccionesSinRepetir = ['destacados', 'recomendados'];
+
+    /**
+     * Secciones que SÍ pueden repetir productos de otras secciones
+     */
+    private array $seccionesConRepeticion = ['ofertas', 'mas_vendidos', 'nuevos'];
+
+    /**
+     * Obtiene los productos según el tipo de sección
+     */
+    private function obtenerProductosSeccion(string $seccion, array $config, int $limite, array $excluirIds)
+    {
+        if ($limite <= 0) return collect();
+
+        $base = Producto::with(['imagenes', 'valoraciones', 'variaciones'])
+            ->where('estado', 'publicado');
+
+        $debeExcluir = in_array($seccion, $this->seccionesSinRepetir, true);
+        if ($debeExcluir && !empty($excluirIds)) {
+            $base->whereNotIn('id', $excluirIds);
+        }
+
+        switch ($seccion) {
+
+            case 'destacados':
+                $criterio       = $config['criterio'] ?? 'manual';
+                $mostrarPrecio  = $config['mostrar_precio'] ?? true;
+
+                $q = clone $base;
+
+                if ($criterio === 'manual') {
+                    $ids = (array) ($config['productos_ids'] ?? []);
+                    if (empty($ids)) return collect();
+                    // Respetar orden manual
+                    $productos = $q->whereIn('id', $ids)->get();
+                    return $productos->sortBy(function ($p) use ($ids) {
+                        return array_search($p->id, $ids);
+                    })->take($limite);
+                }
+
+                if ($criterio === 'rating') {
+                    return $q
+                        ->withAvg(['valoraciones as avg_rating' => function ($v) {
+                            $v->where('aprobado', true);
+                        }], 'puntuacion')
+                        ->having('avg_rating', '>', 0)
+                        ->orderByDesc('avg_rating')
+                        ->take($limite)
+                        ->get();
+                }
+
+                if ($criterio === 'ventas') {
+                    return $q
+                        ->withCount(['ventas as total_vendido'])
+                        ->having('total_vendido', '>', 0)
+                        ->orderByDesc('total_vendido')
+                        ->take($limite)
+                        ->get();
+                }
+
+                return $q->orderByDesc('created_at')->take($limite)->get();
+
+            case 'nuevos':
+                $dias = (int) ($config['dias_nuevo'] ?? 7);
+                return $base
+                    ->where('created_at', '>=', now()->subDays($dias))
+                    ->orderByDesc('created_at')
+                    ->take($limite)
+                    ->get();
+
+            case 'ofertas':
+                $descuentoMin = (float) ($config['descuento_minimo'] ?? 0);
+                $ordenarPor   = $config['ordenar_por'] ?? 'porcentaje_descuento';
+
+                $queryOfertas = Producto::with(['imagenes', 'valoraciones', 'variaciones'])
+                    ->where('estado', 'publicado')
+                    ->where(function ($q) {
+                        $q->where(function ($s) {
+                            $s->where('tipo_producto', 'simple')
+                            ->whereNotNull('precio_rebajado')
+                            ->where('precio_rebajado', '>', 0)
+                            ->where(fn($f) => $f->whereNull('fecha_fin_rebaja')
+                                                ->orWhere('fecha_fin_rebaja', '>=', now()));
+                        })
+                        ->orWhere(function ($s) {
+                            $s->where('tipo_producto', 'variable')
+                            ->whereHas('variaciones', function ($v) {
+                                $v->where('activo', true)
+                                    ->whereNotNull('precio_rebajado')
+                                    ->where('precio_rebajado', '>', 0)
+                                    ->where(fn($f) => $f->whereNull('fecha_fin_rebaja')
+                                                        ->orWhere('fecha_fin_rebaja', '>=', now()));
+                            });
+                        });
+                    });
+
+                if ($descuentoMin > 0) {
+                    $queryOfertas->where(function ($q) use ($descuentoMin) {
+                        $q->whereRaw("
+                            (1 - precio_rebajado / NULLIF(precio_regular,0)) * 100 >= ?
+                        ", [$descuentoMin])
+                        ->orWhereHas('variaciones', function ($v) use ($descuentoMin) {
+                            $v->whereRaw("
+                                (1 - precio_rebajado / NULLIF(precio_regular,0)) * 100 >= ?
+                            ", [$descuentoMin]);
+                        });
+                    });
+                }
+
+                switch ($ordenarPor) {
+                    case 'precio_final':
+                        $queryOfertas->orderByRaw("
+                            COALESCE(precio_rebajado, precio_regular) ASC
+                        ");
+                        break;
+                    case 'fecha_fin':
+                        $queryOfertas->orderByRaw("
+                            CASE WHEN fecha_fin_rebaja IS NULL THEN 1 ELSE 0 END,
+                            fecha_fin_rebaja ASC
+                        ");
+                        break;
+                    default: 
+                        $queryOfertas->orderByRaw("
+                            CASE
+                                WHEN tipo_producto='simple' AND precio_regular > 0
+                                THEN (1 - precio_rebajado/precio_regular)*100
+                                ELSE 0
+                            END DESC
+                        ");
+                }
+
+                return $queryOfertas->take($limite)->get();
+
+            case 'mas_vendidos':
+                return $base
+                    ->withCount(['ventas as total_vendido'])
+                    ->having('total_vendido', '>', 0)
+                    ->orderByDesc('total_vendido')
+                    ->take($limite)
+                    ->get();
+
+            case 'recomendados':
+                if (!Auth::check()) return collect();  
+
+                $userId = Auth::id();
+                $idsBase = DB::table('pedido_items as pd')
+                    ->join('pedidos as p', 'p.id', '=', 'pd.pedido_id')
+                    ->where('p.user_id', $userId)
+                    ->pluck('pd.producto_id')
+                    ->merge(
+                        DB::table('producto_valoraciones')
+                            ->where('user_id', $userId)
+                            ->pluck('producto_id')
+                    )
+                    ->unique()
+                    ->toArray();
+
+                if (empty($idsBase)) {
+                    return $base
+                        ->withAvg(['valoraciones as avg_rating' => function ($v) {
+                            $v->where('aprobado', true);
+                        }], 'puntuacion')
+                        ->having('avg_rating', '>', 0)
+                        ->orderByDesc('avg_rating')
+                        ->take($limite)
+                        ->get();
+                }
+
+                $productosBase = Producto::with(['etiquetas', 'atributos'])
+                    ->whereIn('id', $idsBase)
+                    ->get();
+
+                $atributoIds   = collect();
+                $etiquetaIds   = collect();
+                $subcategoriaIds = collect();
+
+                foreach ($productosBase as $pb) {
+                    $atributoIds      = $atributoIds->merge($pb->atributos->pluck('id'));
+                    $etiquetaIds      = $etiquetaIds->merge($pb->etiquetas->pluck('id'));
+                    if ($pb->id_subCategorias) $subcategoriaIds->push($pb->id_subCategorias);
+                }
+
+                $atributoIds     = $atributoIds->unique()->toArray();
+                $etiquetaIds     = $etiquetaIds->unique()->toArray();
+                $subcategoriaIds = $subcategoriaIds->unique()->toArray();
+
+                // Buscar productos similares (mismo atributo, etiqueta o subcategoría)
+                return $base
+                    ->where(function ($q) use ($atributoIds, $etiquetaIds, $subcategoriaIds) {
+                        if (!empty($subcategoriaIds)) {
+                            $q->orWhereIn('id_subCategorias', $subcategoriaIds);
+                        }
+                        if (!empty($etiquetaIds)) {
+                            $q->orWhereHas('etiquetas', fn($e) => $e->whereIn('etiquetas.id', $etiquetaIds));
+                        }
+                        if (!empty($atributoIds)) {
+                            $q->orWhereHas('atributos', fn($a) => $a->whereIn('atributos.id', $atributoIds));
+                        }
+                    })
+                    ->withAvg(['valoraciones as avg_rating' => function ($v) {
+                        $v->where('aprobado', true);
+                    }], 'puntuacion')
+                    ->orderByDesc('avg_rating')
+                    ->orderByDesc('created_at')
+                    ->take($limite)
+                    ->get();
+        }
+
+        return collect();
+    }
+
+    /**
+     * Nombre legible de la sección
+     */
+    private function nombreLegibleSeccion(string $seccion): string
+    {
+        return match($seccion) {
+            'destacados'   => 'Productos Destacados',
+            'nuevos'       => 'Nuevos Productos',
+            'ofertas'      => 'Ofertas Especiales',
+            'mas_vendidos' => 'Más Vendidos',
+            'recomendados' => 'Recomendados para ti',
+            default        => ucfirst(str_replace('_', ' ', $seccion)),
+        };
+    }
+
+    private function iconoSeccion(string $seccion): string
+    {
+        return match($seccion) {
+            'destacados'   => 'bi-star-fill',
+            'nuevos'       => 'bi-badge-ad',
+            'ofertas'      => 'bi-tag-fill',
+            'mas_vendidos' => 'bi-trophy-fill',
+            'recomendados' => 'bi-person-fill',
+            default        => 'bi-grid-fill',
+        };
     }
 
     public function productos()
     {
         $base = $this->getBaseConfig();
-        // Asumiendo que tienes una vista tienda.productos (podrías listar todos los productos)
         return view('layouts.contenido2', array_merge($base, [
             'contenido2' => 'tienda.productos',
         ]));
@@ -67,10 +357,399 @@ class TiendaController extends Controller
 
     public function contacto()
     {
-        $base = $this->getBaseConfig();
+        $base    = $this->getBaseConfig();
+        $empresa = EmpresaInformacion::first();
+
         return view('layouts.contenido2', array_merge($base, [
             'contenido2' => 'tienda.contacto',
+            'empresa'    => $empresa,
         ]));
+    }
+
+    private function obtenerCorreosPorTipoNotificacion(string $slugTipo): array
+    {
+        $tipo = TipoNotificacion::where('slug', $slugTipo)->first();
+        if (!$tipo) {
+            return [];
+        }
+
+        $rolesConPermiso = PermisoNotificacion::where('tipo_notificacion_id', $tipo->id)
+            ->where('puede_ver', true)
+            ->pluck('rol_id')
+            ->toArray();
+
+        if (empty($rolesConPermiso)) {
+            return [];
+        }
+
+        return User::query()
+            ->whereIn('id_rol', $rolesConPermiso)
+            ->where('estado', true)
+            ->whereNotNull('email')
+            ->whereDoesntHave('excepcionesNotificaciones', function ($q) use ($tipo) {
+                $q->where('tipo_notificacion_id', $tipo->id)
+                ->where('tipo_excepcion', 'denegar');
+            })
+            ->pluck('email')
+            ->unique()
+            ->filter()
+            ->values()
+            ->toArray();
+    }
+
+    private function obtenerConfigSmtp(): ?array
+    {
+        $config = \App\Models\ConfiguracionCorreo::getActiva();
+        if (!$config) {
+            return null;
+        }
+
+        $errores = $config->validarConfiguracion();
+        if (!empty($errores)) {
+            \Log::warning('Configuración SMTP incompleta: ' . implode(', ', $errores));
+            return null;
+        }
+
+        $password = $config->contraseña; 
+        if (empty($password)) {
+            \Log::warning('No se pudo desencriptar la contraseña SMTP.');
+            return null;
+        }
+
+        return [
+            'transport'  => 'smtp',
+            'host'       => $config->servidor_correo,
+            'port'       => (int) $config->puerto,
+            'encryption' => $config->seguridad === 'ninguna' ? null : $config->seguridad,
+            'username'   => $config->nombre_acceso,
+            'password'   => $password,
+            'timeout'    => 30,
+        ];
+    }
+
+    private function enviarEmailContacto(ContactoMensaje $contacto, array $destinatarios): bool
+    {
+        $smtp = $this->obtenerConfigSmtp();
+        if (!$smtp) {
+            \Log::warning('No se envía email de contacto: configuración SMTP no disponible.');
+            return false;
+        }
+
+        config(['mail.mailers.contacto_sistema' => $smtp]);
+
+        $fromEmail = $smtp['username'];
+        $fromName  = ConfiguracionHelper::getCompanyName() ?: 'Contacto';
+
+        $asunto = 'Contacto: ' . $contacto->asunto;
+        $html = $this->buildEmailContactoHtml($contacto, $fromName);
+
+        try {
+            Mail::mailer('contacto_sistema')->html($html, function ($msg) use (
+                $destinatarios, $fromEmail, $fromName, $asunto, $contacto
+            ) {
+                $msg->to($destinatarios)
+                    ->from($fromEmail, $fromName)
+                    ->subject($asunto)
+                    ->replyTo($contacto->email, $contacto->nombre);
+            });
+
+            return true;
+        } catch (\Throwable $e) {
+            \Log::error('Error al enviar email de contacto: ' . $e->getMessage(), [
+                'contacto_id' => $contacto->id,
+                'destinatarios' => $destinatarios,
+            ]);
+            return false;
+        }
+    }
+
+    private function buildEmailContactoHtml(ContactoMensaje $contacto, string $empresaNombre): string
+    {
+        $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+
+        $nombre    = $e($contacto->nombre);
+        $email     = $e($contacto->email);
+        $telefono  = $e($contacto->telefono ?: '—');
+        $asuntoTxt = $e($contacto->asunto);
+        $mensaje   = nl2br($e($contacto->mensaje));
+        $fecha     = now()->format('d/m/Y H:i');
+        $empresa   = $e($empresaNombre);
+        $anio      = date('Y');
+        $contactoId = (int) $contacto->id;
+        $ip        = $e($contacto->ip ?? '—');
+
+        $primary   = '#f4ab27';
+        $secondary = '#222222';
+        $dark      = '#222222';
+        $gray      = '#f5f5f5';
+        $grayText  = '#666666';
+        $light     = '#ffffff';
+        $border    = '#eeeeee';
+        $warning   = '#f39c12';
+
+        return <<<HTML
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuevo mensaje de contacto</title>
+    </head>
+    <body style="margin:0;padding:0;background-color:{$gray};font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:{$dark};line-height:1.6;-webkit-font-smoothing:antialiased;">
+    <div style="display:none;font-size:1px;color:{$gray};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+        Nuevo mensaje de {$nombre} — {$asuntoTxt}
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{$gray};padding:24px 12px;">
+        <tr>
+        <td align="center">
+
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background-color:{$light};border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.08);">
+
+            <tr>
+                <td style="background:linear-gradient(135deg,{$secondary} 0%,#111111 100%);padding:28px 32px;text-align:center;">
+                <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:{$primary};font-weight:700;margin-bottom:6px;">
+                    Nuevo mensaje de contacto
+                </div>
+                <div style="font-size:22px;font-weight:700;color:{$light};margin:0;">
+                    {$empresa}
+                </div>
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:24px 32px 0 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                        style="background-color:rgba(244,171,39,0.10);border-left:4px solid {$primary};border-radius:8px;">
+                    <tr>
+                    <td style="padding:14px 18px;">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:{$grayText};font-weight:600;margin-bottom:4px;">
+                        Asunto
+                        </div>
+                        <div style="font-size:16px;font-weight:700;color:{$dark};">
+                        {$asuntoTxt}
+                        </div>
+                    </td>
+                    </tr>
+                </table>
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:24px 32px 0 32px;">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:{$grayText};font-weight:700;margin-bottom:12px;">
+                    Datos del remitente
+                </div>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+                    <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid {$border};width:110px;font-size:13px;color:{$grayText};font-weight:600;">Nombre</td>
+                    <td style="padding:10px 0;border-bottom:1px solid {$border};font-size:14px;color:{$dark};font-weight:500;">{$nombre}</td>
+                    </tr>
+                    <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid {$border};font-size:13px;color:{$grayText};font-weight:600;">Email</td>
+                    <td style="padding:10px 0;border-bottom:1px solid {$border};font-size:14px;">
+                        <a href="mailto:{$email}" style="color:{$primary};text-decoration:none;font-weight:500;">{$email}</a>
+                    </td>
+                    </tr>
+                    <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid {$border};font-size:13px;color:{$grayText};font-weight:600;">Teléfono</td>
+                    <td style="padding:10px 0;border-bottom:1px solid {$border};font-size:14px;color:{$dark};">{$telefono}</td>
+                    </tr>
+                    <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid {$border};font-size:13px;color:{$grayText};font-weight:600;">Fecha</td>
+                    <td style="padding:10px 0;border-bottom:1px solid {$border};font-size:14px;color:{$dark};">{$fecha}</td>
+                    </tr>
+                    <tr>
+                    <td style="padding:10px 0;font-size:13px;color:{$grayText};font-weight:600;">IP</td>
+                    <td style="padding:10px 0;font-size:14px;color:{$dark};">{$ip}</td>
+                    </tr>
+                </table>
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:24px 32px 0 32px;">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:{$grayText};font-weight:700;margin-bottom:12px;">
+                    Mensaje
+                </div>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                        style="background-color:{$gray};border-radius:12px;border:1px solid {$border};">
+                    <tr>
+                    <td style="padding:20px;font-size:14px;line-height:1.7;color:{$dark};">
+                        {$mensaje}
+                    </td>
+                    </tr>
+                </table>
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:28px 32px 8px 32px;text-align:center;">
+                <a href="mailto:{$email}?subject=Re: {$asuntoTxt}"
+                    style="display:inline-block;background-color:{$primary};color:{$secondary};font-size:14px;font-weight:700;padding:12px 28px;border-radius:40px;text-decoration:none;">
+                    Responder a {$nombre}
+                </a>
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:24px 32px 28px 32px;">
+                <div style="border-top:1px solid {$border};padding-top:16px;text-align:center;">
+                    <div style="font-size:12px;color:{$grayText};line-height:1.6;">
+                    Este correo se generó automáticamente desde el formulario de contacto de<br>
+                    <strong style="color:{$dark};">{$empresa}</strong>
+                    </div>
+                    <div style="font-size:11px;color:#999999;margin-top:10px;">
+                    Ref. contacto #{$contactoId} · {$fecha} · &copy; {$anio} {$empresa}
+                    </div>
+                </div>
+                </td>
+            </tr>
+
+            </table>
+
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
+            <tr>
+                <td style="padding:16px 20px;text-align:center;font-size:11px;color:#999999;line-height:1.5;">
+                Si no reconoces este mensaje, puedes ignorarlo.
+                </td>
+            </tr>
+            </table>
+
+        </td>
+        </tr>
+    </table>
+
+    </body>
+    </html>
+    HTML;
+    }
+
+    public function enviarContacto(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'nombre'   => 'required|string|max:120',
+            'email'    => 'required|email|max:150',
+            'telefono' => 'nullable|string|max:30',
+            'asunto'   => 'required|string|max:150',
+            'mensaje'  => 'required|string|min:10|max:2000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verifica los datos ingresados.',
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $contacto = ContactoMensaje::create([
+                'nombre'     => $request->nombre,
+                'email'      => $request->email,
+                'telefono'   => $request->telefono,
+                'asunto'     => $request->asunto,
+                'mensaje'    => $request->mensaje,
+                'ip'         => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'estado'     => 'nuevo',
+            ]);
+
+            $this->notificarContactoAAdmins($contacto);
+            $destinatarios = $this->obtenerCorreosPorTipoNotificacion('contacto');
+
+            if (empty($destinatarios)) {
+                $emailSistema = ConfiguracionHelper::getEmail();
+                if ($emailSistema) {
+                    $destinatarios = [$emailSistema];
+                }
+            }
+
+            $emailEnviado = false;
+            if (!empty($destinatarios)) {
+                $emailEnviado = $this->enviarEmailContacto($contacto, $destinatarios);
+            }
+
+            return response()->json([
+                'success'     => true,
+                'message'     => '¡Mensaje enviado! Te responderemos a la brevedad.',
+                'data'        => [
+                    'id'            => $contacto->id,
+                    'estado'        => $contacto->estado,
+                    'email_enviado' => $emailEnviado,
+                    'destinatarios' => count($destinatarios),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error en formulario de contacto: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo enviar tu mensaje. Intenta más tarde.',
+            ], 500);
+        }
+    }
+
+    private function notificarContactoAAdmins(ContactoMensaje $contacto): void
+    {
+        $tipo = TipoNotificacion::where('slug', 'contacto')->first();
+        if (!$tipo) {
+            \Log::warning('No existe el tipo de notificación "contacto"');
+            return;
+        }
+
+        $rolesConPermiso = PermisoNotificacion::where('tipo_notificacion_id', $tipo->id)
+            ->where('puede_ver', true)
+            ->pluck('rol_id')
+            ->toArray();
+
+        if (empty($rolesConPermiso)) {
+            \Log::warning("Ningún rol tiene permiso para el tipo 'contacto'");
+            return;
+        }
+
+        $usuarios = User::query()
+            ->whereIn('id_rol', $rolesConPermiso)
+            ->where('estado', true) 
+            ->whereDoesntHave('excepcionesNotificaciones', function ($q) use ($tipo) {
+                $q->where('tipo_notificacion_id', $tipo->id)
+                ->where('tipo_excepcion', 'denegar');
+            })
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($usuarios)) {
+            return;
+        }
+
+        $notificacion = Notificacion::create([
+            'tipo_notificacion_id' => $tipo->id,
+            'creado_por'           => null,
+            'titulo'               => 'Nuevo mensaje de contacto: ' . $contacto->asunto,
+            'mensaje'              => "De: {$contacto->nombre} ({$contacto->email})\n\n"
+                                    . $contacto->mensaje,
+            'mensaje_corto'        => "{$contacto->nombre} — {$contacto->asunto}",
+            'data_extra'           => [
+                'contacto_id' => $contacto->id,
+                'email'       => $contacto->email,
+                'telefono'    => $contacto->telefono,
+                'asunto'      => $contacto->asunto,
+            ],
+            'url'                  => route('administracionDelSistema.contacto-mensajes.index'),
+            'boton_texto'          => 'Ver mensaje',
+            'prioridad'            => 'media',
+            'fecha_inicio'         => now(),
+            'fecha_fin'            => null,
+            'usuario_id'           => null,
+            'rol_id'               => null,   
+            'visible'              => true,
+            'eliminada'            => false,
+        ]);
+
+        $notificacion->usuarios()->syncWithoutDetaching($usuarios);
     }
 
     public function productosPorCategoria($id)
@@ -699,28 +1378,167 @@ class TiendaController extends Controller
         ]));
     }
 
-    public function ofertas()
+    public function ofertas(Request $request)
     {
-        $productos = Producto::whereNotNull('precio_rebajado')
-                    ->where('estado', 'publicado')
-                    ->where(function($q) {
-                        $q->whereNull('fecha_fin_rebaja')
-                        ->orWhere('fecha_fin_rebaja', '>=', now());
-                    })
-                    ->paginate(12);
-        
-        // 🔥 Procesar variaciones para tarjeta
-        $productos->getCollection()->transform(function($producto) {
+        $query = Producto::with(['imagenes', 'valoraciones', 'variaciones'])
+            ->where('estado', 'publicado')
+            ->where(function ($q) {
+                $q->where(function ($sub) {
+                    $sub->where('tipo_producto', 'simple')
+                        ->whereNotNull('precio_rebajado')
+                        ->where('precio_rebajado', '>', 0)
+                        ->where(function ($f) {
+                            $f->whereNull('fecha_fin_rebaja')
+                            ->orWhere('fecha_fin_rebaja', '>=', now());
+                        });
+                })
+                ->orWhere(function ($sub) {
+                    $sub->where('tipo_producto', 'variable')
+                        ->whereHas('variaciones', function ($v) {
+                            $v->where('activo', true)
+                            ->whereNotNull('precio_rebajado')
+                            ->where('precio_rebajado', '>', 0)
+                            ->where(function ($f) {
+                                $f->whereNull('fecha_fin_rebaja')
+                                    ->orWhere('fecha_fin_rebaja', '>=', now());
+                            });
+                        });
+                })
+                ->orWhere(function ($sub) {
+                    $sub->where('tipo_producto', 'agrupado')
+                        ->whereHas('productosHijos', function ($h) {
+                            $h->where('estado', 'publicado')
+                            ->where(function ($f) {
+                                $f->where(function ($s) {
+                                    $s->where('tipo_producto', 'simple')
+                                        ->whereNotNull('precio_rebajado')
+                                        ->where('precio_rebajado', '>', 0)
+                                        ->where(function ($ff) {
+                                            $ff->whereNull('fecha_fin_rebaja')
+                                            ->orWhere('fecha_fin_rebaja', '>=', now());
+                                        });
+                                })
+                                ->orWhere(function ($v) {
+                                    $v->where('tipo_producto', 'variable')
+                                        ->whereHas('variaciones', function ($vv) {
+                                            $vv->where('activo', true)
+                                            ->whereNotNull('precio_rebajado')
+                                            ->where('precio_rebajado', '>', 0)
+                                            ->where(function ($ff) {
+                                                $ff->whereNull('fecha_fin_rebaja')
+                                                    ->orWhere('fecha_fin_rebaja', '>=', now());
+                                            });
+                                        });
+                                });
+                            });
+                        });
+                });
+            });
+
+        $categoriasSeleccionadas = null;
+        if ($request->filled('categoria')) {
+            $categoriaIds = (array) $request->categoria;
+            $categoriasSeleccionadas = Categoria::whereIn('id', $categoriaIds)->get();
+            if ($categoriasSeleccionadas->isNotEmpty()) {
+                $subIds = collect();
+                foreach ($categoriasSeleccionadas as $cat) {
+                    $subIds = $subIds->merge($cat->subcategorias->pluck('id'));
+                }
+                $subIds = $subIds->unique()->toArray();
+
+                $query->where(function ($q) use ($subIds) {
+                    $q->whereIn('id_subCategorias', $subIds)
+                    ->orWhereHas('productosHijos', fn($h) => $h->whereIn('id_subCategorias', $subIds));
+                });
+            }
+        }
+
+        $subcategoriasDisponibles = collect();
+        if ($request->filled('categoria') && $categoriasSeleccionadas) {
+            $categoriaIds = (array) $request->categoria;
+            $subcategoriasDisponibles = Subcategoria::whereIn('id_categoria', $categoriaIds)
+                ->withCount(['productos' => fn($q) => $q->where('estado', 'publicado')])
+                ->get();
+        }
+
+        if ($request->filled('subcategoria')) {
+            $subIds = (array) $request->subcategoria;
+            $query->where(function ($q) use ($subIds) {
+                $q->whereIn('id_subCategorias', $subIds)
+                ->orWhereHas('productosHijos', fn($h) => $h->whereIn('id_subCategorias', $subIds));
+            });
+        }
+
+        if ($request->filled('rating_min') && $request->rating_min >= 1) {
+            $ratingMin = (int) $request->rating_min;
+            $query->whereHas('valoraciones', function ($q) use ($ratingMin) {
+                $q->select('producto_id', DB::raw('AVG(puntuacion) as avg_rating'))
+                ->groupBy('producto_id')
+                ->havingRaw('AVG(puntuacion) >= ?', [$ratingMin]);
+            });
+        }
+
+        switch ($request->get('orden', 'descuento')) {
+            case 'precio_asc':
+                $query->orderByRaw("
+                    CASE
+                        WHEN tipo_producto = 'simple' AND precio_rebajado > 0 THEN precio_rebajado
+                        WHEN tipo_producto = 'simple' THEN precio_regular
+                        WHEN tipo_producto IN ('variable','agrupado') THEN
+                            COALESCE((SELECT MIN(CASE WHEN pv.precio_rebajado > 0 THEN pv.precio_rebajado ELSE pv.precio_regular END)
+                                    FROM producto_variaciones pv WHERE pv.producto_padre_id = productos.id AND pv.activo = 1), 999999999)
+                        ELSE 999999999
+                    END ASC
+                ");
+                break;
+            case 'precio_desc':
+                $query->orderByRaw("
+                    CASE
+                        WHEN tipo_producto = 'simple' AND precio_rebajado > 0 THEN precio_rebajado
+                        WHEN tipo_producto = 'simple' THEN precio_regular
+                        WHEN tipo_producto IN ('variable','agrupado') THEN
+                            COALESCE((SELECT MIN(CASE WHEN pv.precio_rebajado > 0 THEN pv.precio_rebajado ELSE pv.precio_regular END)
+                                    FROM producto_variaciones pv WHERE pv.producto_padre_id = productos.id AND pv.activo = 1), 0)
+                        ELSE 0
+                    END DESC
+                ");
+                break;
+            case 'nombre':
+                $query->orderBy('nombre', 'asc');
+                break;
+            case 'novedad':
+                $query->orderBy('created_at', 'desc');
+                break;
+            default: // descuento
+                $query->orderByRaw("
+                    CASE
+                        WHEN tipo_producto = 'simple' AND precio_regular > 0 AND precio_rebajado > 0
+                            THEN (1 - precio_rebajado / precio_regular) * 100
+                        ELSE 0
+                    END DESC
+                ");
+        }
+
+        $productos = $query->paginate(24)->appends($request->query());
+
+        $productos->getCollection()->transform(function ($producto) {
             if ($producto->tipo_producto === 'variable') {
                 $producto->variaciones_tarjeta = $this->getVariacionesParaTarjeta($producto);
             }
             return $producto;
         });
-        
+
+        $categorias = Categoria::with(['subcategorias' => function ($q) {
+            $q->withCount(['productos' => fn($p) => $p->where('estado', 'publicado')]);
+        }])->withCount(['productos' => fn($p) => $p->where('estado', 'publicado')])->get();
+
         $base = $this->getBaseConfig();
         return view('layouts.contenido2', array_merge($base, [
-            'contenido2' => 'tienda.ofertas',
-            'productos' => $productos,
+            'contenido2'              => 'tienda.ofertas',
+            'productos'               => $productos,
+            'categorias'              => $categorias,
+            'subcategoriasDisponibles'=> $subcategoriasDisponibles,
+            'filtros'                 => $request->all(),
         ]));
     }
 
@@ -1740,4 +2558,5 @@ class TiendaController extends Controller
 
         return $notificacion;
     }
+    
 }

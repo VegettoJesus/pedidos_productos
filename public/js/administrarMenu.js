@@ -29,7 +29,6 @@ $(document).ready(function () {
         });
     }
     
-    // Actualizar numeración visual
     function actualizarNumeracion(container) {
         container.find('tr').each(function(index) {
             const ordenCell = $(this).find('.orden-cell');
@@ -45,7 +44,6 @@ $(document).ready(function () {
         });
     }
     
-    // Actualizar orden en memoria
     function actualizarOrdenLocal(container, padreId) {
         const menus = [];
         container.find('tr').each(function(index) {
@@ -64,7 +62,6 @@ $(document).ready(function () {
         currentMenuOrder[padreId] = menus;
     }
     
-    // Guardar orden en servidor
     function guardarOrden(padreId = 0) {
         const menus = currentMenuOrder[padreId];
         if (!menus || menus.length === 0) {
@@ -90,7 +87,6 @@ $(document).ready(function () {
                     confirmButtonText: 'Aceptar'
                 }).then(() => {
                     $('#btnGuardarOrden').fadeOut();
-                    // Recargar solo la pestaña actual con el filtro actual
                     const activeTab = $('.tab-pane.active');
                     const activeTabId = activeTab.attr('id');
                     if (activeTabId === 'main-tab-pane') {
@@ -106,7 +102,6 @@ $(document).ready(function () {
         }, 'json');
     }
     
-    // Cargar menús principales
     function cargarMenusPrincipales(idRol = '') {
         const container = $('#mainMenusBody');
         container.html('<tr><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></td></tr>');
@@ -121,7 +116,6 @@ $(document).ready(function () {
                 renderizarMenus(container, res.menus, res.permisosVista, true);
                 inicializarSortable();
                 
-                // Actualizar información del filtro
                 actualizarInfoFiltro('main', idRol, res.menus.length);
             } else {
                 container.html('<tr><td colspan="8" class="text-center py-4 text-danger">Error al cargar los menús</td></tr>');
@@ -147,7 +141,6 @@ $(document).ready(function () {
         }
     }
     
-    // Cargar submenús de un padre específico
     function cargarSubmenus(padreId, idRol = '') {
         const container = $(`#submenus-${padreId}`);
         if (!container.length) return;
@@ -164,7 +157,6 @@ $(document).ready(function () {
                 renderizarMenus(container, res.menus, res.permisosVista, false);
                 inicializarSortable();
                 
-                // Actualizar información del filtro
                 actualizarInfoFiltro(padreId, idRol, res.menus.length);
             } else {
                 container.html('<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar los submenús</td></tr>');
@@ -172,7 +164,6 @@ $(document).ready(function () {
         }, 'json');
     }
     
-    // Renderizar menús en tabla
     function renderizarMenus(container, menus, permisosVista, isMain = false) {
         if (!menus || menus.length === 0) {
             const rolSeleccionado = $('#filtro_permiso option:selected').text();
@@ -262,42 +253,34 @@ $(document).ready(function () {
         bindMenuActions(permisosVista);
     }
     
-    // Vincular eventos a los botones de acción
     function bindMenuActions(permisosVista) {
-        // Botón de permisos
         $('.btn-permisos').off('click').on('click', function() {
             const idMenu = $(this).data('id');
             const menuNombre = $(this).closest('tr').find('.fw-semibold').text();
             abrirModalPermisos(idMenu, menuNombre);
         });
         
-        // Botón de editar
         $('.btn-editar').off('click').on('click', function() {
             const idMenu = $(this).data('id');
             editarMenu(idMenu);
         });
         
-        // Botón de URL
         $('.btn-url').off('click').on('click', function() {
             const idMenu = $(this).data('id');
             actualizarURL(idMenu);
         });
         
-        // Botón de eliminar
         $('.btn-eliminar').off('click').on('click', function() {
             const idMenu = $(this).data('id');
             eliminarMenu(idMenu);
         });
         
-        // Botón para ver submenús (solo en menús principales)
         $('.btn-ver-submenus').off('click').on('click', function() {
             const idMenu = $(this).data('id');
-            // Activar la pestaña correspondiente
             $(`#tab-${idMenu}`).tab('show');
         });
     }
     
-    // Inicializar pestañas
     function inicializarTabs() {
         $('#menuTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
             const target = $(e.target).data('bs-target');
@@ -311,7 +294,6 @@ $(document).ready(function () {
         });
     }
     
-    // Botón guardar orden
     $('#btnGuardarOrden').on('click', function() {
         const activePane = $('.tab-pane.active');
         const activePaneId = activePane.attr('id');
@@ -324,15 +306,12 @@ $(document).ready(function () {
         }
     });
     
-    // Botón buscar
     $('#btnAplicarFiltro').on('click', function() {
         const idRol = $('#filtro_permiso').val();
         rolFiltroActual = idRol;
         
-        // Mostrar loading
         $(this).html('<span class="spinner-border spinner-border-sm me-2"></span>Aplicando...').prop('disabled', true);
         
-        // Aplicar filtro a todas las pestañas
         aplicarFiltroATodasLasPestanas(idRol);
         
         setTimeout(() => {
@@ -341,7 +320,6 @@ $(document).ready(function () {
     });
 
     function aplicarFiltroATodasLasPestanas(idRol) {
-        // Primero, aplicar a la pestaña activa
         const activePane = $('.tab-pane.active');
         const activePaneId = activePane.attr('id');
         
@@ -370,7 +348,6 @@ $(document).ready(function () {
                     $.post('administrarMenu', { opcion: 'Crear', tipo: 'padre', ...data, _token: $('meta[name="csrf-token"]').attr('content') }, function (resp) {
                         if (resp.respuesta === 'ok') {
                             Swal.fire('Éxito', resp.mensaje, 'success').then(() => {
-                                // Recargar con el filtro actual
                                 const activePane = $('.tab-pane.active');
                                 const activePaneId = activePane.attr('id');
                                 if (activePaneId === 'main-tab-pane') {
@@ -382,7 +359,6 @@ $(document).ready(function () {
                 });
 
             } else if (result.isDenied) {
-                // Crear Hijo
                 let opcionesPadres = '';
                 window.padres.forEach(p => {
                     opcionesPadres += `<option value="${p.id}">${p.nombre}</option>`;
@@ -419,7 +395,6 @@ $(document).ready(function () {
                                     icon: 'success',
                                     confirmButtonText: 'Aceptar'
                                 }).then(() => {
-                                    // Recargar la pestaña del padre con el filtro actual
                                     const padreId = res.value.padre_id;
                                     $(`#tab-${padreId}`).tab('show');
                                 });
@@ -440,12 +415,10 @@ $(document).ready(function () {
         _token: $('meta[name="csrf-token"]').attr('content')
     }, function (res) {
         if (res.respuesta === 'ok') {
-            // Configurar nombre del menú
             if (menuNombre) {
                 $('#menuNombrePermisos').text(menuNombre);
             }
             
-            // Lista de permisos con íconos y colores
             const permisosConfig = [
                 { key: 'ver', icon: 'bi-eye', color: 'white', label: 'Ver' },
                 { key: 'crear', icon: 'bi-plus-circle', color: 'white', label: 'Crear' },
@@ -456,7 +429,6 @@ $(document).ready(function () {
                 { key: 'subcategoria', icon: 'bi-diagram-3', color: 'white', label: 'Subcat.' }
             ];
 
-            // Generar cabeceras con estilo moderno - DESKTOP
             let ths = `
                 <th class="head-rol-modern">
                     <div class="d-flex align-items-center">
@@ -479,7 +451,6 @@ $(document).ready(function () {
 
             $('#tablaPermisos thead tr').html(ths);
 
-            // Generar filas desktop
             let filas = res.roles.map(rol => {
                 let permiso = res.permisos[rol.id] || {};
                 
@@ -521,7 +492,6 @@ $(document).ready(function () {
 
             $('#tablaPermisos tbody').html(filas);
             
-            // Generar vista móvil (tarjetas)
             let mobileCards = res.roles.map(rol => {
                 let permiso = res.permisos[rol.id] || {};
                 
@@ -577,24 +547,19 @@ $(document).ready(function () {
             
             $('#mobilePermisosView').html(mobileCards);
             
-            // Actualizar estadísticas
             actualizarEstadisticas();
             
-            // Mostrar modal con animación
             const modal = new bootstrap.Modal('#modalPermisos');
             modal.show();
             
-            // Guardar ID del menú
             $('#modalPermisos').data('idMenu', idMenu);
             
-            // Inicializar eventos
             inicializarEventosPermisos();
         }
     }, 'json');
 }
 
 function inicializarEventosPermisos() {
-    // Buscar roles
     $('#buscarRol').on('keyup', function() {
         const search = $(this).val().toLowerCase();
         $('.rol-row, .rol-card').each(function() {
@@ -604,26 +569,22 @@ function inicializarEventosPermisos() {
         actualizarEstadisticas();
     });
 
-    // Seleccionar todos
     $('#btnSeleccionarTodos').on('click', function() {
         $('.chkPermiso, .chkPermiso-mobile').prop('checked', true).trigger('change');
         actualizarEstadisticas();
         mostrarNotificacion('Todos los permisos seleccionados', 'info');
     });
 
-    // Deseleccionar todos
     $('#btnDeseleccionarTodos').on('click', function() {
         $('.chkPermiso, .chkPermiso-mobile').prop('checked', false).trigger('change');
         actualizarEstadisticas();
         mostrarNotificacion('Permisos deseleccionados', 'warning');
     });
 
-    // Cambiar permisos individuales - Desktop
     $(document).off('change', '.chkPermiso').on('change', '.chkPermiso', function() {
         cambiarPermiso($(this));
     });
     
-    // Cambiar permisos individuales - Mobile
     $(document).off('change', '.chkPermiso-mobile').on('change', '.chkPermiso-mobile', function() {
         cambiarPermiso($(this));
     });
@@ -635,7 +596,6 @@ function cambiarPermiso(checkboxElement) {
     const campo = checkboxElement.data('campo');
     const valor = checkboxElement.is(':checked') ? 1 : 0;
     
-    // Sincronizar ambos views
     const isMobile = checkboxElement.hasClass('chkPermiso-mobile');
     const desktopSelector = `#permiso_${idRol}_${campo}`;
     const mobileSelector = `#mobile_permiso_${idRol}_${campo}`;
@@ -646,14 +606,12 @@ function cambiarPermiso(checkboxElement) {
         $(mobileSelector).prop('checked', valor);
     }
     
-    // Actualizar contador en tarjeta móvil
     if (isMobile) {
         const card = checkboxElement.closest('.rol-card');
         const activeCount = card.find('.chkPermiso-mobile:checked').length;
         card.find('.permisos-activos-count').text(activeCount);
     }
     
-    // Mostrar estado de carga
     checkboxElement.prop('disabled', true);
     const originalState = checkboxElement.is(':checked');
     
@@ -668,22 +626,17 @@ function cambiarPermiso(checkboxElement) {
         checkboxElement.prop('disabled', false);
         
         if (res.respuesta === 'ok') {
-            // Actualizar estadísticas
             actualizarEstadisticas();
-            
-            // Efecto visual de confirmación
             const switchElement = checkboxElement;
             switchElement.parent().addClass('animate__animated animate__pulse');
             setTimeout(() => {
                 switchElement.parent().removeClass('animate__animated animate__pulse');
             }, 300);
             
-            // Mostrar notificación sutil
             const permisoLabel = getPermisoLabel(campo);
             const estado = valor ? 'activado' : 'desactivado';
             mostrarNotificacion(`Permiso ${permisoLabel} ${estado}`, 'success');
         } else {
-            // Revertir si hay error
             checkboxElement.prop('checked', !originalState);
             if (isMobile) {
                 $(desktopSelector).prop('checked', !originalState);
@@ -711,12 +664,10 @@ function actualizarEstadisticas() {
     }).length;
     const totalRoles = $('.rol-row:visible').length;
     
-    // Actualizar contadores con animación
     animateCounter('contadorActivos', permisosActivos);
     animateCounter('contadorRoles', rolesConAcceso);
     animateCounter('contadorTotal', totalPermisos);
     
-    // Actualizar información
     const porcentaje = Math.round((permisosActivos / totalPermisos) * 100);
     $('#infoPermisos').html(`
         <i class="bi ${porcentaje > 50 ? 'bi-check-circle text-success' : 'bi-exclamation-circle text-warning'} me-1"></i>
@@ -756,7 +707,6 @@ function getPermisoLabel(campo) {
 }
 
 function mostrarNotificacion(mensaje, tipo = 'info') {
-    // Crear notificación toast
     const toastId = 'toast-' + Date.now();
     const toastHtml = `
         <div id="${toastId}" class="toast align-items-center text-white bg-${tipo} border-0 position-fixed"
@@ -774,8 +724,6 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
     $('body').append(toastHtml);
     const toastElement = new bootstrap.Toast(document.getElementById(toastId));
     toastElement.show();
-    
-    // Remover después de 3 segundos
     setTimeout(() => {
         $(`#${toastId}`).remove();
     }, 3000);
@@ -797,7 +745,6 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
                         url: menu.url,
                         icono: menu.icono
                     }, (data) => {
-                        // Actualizamos el padre
                         $.post('administrarMenu', {
                             opcion: 'Actualizar',
                             id: menu.id,
@@ -811,7 +758,6 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
                         }, 'json');
                     });
                 } else {
-                    // Hijo
                     let opcionesPadres = window.padres.map(p => 
                         `<option value="${p.id}" ${menu.padre_id == p.id ? 'selected' : ''}>${p.nombre}</option>`
                     ).join('');
@@ -851,7 +797,6 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
         }, 'json');
     }
     function mostrarModalPadre({ titulo = "Nuevo Padre", nombre = "", url = "", icono = "" }, callback) {
-        // Extraer solo el nombre del icono para el input hidden
         let iconoNombre = '';
         if (icono) {
             if (icono.includes('bi-')) {
@@ -864,7 +809,7 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
             }
         }
         
-        const iconGrid = generarGridIconos(icono, ''); // Pasamos el icono completo
+        const iconGrid = generarGridIconos(icono, ''); 
 
         Swal.fire({
             title: titulo,
@@ -982,7 +927,6 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
         });
     }
     
-    // Inicializar
     function inicializar() {
         cargarMenusPrincipales();
         inicializarTabs();

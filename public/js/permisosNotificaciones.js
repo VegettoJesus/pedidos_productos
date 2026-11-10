@@ -6,9 +6,6 @@
     let usuarioActual = null;
     let timeoutBusqueda = null;
 
-    // ============================================
-    // 1. TOGGLE DE PERMISOS POR ROL
-    // ============================================
     document.querySelectorAll('.chk-permiso-rol').forEach(checkbox => {
         checkbox.addEventListener('change', async function() {
             const rolId = this.dataset.rolId;
@@ -17,7 +14,6 @@
             const tipoNombre = this.dataset.tipoNombre;
             const puedeVer = this.checked;
 
-            // Bloquear mientras se procesa
             this.disabled = true;
 
             try {
@@ -39,7 +35,6 @@
                 const data = await res.json();
 
                 if (data.respuesta !== 'ok') {
-                    // Revertir
                     this.checked = !puedeVer;
                     
                     Swal.fire({
@@ -49,7 +44,6 @@
                         confirmButtonColor: '#F4AB28',
                     });
                 } else {
-                    // Feedback visual sutil
                     const td = this.closest('td');
                     td.classList.add('bg-success-subtle');
                     setTimeout(() => td.classList.remove('bg-success-subtle'), 800);
@@ -63,9 +57,6 @@
         });
     });
 
-    // ============================================
-    // 2. BÚSQUEDA DE USUARIOS
-    // ============================================
     const inputBuscar = document.getElementById('buscarUsuarioInput');
     const resultados = document.getElementById('resultadosBusqueda');
 
@@ -106,7 +97,6 @@
                     resultados.style.display = 'block';
                 }
             } catch (err) {
-                console.error('Error búsqueda:', err);
             }
         }, 300);
     });
@@ -133,16 +123,12 @@
         resultados.style.display = 'block';
     }
 
-    // Cerrar resultados al hacer clic fuera
     document.addEventListener('click', (e) => {
         if (!inputBuscar?.contains(e.target) && !resultados?.contains(e.target)) {
             resultados.style.display = 'none';
         }
     });
 
-    // ============================================
-    // 3. SELECCIONAR USUARIO
-    // ============================================
     async function seleccionarUsuario(usuario) {
         usuarioActual = usuario;
         inputBuscar.value = `${usuario.nombres} ${usuario.apellidos}`;
@@ -163,9 +149,6 @@
         inputBuscar.value = '';
     });
 
-    // ============================================
-    // 4. CARGAR MATRIZ DE EXCEPCIONES
-    // ============================================
     async function cargarMatrizExcepciones(usuarioId) {
         const contenedor = document.getElementById('matrizExcepcionesUsuario');
         contenedor.innerHTML = `
@@ -231,7 +214,6 @@
                 ? '<span class="badge bg-success"><i class="bi bi-check-lg me-1"></i> Permitido</span>'
                 : '<span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i> Denegado</span>';
 
-            // Estado de la excepción actual
             let excepcionHtml = '<span class="text-muted small">Sin excepción</span>';
             if (p.excepcion) {
                 if (p.excepcion.tipo_excepcion === 'permitir') {
@@ -293,13 +275,10 @@
         html += `</tbody></table>`;
         contenedor.innerHTML = html;
 
-        // Bind eventos
         contenedor.querySelectorAll('.btn-set-excepcion').forEach(btn => {
             btn.addEventListener('click', async function() {
                 const tipoId = this.dataset.tipoId;
                 const tipoExcepcion = this.dataset.tipoExcepcion;
-
-                // Pedir motivo con SweetAlert
                 const { value: motivo, isConfirmed } = await Swal.fire({
                     title: tipoExcepcion === 'permitir' 
                         ? '¿Permitir esta notificación?' 
@@ -327,9 +306,6 @@
         });
     }
 
-    // ============================================
-    // 5. GUARDAR EXCEPCIÓN
-    // ============================================
     async function guardarExcepcion(usuarioId, tipoId, tipoExcepcion, motivo) {
         try {
             const res = await fetch(BASE_URL, {
@@ -367,9 +343,6 @@
         }
     }
 
-    // ============================================
-    // 6. ELIMINAR EXCEPCIÓN
-    // ============================================
     async function eliminarExcepcion(excepcionId) {
         const confirm = await Swal.fire({
             title: '¿Eliminar excepción?',
@@ -419,16 +392,12 @@
         }
     }
 
-    // Bind botones de eliminar de la tabla de excepciones existentes
     document.querySelectorAll('.btn-eliminar-excepcion').forEach(btn => {
         btn.addEventListener('click', function() {
             eliminarExcepcion(this.dataset.excepcionId);
         });
     });
 
-    // ============================================
-    // 7. RECARGAR TABLA DE EXCEPCIONES
-    // ============================================
     async function recargarExcepciones() {
         try {
             const res = await fetch(BASE_URL, {
@@ -448,7 +417,6 @@
                 document.getElementById('totalExcepciones').textContent = data.excepciones.length;
             }
         } catch (err) {
-            console.error('Error recargando excepciones:', err);
         }
     }
 
@@ -496,7 +464,6 @@
             </tr>
         `).join('');
 
-        // Re-bind eventos
         tbody.querySelectorAll('.btn-eliminar-excepcion').forEach(btn => {
             btn.addEventListener('click', function() {
                 eliminarExcepcion(this.dataset.excepcionId);

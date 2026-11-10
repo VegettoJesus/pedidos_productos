@@ -16,6 +16,7 @@ use App\Models\UsuarioDato;
 use App\Services\MenuService;
 use App\Models\Notificacion;
 use App\Models\TipoNotificacion;
+use App\Models\ContactoMensaje;
 use App\Models\PermisoNotificacion;
 use App\Models\ExcepcionNotificacionUsuario;
 use Illuminate\Support\Facades\Auth;
@@ -76,7 +77,6 @@ class AdministracionDelSistema extends Controller
                     ->orderBy('name')
                     ->get();
 
-                    // Obtener solo el campo 'permisos' sin decodificar, porque ya es array
                     $permisos = Permiso::where('id_menus', $idMenu)
                         ->get()
                         ->mapWithKeys(function($item) {
@@ -334,7 +334,6 @@ class AdministracionDelSistema extends Controller
                         break;
                     }
 
-                    // si es padre
                     if ($menu->padre == 0 || is_null($menu->padre)) {
                         $data->menu = [
                             'id' => $menu->id,
@@ -344,7 +343,6 @@ class AdministracionDelSistema extends Controller
                             'tipo' => 'padre'
                         ];
                     } else {
-                        // si es hijo
                         $data->menu = [
                             'id' => $menu->id,
                             'padre_id' => $menu->padre,
@@ -729,7 +727,6 @@ class AdministracionDelSistema extends Controller
                         $esCreacion = ($id_user == "0");
                         $nombreCompleto = $request->input('nombres') . ' ' . $request->input('apellidos');
                         
-                        // Obtener el estado
                         $estado = $request->input('estado', 1);
                         
                         $userData = $request->only([
@@ -771,12 +768,10 @@ class AdministracionDelSistema extends Controller
                             $user->created_at = now();
                             $user->save();
                             
-                            // Crear UsuarioDato
                             $usuarioDato = new UsuarioDato();
                             $usuarioDato->id_usuario = $user->id;
                             $usuarioDato->fill($usuarioDatoData);
                             
-                            // Manejar imagen
                             if ($request->hasFile('imagen')) {
                                 $file = $request->file('imagen');
                                 $carpeta = public_path('perfil_usuario');
@@ -790,7 +785,6 @@ class AdministracionDelSistema extends Controller
                             }
                             $usuarioDato->save();
                             
-                            // Auditoría de creación
                             $detalleExtra = "Email: {$email} | Documento: {$tipoDoc} {$numeroDoc} | Celular: {$request->input('celular')} | Estado: " . ($estado == 1 ? 'Activo' : 'Inactivo');
                             
                             $this->registrarAuditoria(
@@ -841,13 +835,11 @@ class AdministracionDelSistema extends Controller
                             $user->updated_at = now();
                             $user->save();
                             
-                            // Actualizar o crear UsuarioDato
                             $usuarioDato = UsuarioDato::updateOrCreate(
                                 ['id_usuario' => $user->id],
                                 $usuarioDatoData
                             );
                             
-                            // Manejar imagen
                             if ($request->hasFile('imagen')) {
                                 $file = $request->file('imagen');
                                 $carpeta = public_path('perfil_usuario');
@@ -861,7 +853,6 @@ class AdministracionDelSistema extends Controller
                                 $usuarioDato->save();
                             }
                             
-                            // Guardar valores nuevos
                             $valoresNuevos = $user->toArray();
                             unset($valoresNuevos['id'], $valoresNuevos['created_at'], $valoresNuevos['updated_at'], $valoresNuevos['password'], $valoresNuevos['remember_token']);
                             
@@ -1057,7 +1048,6 @@ class AdministracionDelSistema extends Controller
                             $usuariosDetalle = [];
                             $permisosDetalle = [];
 
-                            // Recorremos los permisos del rol
                             if ($rol->permisos->isNotEmpty()) {
                                 foreach ($rol->permisos as $permiso) {
                                     $menuNombre = $permiso->menu->nombre ?? "Menú ID {$permiso->id_menus}";
@@ -1067,7 +1057,6 @@ class AdministracionDelSistema extends Controller
                                 }
                             }
 
-                            // Recorremos los usuarios del rol
                             if ($rol->usuarios->isNotEmpty()) {
                                 foreach ($rol->usuarios as $usuario) {
                                     $usuariosDetalle[] = "{$usuario->nombres} {$usuario->apellidos} ({$usuario->email})";
@@ -1076,7 +1065,6 @@ class AdministracionDelSistema extends Controller
                                         $usuario->datos->delete();
                                     }
                                     
-                                    // Registrar auditoría para cada usuario afectado
                                     $this->registrarAuditoria(
                                         'Actualizar',
                                         'users',
@@ -1094,7 +1082,6 @@ class AdministracionDelSistema extends Controller
 
                             $rol->delete();
 
-                            // Detalle para auditoría del rol
                             $detalle = "Rol eliminado";
                             if (!empty($usuariosDetalle)) {
                                 $detalle .= " | Usuarios afectados: " . implode('; ', $usuariosDetalle);
@@ -1190,7 +1177,6 @@ class AdministracionDelSistema extends Controller
                         ->orderBy('nombre')
                         ->get();
 
-                    // Construir matriz de permisos
                     $permisosRoles = [];
                     $permisosDb = PermisoNotificacion::all();
 
@@ -1226,7 +1212,6 @@ class AdministracionDelSistema extends Controller
                         break;
                     }
 
-                    // No permitir quitar permisos al admin
                     if ($rol->name === 'admin' && !$puedeVer) {
                         $data->respuesta = 'error';
                         $data->mensaje = 'No puedes quitar permisos al rol admin.';
@@ -1320,7 +1305,6 @@ class AdministracionDelSistema extends Controller
                         break;
                     }
 
-                    // Matriz de permisos efectivos
                     $matriz = PermisoNotificacion::matrizPermisosUsuario($usuario);
 
                     $data->respuesta = 'ok';
@@ -1632,7 +1616,6 @@ class AdministracionDelSistema extends Controller
         ?string $url = null,
         ?string $botonTexto = null
     ) {
-        // Obtener el tipo "Usuario"
         $tipo = TipoNotificacion::where('slug', 'usuario')->first();
         
         if (!$tipo) {
@@ -1660,7 +1643,6 @@ class AdministracionDelSistema extends Controller
             'eliminada'            => false,
         ]);
 
-        // Forzar asignación en la tabla pivote (por si el evento created falla)
         $notificacion->usuarios()->syncWithoutDetaching([
             $user->id => [
                 'leida' => false,
@@ -1688,5 +1670,205 @@ class AdministracionDelSistema extends Controller
         ];
         
         return $traducciones[$campo] ?? ucfirst($campo);
+    }
+
+    public function contactoMensajes(Request $request)
+    {
+        if ($request->isMethod('post')) {
+            $opcion = $request->input('opcion');
+            $data = new \stdClass();
+
+            if ((int) Auth::user()->id_rol === 2) {
+                return response()->json([
+                    'respuesta' => 'error',
+                    'mensaje'   => 'No tienes permiso para acceder a esta sección.'
+                ], 403);
+            }
+
+            switch ($opcion) {
+
+                case 'Listar':
+                    $query = ContactoMensaje::query()->recientes();
+
+                    if ($request->filled('estado')) {
+                        $query->where('estado', $request->estado);
+                    }
+
+                    if ($request->filled('q')) {
+                        $q = $request->q;
+                        $query->where(function ($sub) use ($q) {
+                            $sub->where('nombre', 'like', "%{$q}%")
+                                ->orWhere('email', 'like', "%{$q}%")
+                                ->orWhere('asunto', 'like', "%{$q}%")
+                                ->orWhere('mensaje', 'like', "%{$q}%");
+                        });
+                    }
+
+                    $mensajes = $query->paginate(20)->withQueryString();
+
+                    $data->respuesta = 'ok';
+                    $data->mensajes  = $mensajes->items();
+                    $data->pagination = [
+                        'current_page' => $mensajes->currentPage(),
+                        'last_page'    => $mensajes->lastPage(),
+                        'per_page'     => $mensajes->perPage(),
+                        'total'        => $mensajes->total(),
+                    ];
+                    $data->stats = [
+                        'nuevos'      => ContactoMensaje::where('estado', 'nuevo')->count(),
+                        'pendientes'  => ContactoMensaje::pendientes()->count(),
+                        'respondidos' => ContactoMensaje::where('estado', 'respondido')->count(),
+                        'total'       => ContactoMensaje::count(),
+                    ];
+                    break;
+
+                case 'MarcarLeido':
+                    $m = ContactoMensaje::find($request->input('id'));
+                    if (!$m) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Mensaje no encontrado';
+                        break;
+                    }
+                    if ($m->estado === 'nuevo') {
+                        $m->update(['estado' => 'leido', 'leido_en' => now()]);
+                    }
+                    $data->respuesta = 'ok';
+                    $data->estado = $m->estado;
+                    break;
+
+                case 'MarcarRespondido':
+                    $m = ContactoMensaje::find($request->input('id'));
+                    if (!$m) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Mensaje no encontrado';
+                        break;
+                    }
+                    $m->update([
+                        'estado'         => 'respondido',
+                        'respondido_en'  => now(),
+                        'respondido_por' => Auth::id(),
+                    ]);
+                    $this->registrarAuditoria(
+                        'Actualizar',
+                        'contacto_mensajes',
+                        $m->id,
+                        $m->asunto ?? "Mensaje #{$m->id}",
+                        ['estado' => 'nuevo/leido'],
+                        ['estado' => 'respondido'],
+                        "Marcado como respondido por " . Auth::user()->nombres
+                    );
+                    $data->respuesta = 'ok';
+                    $data->mensaje = 'Mensaje marcado como respondido';
+                    break;
+                case 'Detalle':
+                    $m = ContactoMensaje::find($request->input('id'));
+                    if (!$m) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Mensaje no encontrado';
+                        break;
+                    }
+
+                    $cambioEstado = false;
+                    if ($m->estado === 'nuevo') {
+                        $m->estado = 'leido';
+                        $m->leido_en = now();
+                        $m->save();
+                        $cambioEstado = true;
+
+                        $this->registrarAuditoria(
+                            'Actualizar',
+                            'contacto_mensajes',
+                            $m->id,
+                            $m->asunto ?? "Mensaje #{$m->id}",
+                            ['estado' => 'nuevo'],
+                            ['estado' => 'leido'],
+                            'Marcado como leído automáticamente al abrir detalle por ' . Auth::user()->nombres
+                        );
+                    }
+
+                    $data->respuesta = 'ok';
+                    $data->mensaje = $cambioEstado
+                        ? 'Mensaje marcado como leído'
+                        : 'Mensaje cargado';
+                    $data->cambio_estado = $cambioEstado;
+                    $data->contacto = [
+                        'id'         => $m->id,
+                        'nombre'     => $m->nombre,
+                        'email'      => $m->email,
+                        'telefono'   => $m->telefono,
+                        'asunto'     => $m->asunto,
+                        'mensaje'    => $m->mensaje,
+                        'estado'     => $m->estado,
+                        'estado_badge' => $m->estado_badge,
+                        'created_at' => $m->created_at->format('d/m/Y H:i'),
+                        'leido_en'   => $m->leido_en ? $m->leido_en->format('d/m/Y H:i') : null,
+                        'respondido_en' => $m->respondido_en ? $m->respondido_en->format('d/m/Y H:i') : null,
+                    ];
+                    break;
+                case 'Stats':
+                    $data->respuesta = 'ok';
+                    $data->stats = [
+                        'nuevos'      => ContactoMensaje::where('estado', 'nuevo')->count(),
+                        'pendientes'  => ContactoMensaje::pendientes()->count(),
+                        'respondidos' => ContactoMensaje::where('estado', 'respondido')->count(),
+                        'total'       => ContactoMensaje::count(),
+                    ];
+                    break;
+                case 'Eliminar':
+                    $m = ContactoMensaje::find($request->input('id'));
+                    if (!$m) {
+                        $data->respuesta = 'error';
+                        $data->mensaje = 'Mensaje no encontrado';
+                        break;
+                    }
+                    $this->registrarAuditoria(
+                        'Eliminar',
+                        'contacto_mensajes',
+                        $m->id,
+                        $m->asunto ?? "Mensaje #{$m->id}",
+                        null, null,
+                        "De: {$m->nombre} <{$m->email}>"
+                    );
+                    $m->delete();
+                    $data->respuesta = 'ok';
+                    $data->mensaje = 'Mensaje eliminado';
+                    break;
+
+                default:
+                    $data->respuesta = 'error';
+                    $data->mensaje = 'Opción inválida';
+                    break;
+            }
+
+            return response()->json($data);
+        }
+
+        $data = new \stdClass();
+        $data->script    = 'js/contacto-mensajes.js';   
+        $data->css       = 'css/administracion.css';
+        $data->contenido = 'administracionDelSistema.contacto-mensajes';
+        $data->mensajes = ContactoMensaje::query()
+            ->recientes()
+            ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->estado))
+            ->when($request->filled('q'), function ($q) use ($request) {
+                $term = $request->q;
+                $q->where(function ($sub) use ($term) {
+                    $sub->where('nombre', 'like', "%{$term}%")
+                        ->orWhere('email', 'like', "%{$term}%")
+                        ->orWhere('asunto', 'like', "%{$term}%")
+                        ->orWhere('mensaje', 'like', "%{$term}%");
+                });
+            })
+            ->paginate(20)
+            ->withQueryString();
+
+        $data->stats = [
+            'nuevos'      => ContactoMensaje::where('estado', 'nuevo')->count(),
+            'pendientes'  => ContactoMensaje::pendientes()->count(),
+            'respondidos' => ContactoMensaje::where('estado', 'respondido')->count(),
+            'total'       => ContactoMensaje::count(),
+        ];
+
+        return view('layouts.contenido', (array) $data);
     }
 }

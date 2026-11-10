@@ -1,12 +1,9 @@
 $(document).ready(function() {
-    // Variables globales
     let configuracionActual = null;
     let configuracionesPredefinidas = {};
     let modalProbarConexion = null;
     let modalAyudaServidores = null;
     let contraseñaModificada = false;
-    
-    // Inicializar modales
     setTimeout(() => {
         const modalPrueba = document.getElementById('modalProbarConexion');
         const modalAyuda = document.getElementById('modalAyudaServidores');
@@ -15,13 +12,10 @@ $(document).ready(function() {
         if (modalAyuda) modalAyudaServidores = new bootstrap.Modal(modalAyuda);
     }, 100);
 
-    // Inicializar
     cargarConfiguracion();
     cargarConfiguracionesPredefinidas();
     inicializarEventos();
     actualizarInfoSeguridad();
-
-    // ===== FUNCIONES PRINCIPALES =====
 
     function cargarConfiguracion() {
         $.ajax({
@@ -72,18 +66,14 @@ $(document).ready(function() {
     function llenarFormulario(data) {
         if (!data) return;
         
-        // Configuración SMTP
         $('#servidor_correo').val(data.servidor_correo || '');
         $('#puerto').val(data.puerto || 587);
         $('#seguridad').val(data.seguridad || 'tls');
         $('#activo').prop('checked', data.activo !== false);
         
-        // Credenciales
         $('#nombre_acceso').val(data.nombre_acceso || '');
-        // No llenar contraseña por seguridad
         $('#infoContraseñaActual').text(data.contraseña ? '(Contraseña guardada)' : '');
         
-        // Actualizar info seguridad
         actualizarInfoSeguridad();
     }
 
@@ -102,7 +92,6 @@ $(document).ready(function() {
             opcion: 'Guardar'
         };
 
-        // Solo incluir contraseña si se modificó
         if (contraseñaModificada && $('#contraseña').val()) {
             formData.contraseña = $('#contraseña').val();
             formData.confirmar_contraseña = $('#confirmar_contraseña').val();
@@ -140,7 +129,6 @@ $(document).ready(function() {
                     configuracionActual = response.data || {};
                     contraseñaModificada = false;
                     
-                    // Limpiar campos de contraseña
                     $('#contraseña').val('');
                     $('#confirmar_contraseña').val('');
                     $('#confirmarContraseñaContainer').hide();
@@ -171,12 +159,8 @@ $(document).ready(function() {
         });
     }
 
-    // ===== FUNCIONES DE VALIDACIÓN =====
-
     function validarFormulario() {
         let isValid = true;
-        
-        // Validar campos requeridos
         const requiredFields = ['servidor_correo', 'puerto', 'nombre_acceso', 'seguridad'];
         
         requiredFields.forEach(field => {
@@ -188,15 +172,11 @@ $(document).ready(function() {
                 element.removeClass('is-invalid');
             }
         });
-
-        // Validar puerto
         const puerto = parseInt($('#puerto').val());
         if (isNaN(puerto) || puerto < 1 || puerto > 65535) {
             $('#puerto').addClass('is-invalid');
             isValid = false;
         }
-
-        // Validar contraseña si se modificó
         if (contraseñaModificada) {
             const contraseña = $('#contraseña').val();
             const confirmar = $('#confirmar_contraseña').val();
@@ -233,8 +213,6 @@ $(document).ready(function() {
         return regex.test(email);
     }
 
-    // ===== FUNCIONES DE VISUALIZACIÓN =====
-
     function mostrarConfiguracionesRapidas() {
         const container = $('#configuracionesRapidas');
         container.empty();
@@ -261,7 +239,6 @@ $(document).ready(function() {
             container.append(card);
         });
 
-        // Evento para seleccionar configuración rápida
         $('.config-rapida-card').on('click', function() {
             const key = $(this).data('key');
             const config = configuracionesPredefinidas[key];
@@ -316,7 +293,7 @@ $(document).ready(function() {
     }
 
     function actualizarInfoConexion() {
-        if (configuracionActual && configuracionActual.updated_at) { // ← Cambiar aquí
+        if (configuracionActual && configuracionActual.updated_at) { 
             const fecha = new Date(configuracionActual.updated_at);
             $('#ultimaActualizacion').text(fecha.toLocaleString('es-ES'));
         }
@@ -327,7 +304,6 @@ $(document).ready(function() {
             $('#estadoConexion').html('<span class="badge bg-warning">Inactivo</span>');
         }
         
-        // Actualizar detalles técnicos
         const detalles = `
         Servidor: ${$('#servidor_correo').val() || 'No configurado'}
         Puerto: ${$('#puerto').val() || '587'}
@@ -339,16 +315,13 @@ $(document).ready(function() {
         $('#detallesConfiguracion').text(detalles);
     }
 
-    // ===== FUNCIONES AUXILIARES =====
 
     function inicializarEventos() {
-        // Guardar desde botones
         $('#btnGuardar, #btnGuardarFooter').on('click', guardarConfiguracion);
 
         // Probar conexión
         $('#btnProbarConexion').on('click', function() {
             if (modalProbarConexion) {
-                // Preguntar email antes de abrir modal
                 Swal.fire({
                     title: 'Email de prueba',
                     input: 'email',
@@ -374,7 +347,6 @@ $(document).ready(function() {
             }
         });
 
-        // Iniciar prueba de conexión
         $('#btnIniciarPrueba').on('click', function() {
             const email = $('#emailPrueba').val().trim();
             
@@ -388,7 +360,6 @@ $(document).ready(function() {
                 return;
             }
 
-            // Obtener configuración actual del formulario
             const configPrueba = {
                 servidor_correo: $('#servidor_correo').val().trim(),
                 puerto: parseInt($('#puerto').val()) || 587,
@@ -397,7 +368,6 @@ $(document).ready(function() {
                 seguridad: $('#seguridad').val()
             };
 
-            // Validar que tengamos los datos necesarios
             if (!configPrueba.servidor_correo || !configPrueba.nombre_acceso) {
                 Swal.fire({
                     icon: 'warning',
@@ -408,7 +378,6 @@ $(document).ready(function() {
                 return;
             }
 
-            // Si la contraseña está vacía y no se modificó, usar la guardada
             if (!configPrueba.contraseña && !contraseñaModificada) {
                 delete configPrueba.contraseña;
             }
@@ -416,7 +385,6 @@ $(document).ready(function() {
             enviarPruebaConexion(email, configPrueba);
         });
 
-        // Probar envío de correo
         $('#btnProbarCorreo').on('click', function() {
             Swal.fire({
                 title: 'Probar envío de correo',
@@ -450,7 +418,6 @@ $(document).ready(function() {
             });
         });
 
-        // Restablecer formulario
         $('#btnRestablecer').on('click', function() {
             Swal.fire({
                 title: '¿Restablecer cambios?',
@@ -480,7 +447,6 @@ $(document).ready(function() {
             });
         });
 
-        // Mostrar/Ocultar contraseña
         $('#btnMostrarContraseña').on('click', function() {
             const input = $('#contraseña');
             const icon = $(this).find('i');
@@ -494,7 +460,6 @@ $(document).ready(function() {
             }
         });
 
-        // Detectar cambios en contraseña
         $('#contraseña').on('input', function() {
             const valor = $(this).val();
             contraseñaModificada = valor.length > 0;
@@ -508,14 +473,12 @@ $(document).ready(function() {
             }
         });
 
-        // Ayuda servidores
         $('#btnAyudaServidor').on('click', function() {
             if (modalAyudaServidores) {
                 modalAyudaServidores.show();
             }
         });
 
-        // Validación en tiempo real
         $('input, select').on('input change', function() {
             $(this).removeClass('is-invalid');
             actualizarInfoConexion();
@@ -591,14 +554,12 @@ $(document).ready(function() {
         });
     }
 
-    // Prevenir envío accidental con Enter
     $('#formServidorCorreo').on('keypress', function(e) {
         if (e.which === 13 && !$(e.target).is('textarea')) {
             e.preventDefault();
         }
     });
 
-    // Efecto hover en tarjetas
     $('.card').hover(
         function() {
             $(this).addClass('shadow-sm');
@@ -608,6 +569,5 @@ $(document).ready(function() {
         }
     );
 
-    // Inicializar tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();
 });

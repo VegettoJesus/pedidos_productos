@@ -93,7 +93,7 @@
         @empty
             {{-- Si no hay columnas, puedes mostrar algo por defecto o simplemente nada --}}
             <div>
-                <h3 class="footer-title">Mi Empresa</h3>
+                <h3 class="footer-title">{{ e(\App\Helpers\ConfiguracionHelper::getCompanyName()) }}</h3>
                 <p class="text-muted small">Contenido del footer en construcción.</p>
             </div>
         @endforelse

@@ -3,7 +3,7 @@
         <div class="col-12">
             <div class="card shadow-sm border-0">
                 <div class="card-header d-flex justify-content-between align-items-center py-3">
-                    <h3 class="mb-0">
+                    <h3 class="mb-0 text-white">
                         <i class="bi bi-pc-display me-2"></i>Configuración del Sitio
                     </h3>
                     @permiso('Empresa/configuracionSitio', 'crear')

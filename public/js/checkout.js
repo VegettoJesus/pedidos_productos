@@ -49,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 provincia.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
             });
         } catch (e) {
-            console.error('Error cargando provincias:', e);
         }
     }
 
@@ -79,7 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
             recalcularTodo();
 
         } catch (e) {
-            console.error('Error cargando distritos:', e);
         }
     }
 

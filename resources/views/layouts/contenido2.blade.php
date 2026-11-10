@@ -68,6 +68,12 @@
                                 <i class="bi bi-person-plus me-1"></i> Registrarse
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="ratingRecoverTab" data-bs-toggle="tab" 
+                                    data-bs-target="#ratingRecoverPanel" type="button" role="tab">
+                                <i class="bi bi-key me-1"></i> Recuperar
+                            </button>
+                        </li>
                     </ul>
 
                     <div class="rating-auth-tab-content" id="ratingAuthTabContent">
@@ -87,6 +93,11 @@
                                 <button type="submit" class="btn btn-primary w-100" id="ratingLoginBtn">
                                     <i class="bi bi-box-arrow-in-right me-2"></i> Iniciar sesión
                                 </button>
+                                <div class="text-center mt-3">
+                                    <a href="#" class="text-muted small text-decoration-none" id="btnOlvidastePassword">
+                                        ¿Olvidaste tu contraseña?
+                                    </a>
+                                </div>
                                 <div id="ratingLoginMessage" class="mt-2 small"></div>
                             </form>
                         </div>
@@ -226,6 +237,93 @@
                                 </button>
                                 <div id="ratingRegisterMessage" class="mt-2 small"></div>
                             </form>
+                        </div>
+                        <!-- ===== PANEL DE RECUPERACIÓN DE CONTRASEÑA ===== -->
+                        <div class="tab-pane fade" id="ratingRecoverPanel" role="tabpanel">
+                            <!-- PASO 1: Solicitar código -->
+                            <div id="recoverStep1">
+                                <p class="text-muted mb-3 small">
+                                    Ingresa tu correo y te enviaremos un código de verificación de 6 dígitos.
+                                </p>
+                                <form id="recoverEmailForm" onsubmit="return false;">
+                                    <div class="mb-3">
+                                        <label class="form-label">Correo electrónico</label>
+                                        <input type="email" class="form-control" id="recoverEmail" 
+                                            placeholder="tu@email.com" required>
+                                    </div>
+                                    <button type="button" class="btn btn-primary w-100" id="recoverSendCodeBtn">
+                                        <i class="bi bi-envelope-paper me-2"></i> Enviar código
+                                    </button>
+                                    <div id="recoverEmailMessage" class="mt-2 small"></div>
+                                </form>
+                                <div class="text-center mt-3">
+                                    <a href="#" class="text-muted small text-decoration-none" id="recoverBackToLogin">
+                                        <i class="bi bi-arrow-left me-1"></i> Volver a iniciar sesión
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- PASO 2: Validar código -->
+                            <div id="recoverStep2" class="d-none">
+                                <p class="text-muted mb-3 small">
+                                    Enviamos un código a <strong id="recoverEmailDisplay"></strong>.
+                                    Expira en <span id="recoverCountdown">15:00</span>.
+                                </p>
+                                <form id="recoverCodeForm" onsubmit="return false;">
+                                    <div class="mb-3">
+                                        <label class="form-label">Código de verificación</label>
+                                        <input type="text" class="form-control text-center fw-bold fs-4" 
+                                            id="recoverCode" placeholder="000000" maxlength="6" 
+                                            inputmode="numeric" autocomplete="one-time-code"
+                                            style="letter-spacing: 8px;">
+                                    </div>
+                                    <button type="button" class="btn btn-primary w-100" id="recoverValidateCodeBtn">
+                                        <i class="bi bi-shield-check me-2"></i> Validar código
+                                    </button>
+                                    <div id="recoverCodeMessage" class="mt-2 small"></div>
+                                </form>
+                                <div class="d-flex justify-content-between mt-3">
+                                    <a href="#" class="text-muted small text-decoration-none" id="recoverBackToStep1">
+                                        <i class="bi bi-arrow-left me-1"></i> Cambiar correo
+                                    </a>
+                                    <a href="#" class="text-muted small text-decoration-none" id="recoverResendCode">
+                                        <i class="bi bi-arrow-clockwise me-1"></i> Reenviar código
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- PASO 3: Nueva contraseña -->
+                            <div id="recoverStep3" class="d-none">
+                                <p class="text-muted mb-3 small">
+                                    Crea una nueva contraseña para tu cuenta.
+                                </p>
+                                <form id="recoverPasswordForm" onsubmit="return false;">
+                                    <div class="mb-3">
+                                        <label class="form-label">Nueva contraseña</label>
+                                        <input type="password" class="form-control" id="recoverNewPassword" 
+                                            placeholder="Mínimo 6 caracteres" minlength="6" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Confirmar contraseña</label>
+                                        <input type="password" class="form-control" id="recoverConfirmPassword" 
+                                            placeholder="Repite la contraseña" minlength="6" required>
+                                    </div>
+                                    <button type="button" class="btn btn-success w-100" id="recoverChangePasswordBtn">
+                                        <i class="bi bi-check-circle me-2"></i> Cambiar contraseña
+                                    </button>
+                                    <div id="recoverPasswordMessage" class="mt-2 small"></div>
+                                </form>
+                            </div>
+
+                            <!-- PASO 4: Éxito -->
+                            <div id="recoverStep4" class="d-none text-center py-3">
+                                <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                                <h5 class="mt-3">¡Contraseña actualizada!</h5>
+                                <p class="text-muted small">Ya puedes iniciar sesión con tu nueva contraseña.</p>
+                                <button type="button" class="btn btn-primary w-100" id="recoverGoToLogin">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i> Iniciar sesión
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

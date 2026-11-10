@@ -1,5 +1,4 @@
 <header class="header">
-    <!-- Fila 1: Información de contacto desde EmpresaInformacion -->
     <div class="top-bar">
         <div class="top-bar__container">
             <div class="company-name">{{ e(\App\Helpers\ConfiguracionHelper::getCompanyName()) }}</div>
@@ -23,19 +22,34 @@
                 @endif
                 
                 <div class="dropdown account-dropdown">
-                    <button class="btn dropdown-toggle account-btn text-white" type="button" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-person-circle me-1"></i>
-                        <span id="accountName">
-                            @if($authUser)
-                                {{ $authUser->nombres }}
+                    @php
+                        $authUser = Auth::check() && Auth::user()->id_rol == 2
+                            ? Auth::user()->loadMissing('datos')
+                            : null;
+
+                        $authUserFoto = null;
+                        if ($authUser && $authUser->datos && $authUser->datos->imagen
+                            && file_exists(public_path('perfil_usuario/' . $authUser->datos->imagen))) {
+                            $authUserFoto = asset('perfil_usuario/' . $authUser->datos->imagen);
+                        }
+                    @endphp
+
+                    <button class="btn dropdown-toggle account-btn text-white" type="button" id="accountDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        @if($authUser)
+                            @if($authUserFoto)
+                                <img src="{{ $authUserFoto }}" alt="Foto de perfil" class="account-avatar">
                             @else
-                                Mi cuenta
+                                <i class="bi bi-person-circle me-1"></i>
                             @endif
-                        </span>
+                            <span id="accountName">{{ $authUser->nombres }}</span>
+                        @else
+                            <i class="bi bi-person-circle me-1"></i>
+                            <span id="accountName">Mi cuenta</span>
+                        @endif
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown" id="accountMenu">
                         @if($authUser)
-                            <!-- Usuario logueado -->
                             <li class="dropdown-item-text text-muted small">
                                 <i class="bi bi-envelope me-1"></i> {{ $authUser->email }}
                             </li>
@@ -50,11 +64,6 @@
                                     <i class="bi bi-box-seam me-2"></i> Mis pedidos
                                 </a>
                             </li>
-                            <li>
-                                <a class="dropdown-item" href="#">
-                                    <i class="bi bi-geo-alt me-2"></i> Dirección de entrega
-                                </a>
-                            </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <button class="dropdown-item text-danger" id="logoutBtnHeader">
@@ -62,7 +71,6 @@
                                 </button>
                             </li>
                         @else
-                            <!-- Usuario NO logueado -->
                             <li>
                                 <button class="dropdown-item" id="openLoginModalBtn">
                                     <i class="bi bi-box-arrow-in-right me-2"></i> Iniciar sesión
@@ -80,7 +88,6 @@
         </div>
     </div>
         
-    <!-- Fila 2: Logo y búsqueda -->
     <div class="middle-bar">
         <div class="middle-bar__container">
             <div class="logo-container">
@@ -106,7 +113,6 @@
                         <span class="badge" id="notificationsCount">0</span>
                     </button>
                     
-                    <!-- Dropdown de notificaciones -->
                     <div class="notifications-dropdown" id="notificationsDropdown">
                         <div class="notifications-header">
                             <h6><i class="bi bi-bell-fill"></i> Notificaciones</h6>
@@ -173,7 +179,6 @@
         </div>
     </div>
         
-    <!-- Fila 3: Navegación (categorías dinámicas) -->
     <div class="bottom-bar">
         <div class="bottom-bar__container">
             <button class="menu-toggle" id="menuToggle">
@@ -256,120 +261,122 @@
         </div>
     </div>
     
-    <!-- Overlay y menú móvil dinámico (similar al escritorio) -->
     <div class="mobile-overlay" id="mobileOverlay"></div>
+
     <div class="mobile-menu-container" id="mobileMenu">
         <div class="mobile-screen active" id="categoriesScreen">
+
             <div class="mobile-menu-header">
                 <img src="{{ \App\Helpers\ConfiguracionHelper::getFavicon() }}" alt="Logo" class="mobile-menu-logo">
                 <button class="mobile-close" id="mobileClose"><i class="bi bi-x-lg"></i></button>
             </div>
+
             <ul class="mobile-list">
                 <li class="mobile-item"><a href="{{ route('tienda.home') }}" class="mobile-link"><i class="bi bi-house"></i><span>Inicio</span></a></li>
                 <li class="mobile-item"><a href="{{ route('ofertas') }}" class="mobile-link"><i class="bi bi-percent"></i><span>Ofertas</span></a></li>
                 <li class="mobile-item"><a href="{{ route('nosotros') }}" class="mobile-link"><i class="bi bi-info-circle"></i><span>Nosotros</span></a></li>
                 <li class="mobile-item"><a href="{{ route('contacto') }}" class="mobile-link"><i class="bi bi-headset"></i><span>Contactanos</span></a></li>
+
                 <li class="mobile-divider">Categorías</li>
+
                 @foreach($categorias as $categoria)
                     @if($categoria->subcategorias->count() > 0)
-                    <li class="mobile-item">
-                        <button class="mobile-link has-children" data-target="subcatScreen{{ $categoria->id }}">
-                            <i class="bi {{ $categoria->icono ?? 'bi-folder' }}"></i>
-                            <span>{{ e($categoria->nombre) }}</span>
-                            <i class="bi bi-chevron-right mobile-chev-rig"></i>
-                        </button>
-                    </li>
+                        <li class="mobile-item">
+                            <button class="mobile-link has-children" data-target="subcatScreen{{ $categoria->id }}">
+                                <i class="bi {{ $categoria->icono ?? 'bi-folder' }}"></i>
+                                <span>{{ e($categoria->nombre) }}</span>
+                                <i class="bi bi-chevron-right mobile-chev-rig"></i>
+                            </button>
+                        </li>
                     @else
-                    <li class="mobile-item">
-                        <a class="mobile-link" href="{{ route('productos.categoria', $categoria->id) }}">
-                            <i class="bi {{ $categoria->icono ?? 'bi-folder' }}"></i>
-                            <span>{{ e($categoria->nombre) }}</span>
-                        </a>
-                    </li>
+                        <li class="mobile-item">
+                            <a class="mobile-link" href="{{ route('productos.categoria', $categoria->id) }}">
+                                <i class="bi {{ $categoria->icono ?? 'bi-folder' }}"></i>
+                                <span>{{ e($categoria->nombre) }}</span>
+                            </a>
+                        </li>
                     @endif
                 @endforeach
             </ul>
             <div class="mobile-footer">
-            <div class="dropdown account-dropdown">
-                <button class="login-btn dropdown-toggle" type="button" id="mobileAccountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-person-circle me-1"></i>
-                    <span id="mobileAccountName">
+                <div class="dropdown account-dropdown">
+                    <button class="login-btn dropdown-toggle" type="button" id="mobileAccountDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                         @if($authUser)
-                            {{ $authUser->nombres }}
+                            @if($authUserFoto)
+                                <img src="{{ $authUserFoto }}" alt="Foto de perfil" class="account-avatar">
+                            @else
+                                <i class="bi bi-person-circle me-1"></i>
+                            @endif
+                            <span id="mobileAccountName">{{ $authUser->nombres }}</span>
                         @else
-                            Mi cuenta
+                            <i class="bi bi-person-circle me-1"></i>
+                            <span id="mobileAccountName">Mi cuenta</span>
                         @endif
-                    </span>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="mobileAccountDropdown" id="mobileAccountMenu">
-                    @if($authUser)
-                        <!-- Usuario logueado -->
-                        <li class="dropdown-item-text text-muted small">
-                            <i class="bi bi-envelope me-1"></i> {{ $authUser->email }}
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item" href="{{ route('perfil.configuracion') }}">
-                                <i class="bi bi-person-gear me-2"></i> Mi perfil
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="{{ route('perfil.mis-compras') }}">
-                                <i class="bi bi-box-seam me-2"></i> Mis pedidos
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="#">
-                                <i class="bi bi-geo-alt me-2"></i> Dirección de entrega
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="{{ route('perfil.mis-valoraciones') }}">
-                                <i class="bi bi-star me-2"></i> Mis valoraciones
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <button class="dropdown-item text-danger" id="mobileLogoutBtn">
-                                <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
-                            </button>
-                        </li>
-                    @else
-                        <!-- Usuario NO logueado -->
-                        <li>
-                            <button class="dropdown-item" id="mobileOpenLoginModalBtn">
-                                <i class="bi bi-box-arrow-in-right me-2"></i> Iniciar sesión
-                            </button>
-                        </li>
-                        <li>
-                            <button class="dropdown-item" id="mobileOpenRegisterModalBtn">
-                                <i class="bi bi-person-plus me-2"></i> Registrarse
-                            </button>
-                        </li>
-                    @endif
-                </ul>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="mobileAccountDropdown" id="mobileAccountMenu">
+                        @if($authUser)
+                            <li class="dropdown-item-text text-muted small">
+                                <i class="bi bi-envelope me-1"></i> {{ $authUser->email }}
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('perfil.configuracion') }}">
+                                    <i class="bi bi-person-gear me-2"></i> Mi perfil
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('perfil.mis-compras') }}">
+                                    <i class="bi bi-box-seam me-2"></i> Mis pedidos
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('perfil.mis-valoraciones') }}">
+                                    <i class="bi bi-star me-2"></i> Mis valoraciones
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button class="dropdown-item text-danger" id="mobileLogoutBtn">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
+                                </button>
+                            </li>
+                        @else
+                            <li>
+                                <button class="dropdown-item" id="mobileOpenLoginModalBtn">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i> Iniciar sesión
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item" id="mobileOpenRegisterModalBtn">
+                                    <i class="bi bi-person-plus me-2"></i> Registrarse
+                                </button>
+                            </li>
+                        @endif
+                    </ul>
+                </div>
             </div>
         </div>
-        
-        <!-- Pantallas dinámicas de subcategorías -->
         @foreach($categorias as $categoria)
             @if($categoria->subcategorias->count() > 0)
-            <div class="mobile-screen" id="subcatScreen{{ $categoria->id }}">
-                <div class="mobile-header">
-                    <button class="back-btn" data-back="categoriesScreen"><i class="bi bi-arrow-left"></i></button>
-                    <span>{{ e($categoria->nombre) }}</span>
+                <div class="mobile-screen" id="subcatScreen{{ $categoria->id }}">
+                    <div class="mobile-header">
+                        <button class="back-btn" data-back="categoriesScreen">
+                            <i class="bi bi-arrow-left"></i>
+                        </button>
+                        <span>{{ e($categoria->nombre) }}</span>
+                    </div>
+                    <ul class="mobile-list">
+                        @foreach($categoria->subcategorias as $sub)
+                            <li class="mobile-item">
+                                <a class="mobile-link" href="{{ route('productos.subcategoria', $sub->id) }}">
+                                    <i class="bi {{ $sub->icono ?? 'bi-tag' }}"></i>
+                                    <span>{{ e($sub->nombre) }}</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
                 </div>
-                <ul class="mobile-list">
-                    @foreach($categoria->subcategorias as $sub)
-                    <li class="mobile-item">
-                        <a class="mobile-link" href="{{ route('productos.subcategoria', $sub->id) }}">
-                            <i class="bi {{ $sub->icono ?? 'bi-tag' }}"></i>
-                            <span>{{ e($sub->nombre) }}</span>
-                        </a>
-                    </li>
-                    @endforeach
-                </ul>
-            </div>
             @endif
         @endforeach
     </div>

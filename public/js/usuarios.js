@@ -30,10 +30,8 @@ $(document).ready(function () {
                     $('#provincia_id').append('<option value="' + provincia.id + '">' + provincia.nombre + '</option>');
                 });
 
-                // Si hay una provincia seleccionada, seleccionarla
                 if (provinciaSeleccionada) {
                     $('#provincia_id').val(provinciaSeleccionada).trigger('change');
-                    // Limpiar después de usar
                     $('#provincia_id').removeAttr('data-selected');
                 }
             });
@@ -54,10 +52,8 @@ $(document).ready(function () {
                     $('#distrito_id').append('<option value="' + distrito.id + '">' + distrito.nombre + '</option>');
                 });
 
-                // Si hay un distrito seleccionado, seleccionarlo
                 if (distritoSeleccionado) {
                     $('#distrito_id').val(distritoSeleccionado);
-                    // Limpiar después de usar
                     $('#distrito_id').removeAttr('data-selected');
                 }
             });
@@ -241,8 +237,6 @@ $(document).ready(function () {
         });
     });
 
-
-    // Eliminar múltiples
     function eliminarSeleccionados() {
         let ids = [];
         $('.check-usuario:checked').each(function () {
@@ -336,12 +330,10 @@ $(document).ready(function () {
             }
         }
 
-        // Preparar FormData
         let formData = new FormData(this);
         formData.append("opcion", "Registrar");
         formData.append("_token", $("input[name=_token]").val());
 
-        // Enviar AJAX
         $.ajax({
             url: "usuarios",
             type: "POST",
@@ -398,13 +390,9 @@ $('#tablaUsuarios').on('click', '.btn-editar', function () {
             $('#numero').val(datos.numero || '');
             $('#dir_otros').val(datos.dir_otros || '');
             $('#cod_postal').val(datos.cod_postal || '');
-
-            // Guardar los valores a seleccionar en atributos del DOM
             $('#departamento_id').attr('data-selected', datos.departamento);
             $('#provincia_id').attr('data-selected', datos.provincia);
             $('#distrito_id').attr('data-selected', datos.distrito);
-
-            // Establecer departamento
             $('#departamento_id').val(datos.departamento).trigger('change');
 
             if(datos.imagen){
@@ -489,7 +477,6 @@ $('#modalRoles').on('shown.bs.modal', function () {
     }
 });
 
-// Crear rol
 $('#btnNuevoRol').on('click', function(){
     $('#modalRoles').modal('hide');
 
@@ -532,7 +519,6 @@ $('#btnNuevoRol').on('click', function(){
     });
 });
 
-// Editar rol
 $('#tablaRoles').on('click', '.btn-editar-rol', function(){
     let id = $(this).data('id');
 
@@ -588,7 +574,6 @@ $('#tablaRoles').on('click', '.btn-editar-rol', function(){
     }, 'json');
 });
 
-// Eliminar rol
 $('#tablaRoles').on('click', '.btn-eliminar-rol', function(){
     let id = $(this).data('id');
     $('#modalRoles').modal('hide');
@@ -632,7 +617,6 @@ $(document).on('click', '.btn-detalle', function () {
         _token: $('meta[name="csrf-token"]').attr('content') 
     }, function (res) {
         if (res.respuesta === 'ok') {
-            console.log(res)
             let usuario = res.usuario;
             let datos = res.usuario.datos;
 
@@ -654,7 +638,6 @@ $(document).on('click', '.btn-detalle', function () {
             $('#detalleFechaNac').text(datos?.fecha_nacimiento ?? '-');
             $('#detalleNacionalidad').text(datos?.nacionalidad ?? '-');
 
-            // Auditorías
             if ($.fn.DataTable.isDataTable('#tablaAuditorias')) {
                 $('#tablaAuditorias').DataTable().clear().destroy();
             }

@@ -1,20 +1,15 @@
 $(document).ready(function() {
-    // Variables globales
     let empresaActual = null;
     let modalAyudaUbigeo = null;
     
-    // Inicializar modales
     setTimeout(() => {
         const modalUbigeo = document.getElementById('modalAyudaUbigeo');
         if (modalUbigeo) modalAyudaUbigeo = new bootstrap.Modal(modalUbigeo);
     }, 100);
 
-    // Inicializar
     cargarDatosEmpresa();
     inicializarEventos();
     actualizarVistaPrevia();
-
-    // ===== FUNCIONES PRINCIPALES =====
 
     function cargarDatosEmpresa() {
         $.ajax({
@@ -47,40 +42,25 @@ $(document).ready(function() {
     function llenarFormulario(data) {
         if (!data) return;
         
-        // Información Fiscal
         $('#ruc').val(data.ruc || '');
         $('#razon_social').val(data.razon_social || '');
         $('#nombre_comercial').val(data.nombre_comercial || '');
         $('#propietario_nombre').val(data.propietario_nombre || '');
         $('#propietario_apellido').val(data.propietario_apellido || '');
-        
-        // Ubicación
         $('#direccion').val(data.direccion || '');
         $('#ubigeo').val(data.ubigeo || '');
         $('#maps_url').val(data.maps_url || '');
-        
-        // Contacto
         $('#telefono').val(data.telefono || '');
         $('#celular').val(data.celular || '');
-        
-        // Cargar ubicación con AJAX encadenado
+
         if (data.departamento_id) {
-            // Primero, seleccionar el departamento
             $('#departamento_id').val(data.departamento_id);
-            
-            // Cargar provincias del departamento seleccionado
             cargarProvincias(data.departamento_id, function() {
                 if (data.provincia_id) {
-                    // Una vez cargadas las provincias, seleccionar la provincia
                     $('#provincia_id').val(data.provincia_id);
-                    
-                    // Cargar distritos de la provincia seleccionada
                     cargarDistritos(data.provincia_id, function() {
                         if (data.distrito_id) {
-                            // Una vez cargados los distritos, seleccionar el distrito
                             $('#distrito_id').val(data.distrito_id);
-                            
-                            // Actualizar vista previa después de cargar todo
                             setTimeout(() => {
                                 actualizarVistaPreviaEnTiempoReal();
                             }, 200);
@@ -91,7 +71,6 @@ $(document).ready(function() {
         }
     }
 
-    // Función para cargar provincias
     function cargarProvincias(departamentoId, callback) {
         $('#provincia_id').prop('disabled', true).html('<option>Cargando...</option>');
         $('#distrito_id').prop('disabled', true).html('<option>Seleccione distrito</option>');
@@ -115,7 +94,6 @@ $(document).ready(function() {
         });
     }
 
-    // Función para cargar distritos
     function cargarDistritos(provinciaId, callback) {
         $('#distrito_id').prop('disabled', true).html('<option>Cargando...</option>');
 
@@ -229,12 +207,9 @@ $(document).ready(function() {
         });
     }
 
-    // ===== FUNCIONES DE VALIDACIÓN =====
-
     function validarFormulario() {
         let isValid = true;
-        
-        // Validar campos requeridos
+
         const requiredFields = [
             'ruc', 'razon_social', 'propietario_nombre', 'propietario_apellido',
             'direccion', 'ubigeo', 'departamento_id', 'provincia_id', 'distrito_id'
@@ -250,7 +225,6 @@ $(document).ready(function() {
             }
         });
 
-        // Validar RUC (11 dígitos)
         const ruc = $('#ruc').val().trim();
         if (ruc.length !== 11 || !/^\d+$/.test(ruc)) {
             $('#ruc').addClass('is-invalid');
@@ -258,7 +232,6 @@ $(document).ready(function() {
             isValid = false;
         }
 
-        // Validar URL de Google Maps si existe
         const mapsUrl = $('#maps_url').val().trim();
         if (mapsUrl && !isValidUrl(mapsUrl)) {
             $('#maps_url').addClass('is-invalid');
@@ -285,83 +258,29 @@ $(document).ready(function() {
             return false;
         }
     }
-
-    /* function validarRUC(ruc) {
-        return new Promise((resolve) => {
-            if (!ruc || ruc.length !== 11 || !/^\d+$/.test(ruc)) {
-                resolve({ valido: false, mensaje: 'Formato inválido (debe tener 11 dígitos)' });
-                return;
-            }
-
-            $.ajax({
-                url: 'datosEmpresa',
-                method: 'POST',
-                data: {
-                    opcion: 'ConsultarRUC',
-                    ruc: ruc,
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                dataType: 'json',
-                beforeSend: function() {
-                    mostrarLoading('Validando RUC...');
-                },
-                success: function(response) {
-                    Swal.close();
-                    if (response && response.success) {
-                        resolve({ 
-                            valido: response.ruc_valido || false, 
-                            mensaje: response.message,
-                            datos: response.data
-                        });
-                    } else {
-                        resolve({ 
-                            valido: false, 
-                            mensaje: response?.message || 'Error al validar RUC' 
-                        });
-                    }
-                },
-                error: function() {
-                    Swal.close();
-                    resolve({ 
-                        valido: false, 
-                        mensaje: 'Error de conexión al validar RUC' 
-                    });
-                }
-            });
-        });
-    } */
-
-    // Agrega esto en la función inicializarEventos():
+    
     $('#departamento_id, #provincia_id, #distrito_id').on('change', function() {
         actualizarVistaPreviaEnTiempoReal();
     });
 
-    // ===== FUNCIONES DE VISUALIZACIÓN =====
-
     function actualizarVistaPrevia() {
         if (!empresaActual) return;
-        
-        // Información Fiscal
+
         $('#previewRUC').text(empresaActual.ruc || '-');
         $('#previewRazonSocial').text(empresaActual.razon_social || '-');
         $('#previewNombreComercial').text(empresaActual.nombre_comercial || '-');
         
-        // Propietario
         const propietario = (empresaActual.propietario_nombre || '') + ' ' + (empresaActual.propietario_apellido || '');
         $('#previewPropietario').text(propietario.trim() || '-');
         $('#previewTelefono').text(empresaActual.telefono || '-');
         $('#previewCelular').text(empresaActual.celular || '-');
-        
-        // Ubicación
         $('#previewDireccion').text(empresaActual.direccion || '-');
         $('#previewUbigeo').text(empresaActual.ubigeo || '-');
         
-        // Obtener nombres de ubicación de los selects
         const distritoText = $('#distrito_id option:selected').text();
         const provinciaText = $('#provincia_id option:selected').text();
         const departamentoText = $('#departamento_id option:selected').text();
         
-        // Construir la ubicación completa
         let ubicacionCompleta = '';
         if (distritoText && distritoText !== 'Seleccione distrito') {
             ubicacionCompleta += distritoText;
@@ -375,7 +294,6 @@ $(document).ready(function() {
         
         $('#previewUbicacion').text(ubicacionCompleta || '-');
         
-        // Timestamps
         if (empresaActual.created_at) {
             const creado = new Date(empresaActual.created_at);
             $('#previewCreado').text('Creado: ' + creado.toLocaleDateString('es-ES'));
@@ -389,10 +307,8 @@ $(document).ready(function() {
     function formatTelefono(numero) {
         if (!numero) return '';
         
-        // Eliminar todo excepto números
         const soloNumeros = numero.replace(/\D/g, '');
         
-        // Formato Perú: +51 987 654 321
         if (soloNumeros.startsWith('51')) {
             const celular = soloNumeros.substring(2);
             if (celular.length === 9) {
@@ -403,13 +319,9 @@ $(document).ready(function() {
         return numero;
     }
 
-    // ===== FUNCIONES AUXILIARES =====
 
     function inicializarEventos() {
-        // Guardar desde botones
         $('#btnGuardar, #btnGuardarFooter').on('click', guardarDatosEmpresa);
-
-        // Validar RUC
         $('#btnValidarRUC').on('click', function() {
             const ruc = $('#ruc').val().trim();
             
@@ -449,54 +361,6 @@ $(document).ready(function() {
             });
         });
 
-        // Verificar RUC (más completo)
-        /* $('#btnVerificarRUC').on('click', function() {
-            Swal.fire({
-                title: 'Verificar RUC en SUNAT',
-                input: 'text',
-                inputLabel: 'Ingrese el RUC a verificar',
-                inputPlaceholder: '20123456789',
-                inputAttributes: {
-                    maxlength: 11,
-                    pattern: '[0-9]{11}'
-                },
-                showCancelButton: true,
-                confirmButtonText: 'Verificar',
-                cancelButtonText: 'Cancelar',
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'Debe ingresar un RUC';
-                    }
-                    if (value.length !== 11 || !/^\d+$/.test(value)) {
-                        return 'El RUC debe tener 11 dígitos numéricos';
-                    }
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    validarRUC(result.value).then(resultado => {
-                        Swal.fire({
-                            icon: resultado.valido ? 'success' : 'error',
-                            title: resultado.valido ? 'RUC Válido' : 'RUC Inválido',
-                            html: `
-                                <div class="text-start">
-                                    <p><strong>RUC:</strong> ${result.value}</p>
-                                    <p><strong>Estado:</strong> ${resultado.mensaje}</p>
-                                    ${resultado.datos ? `
-                                        <hr>
-                                        <p><strong>Razón Social:</strong> ${resultado.datos.razon_social || 'N/A'}</p>
-                                        <p><strong>Estado:</strong> ${resultado.datos.estado || 'N/A'}</p>
-                                        <p><strong>Condición:</strong> ${resultado.datos.condicion || 'N/A'}</p>
-                                    ` : ''}
-                                </div>
-                            `,
-                            confirmButtonText: 'Entendido'
-                        });
-                    });
-                }
-            });
-        }); */
-
-        // Restablecer formulario
         $('#btnRestablecer').on('click', function() {
             Swal.fire({
                 title: '¿Restablecer cambios?',
@@ -523,7 +387,6 @@ $(document).ready(function() {
             });
         });
 
-        // Abrir Google Maps
         $('#btnAbrirMaps').on('click', function() {
             const mapsUrl = $('#maps_url').val().trim();
             if (mapsUrl && isValidUrl(mapsUrl)) {
@@ -538,7 +401,6 @@ $(document).ready(function() {
             }
         });
 
-        // Abrir WhatsApp
         $('#btnWhatsApp').on('click', function() {
             const celular = $('#celular').val().trim();
             if (celular) {
@@ -555,7 +417,6 @@ $(document).ready(function() {
             }
         });
 
-        // Exportar PDF
         $('#btnExportarPDF').on('click', function() {
             Swal.fire({
                 title: 'Exportar a PDF',
@@ -573,19 +434,16 @@ $(document).ready(function() {
             });
         });
 
-        // Ayuda UBIGEO
         $('#btnAyudaUbigeo').on('click', function() {
             if (modalAyudaUbigeo) {
                 modalAyudaUbigeo.show();
             }
         });
 
-        // Validación en tiempo real y actualización de vista previa
         $('input, select, textarea').on('input change', function() {
             $(this).removeClass('is-invalid is-valid');
             actualizarVistaPreviaEnTiempoReal();
             
-            // Formatear teléfono en tiempo real
             if ($(this).attr('id') === 'telefono' || $(this).attr('id') === 'celular') {
                 const valor = $(this).val();
                 const formateado = formatTelefono(valor);
@@ -595,19 +453,16 @@ $(document).ready(function() {
             }
         });
 
-        // Autocompletar provincia y distrito al seleccionar departamento
         $('#departamento').on('change', function() {
             const departamento = $(this).val();
             if (departamento === 'Lima') {
                 $('#provincia').val('Lima');
                 $('#distrito').val('Lima');
             }
-            // Puedes agregar más lógica para otros departamentos
         });
     }
 
     function actualizarVistaPreviaEnTiempoReal() {
-        // Actualizar vista previa dinámicamente
         $('#previewRUC').text($('#ruc').val() || '-');
         $('#previewRazonSocial').text($('#razon_social').val() || '-');
         $('#previewNombreComercial').text($('#nombre_comercial').val() || '-');
@@ -620,12 +475,10 @@ $(document).ready(function() {
         $('#previewDireccion').text($('#direccion').val() || '-');
         $('#previewUbigeo').text($('#ubigeo').val() || '-');
         
-        // Obtener nombres de ubicación de los selects
         const distritoText = $('#distrito_id option:selected').text();
         const provinciaText = $('#provincia_id option:selected').text();
         const departamentoText = $('#departamento_id option:selected').text();
         
-        // Construir la ubicación completa
         let ubicacionCompleta = '';
         if (distritoText && distritoText !== 'Seleccione distrito') {
             ubicacionCompleta += distritoText;
@@ -641,8 +494,6 @@ $(document).ready(function() {
     }
 
     function generarPDF() {
-        // Aquí puedes implementar la generación de PDF
-        // Por ejemplo, usando jsPDF o enviando una petición al servidor
         mostrarLoading('Generando PDF...');
         
         setTimeout(() => {
@@ -675,14 +526,12 @@ $(document).ready(function() {
         });
     }
 
-    // Prevenir envío accidental con Enter
     $('#formDatosEmpresa').on('keypress', function(e) {
         if (e.which === 13 && !$(e.target).is('textarea')) {
             e.preventDefault();
         }
     });
 
-    // Efecto hover en tarjetas
     $('.card').hover(
         function() {
             $(this).addClass('shadow-sm');
@@ -692,7 +541,6 @@ $(document).ready(function() {
         }
     );
 
-    // Inicializar tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();
 });
 

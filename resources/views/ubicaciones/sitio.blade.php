@@ -1,7 +1,7 @@
 <div class="container-fluid px-2 pb-4" style="display: inline-grid">
     <div class="card text-center text-white bg-dark menu-management-card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Gestión de Ubicaciones</h5>
+            <h5 class="mb-0 text-white">Gestión de Ubicaciones</h5>
         </div>
         <div class="card-body">
             <ul class="nav nav-tabs mb-3" id="ubicacionesTabs" role="tablist">

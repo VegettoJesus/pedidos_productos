@@ -387,27 +387,28 @@ class Notificacion extends Model
     /**
      * Contar notificaciones no leídas para un usuario del PANEL
      */
-        public static function countNoLeidasPanel($userId)
+    public static function countNoLeidasPanel($userId)
     {
         $usuario = User::with('rol')->find($userId);
         
-        if (!$usuario || !$usuario->rol) {
-            return 0;
-        }
+        if (!$usuario || !$usuario->rol) return 0;
 
         $tiposPermitidos = PermisoNotificacion::tiposPermitidosUsuario($usuario);
+        if (empty($tiposPermitidos)) return 0;
         
-        if (empty($tiposPermitidos)) {
-            return 0;
-        }
-        
-        return self::visible()
-            ->enFecha()
-            ->desdeRegistroUsuario($userId)
+        return self::query()
+            ->where('visible', true)
+            ->where('eliminada', false)
+            ->where(function ($q) {
+                $q->whereNull('fecha_inicio')->orWhere('fecha_inicio', '<=', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('fecha_fin')->orWhere('fecha_fin', '>=', now());
+            })
             ->whereIn('tipo_notificacion_id', $tiposPermitidos)
-            ->whereHas('usuarios', function($q) use ($userId) {
+            ->whereHas('usuarios', function ($q) use ($userId) {
                 $q->where('notificacion_usuario.usuario_id', $userId)
-                  ->where('notificacion_usuario.leida', false);      
+                ->where('notificacion_usuario.leida', false);
             })
             ->count();
     }
@@ -490,17 +491,23 @@ class Notificacion extends Model
             return new LengthAwarePaginator([], 0, $perPage);
         }
         
-        $paginadas = self::visible()
-            ->enFecha()
-            ->desdeRegistroUsuario($userId)
-            ->porUsuario($userId)
-            ->porRol($usuario->id_rol)
+        $paginadas = self::query()
+            ->where('visible', true)
+            ->where('eliminada', false)
+            ->where(function ($q) {
+                $q->whereNull('fecha_inicio')->orWhere('fecha_inicio', '<=', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('fecha_fin')->orWhere('fecha_fin', '>=', now());
+            })
             ->whereIn('tipo_notificacion_id', $tiposPermitidos)
-            ->orderBy('prioridad', 'desc')
+            ->whereHas('usuarios', function ($q) use ($userId) {
+                $q->where('notificacion_usuario.usuario_id', $userId);
+            })
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
         
-        $paginadas->getCollection()->transform(function($notificacion) use ($userId) {
+        $paginadas->getCollection()->transform(function ($notificacion) use ($userId) {
             $notificacion->leida = $notificacion->estaLeidaPorUsuario($userId);
             return $notificacion;
         });

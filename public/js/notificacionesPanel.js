@@ -31,7 +31,6 @@
             const prioridadColor = prioridadColors[notif.prioridad] || 'secondary';
             const prioridadLabel = prioridadLabels[notif.prioridad] || notif.prioridad;
             
-            // Calcular "hace X tiempo" simple
             const fecha = new Date(notif.created_at);
             const ahora = new Date();
             const diffMs = ahora - fecha;
@@ -143,7 +142,6 @@
                     this.style.display = 'none';
                 }
             } catch (err) {
-                console.error(err);
                 Swal.fire('Error', 'No se pudieron cargar más notificaciones', 'error');
             } finally {
                 isLoading = false;
@@ -153,9 +151,6 @@
         });
     }
 
-    // ============================================
-    // 1. MARCAR COMO LEÍDA (individual)
-    // ============================================
     document.querySelectorAll('.btn-marcar-leida').forEach(btn => {
         btn.addEventListener('click', async function(e) {
             e.preventDefault();
@@ -225,7 +220,6 @@
                 Swal.fire('Error', data.message || 'No se pudo marcar', 'error');
             }
         } catch (err) {
-            console.error('Error:', err);
             hidePreloader(statusMessages);
             Swal.fire('Error', 'Error de conexión', 'error');
         }
@@ -252,9 +246,6 @@
         }
     });
 
-    // ============================================
-    // 2. MARCAR TODAS COMO LEÍDAS
-    // ============================================
     document.getElementById('btnMarcarTodasLeidas')?.addEventListener('click', async function() {
         const confirm = await Swal.fire({
             title: '¿Marcar todas como leídas?',
@@ -319,9 +310,6 @@
         }
     });
 
-    // ============================================
-    // 3. FILTROS
-    // ============================================
     const filtroBusqueda = document.getElementById('filtroBusqueda');
     const filtroTipo = document.getElementById('filtroTipo');
     const filtroEstado = document.getElementById('filtroEstado');

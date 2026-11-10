@@ -35,7 +35,6 @@ async function abrirModalAgrupado(producto) {
         });
     }
 
-    // Cargar upsells y crosssells
     editStateAgrupado.upsells = [];
     editStateAgrupado.crosssells = [];
     
@@ -57,7 +56,6 @@ async function abrirModalAgrupado(producto) {
         });
     }
 
-    // Llenar datos básicos
     $('#agrupado_id').val(producto.id);
     $('#agrupado_nombre').val(producto.nombre);
     $('#agrupado_marca').val(producto.marca || '');
@@ -112,36 +110,25 @@ async function abrirModalAgrupado(producto) {
         $('#agrupado_descripcion_larga').val(producto.descripcion_completa || '');
     }
 
-    // Miniatura
     if (producto.imagen_miniatura) {
         $('#agrupado_miniImg').attr('src', "/" + producto.imagen_miniatura).show();
         $('#agrupado_miniPlaceholder').hide();
         $('#agrupado_removeMini').removeClass('d-none');
     }
 
-    // Renderizar imágenes
     renderImagenesAgrupado();
     
-    // Renderizar categorías
     const categoriaId = producto.subcategoria ? producto.subcategoria.id_categoria : null;
     const subcategoriaId = producto.subcategoria ? producto.subcategoria.id : null;
     renderCategoriasAgrupado(categoriaId, subcategoriaId);
-    
-    // Renderizar etiquetas
     renderEtiquetasAgrupado(producto);
-
-    
-    // Renderizar productos hijos
     renderHijosAgrupado();
     renderAtributosAgrupado();
-    // Configurar eventos
     setupEventosImagenesAgrupado();
     setupMiniaturaEventsAgrupado();
     setupBusquedaHijosAgrupado();
     setupProductoRelacionadoSearchAgrupado('#agrupado_crosssells', 'crosssells');
     configurarPestanasAgrupado();
-    
-    // Mostrar modal
     const modal = new bootstrap.Modal(document.getElementById('modalProductoAgrupado'));
     modal.show();
 }
@@ -164,7 +151,6 @@ function configurarPestanasAgrupado() {
     }
 }
 
-// Renderizar productos hijos
 function renderHijosAgrupado() {
     const container = $('#agrupado_hijos_container');
     container.empty();
@@ -192,15 +178,12 @@ function renderHijosAgrupado() {
     });
 }
 
-// Configurar búsqueda de productos hijos
 function setupBusquedaHijosAgrupado() {
     const $input = $('#agrupado_buscar_hijos');
     if (!$input.length) return;
     
-    // Limpiar eventos previos
     $input.off('input.hijos');
     
-    // Crear dropdown si no existe
     let $dropdown = $('.dropdown-hijos');
     if ($dropdown.length === 0) {
         $dropdown = $(`
@@ -245,7 +228,7 @@ function setupBusquedaHijosAgrupado() {
                     opcion: 'Buscar',
                     query: term,
                     producto_id: productoId,
-                    tipo: 'simple' // Solo productos simples pueden ser hijos
+                    tipo: 'simple' 
                 });
 
                 if (data.respuesta === 'ok' && data.productos && data.productos.length > 0) {
@@ -262,7 +245,6 @@ function setupBusquedaHijosAgrupado() {
                     positionDropdown($input, $dropdown);
                 }
             } catch (err) {
-                console.error('Error buscando productos:', err);
                 $dropdown.html(`
                     <div class="dropdown-item text-danger py-2">
                         <i class="bi bi-exclamation-triangle me-2"></i>
@@ -321,14 +303,12 @@ function setupBusquedaHijosAgrupado() {
         });
     }
 
-    // Cerrar dropdown al hacer clic fuera
     $(document).off('click.hijos').on('click.hijos', function(e) {
         if (!$(e.target).closest($input).length && !$(e.target).closest($dropdown).length) {
             $dropdown.hide();
         }
     });
 
-    // Tecla ESC para cerrar
     $input.on('keydown.hijos', function(e) {
         if (e.key === 'Escape') {
             $dropdown.hide();
@@ -340,9 +320,7 @@ function setupBusquedaHijosAgrupado() {
     });
 }
 
-// Agregar producto hijo
 function addHijoAgrupado(producto) {
-    // Verificar si ya existe
     const existe = editStateAgrupado.hijos.some(h => h.id === producto.id);
     if (existe) {
         Swal.fire({
@@ -355,7 +333,6 @@ function addHijoAgrupado(producto) {
         return;
     }
     
-    // Verificar que sea un producto simple (el backend ya debería filtrar)
     editStateAgrupado.hijos.push({
         id: producto.id,
         nombre: producto.nombre,
@@ -365,7 +342,6 @@ function addHijoAgrupado(producto) {
     renderHijosAgrupado();
 }
 
-// Eliminar producto hijo (evento delegado)
 $(document).off('click.remove-hijo').on('click.remove-hijo', '.remove-hijo-btn', function() {
     const productId = parseInt($(this).data('id'));
     
@@ -384,7 +360,6 @@ $(document).off('click.remove-hijo').on('click.remove-hijo', '.remove-hijo-btn',
     });
 });
 
-// Renderizar etiquetas para agrupado
 function renderEtiquetasAgrupado(producto) {
     const availableDiv = $('#agrupado_availableTags');
     const selectedDiv = $('#agrupado_selectedTags');
@@ -394,7 +369,6 @@ function renderEtiquetasAgrupado(producto) {
 
     const seleccionadas = (producto.etiquetas || []).map(e => e.id);
 
-    // Render disponibles
     _ETIQUETAS.forEach(tag => {
         const checked = seleccionadas.includes(tag.id) ? 'checked' : '';
         availableDiv.append(`
@@ -407,7 +381,6 @@ function renderEtiquetasAgrupado(producto) {
         `);
     });
 
-    // Render chips seleccionados
     producto.etiquetas?.forEach(t => {
         selectedDiv.append(`
             <span class="badge d-inline-flex align-items-center text-black chip">
@@ -417,7 +390,6 @@ function renderEtiquetasAgrupado(producto) {
         `);
     });
 
-    // Evento check
     $('.agrupado_tagCheck').off('change').on('change', function() {
         const tagId = parseInt(this.value);
         const tag = _ETIQUETAS.find(e => e.id === tagId);
@@ -435,7 +407,6 @@ function renderEtiquetasAgrupado(producto) {
         renderEtiquetasAgrupado(editStateAgrupado.productoActual);
     });
 
-    // Evento eliminar desde chip
     selectedDiv.find('.remove-tag-agrupado').off('click').on('click', function() {
         const tagId = parseInt($(this).data('id'));
         editStateAgrupado.productoActual.etiquetas = 
@@ -444,7 +415,6 @@ function renderEtiquetasAgrupado(producto) {
     });
 }
 
-// Crear nueva etiqueta desde agrupado
 $('#agrupado_btnAddTag').off('click').on('click', async function() {
     const val = $('#agrupado_tagInput').val().trim();
     if (!val) return;
@@ -470,12 +440,10 @@ $('#agrupado_btnAddTag').off('click').on('click', async function() {
             Swal.fire('Etiqueta creada', `"${nueva.nombre}" fue agregada correctamente`, 'success');
         }
     } catch (err) {
-        console.error(err);
         Swal.fire('Error', 'Error al crear la etiqueta', 'error');
     }
 });
 
-// Renderizar categorías para agrupado
 function renderCategoriasAgrupado(categoriaId, subcategoriaId) {
     const catSelect = $('#agrupado_categoria');
     const subcatDiv = $('#agrupado_subcategorias');
@@ -513,12 +481,10 @@ function renderCategoriasAgrupado(categoriaId, subcategoriaId) {
     });
 }
 
-// Renderizar imágenes para agrupado
 function renderImagenesAgrupado() {
     const prev = $('#agrupado_previewContainer');
     prev.html('');
     
-    // Imágenes existentes
     editStateAgrupado.imagenes.forEach((img, index) => {
         const preview = $('<div>').addClass('d-inline-block me-2 mb-2 position-relative existing-image');
         preview.html(`
@@ -533,7 +499,6 @@ function renderImagenesAgrupado() {
         prev.append(preview);
     });
     
-    // Imágenes nuevas
     editStateAgrupado.imagenesNuevas.forEach((imgData, index) => {
         const preview = $('<div>').addClass('d-inline-block me-2 mb-2 position-relative new-image');
         preview.html(`
@@ -566,7 +531,6 @@ function actualizarContadorImagenesAgrupado() {
         $('#agrupado_imagenes').after($noteSmall);
     }
     
-    // Botón eliminar todas
     let $removeAllBtn = $('#agrupado_removeAllImages');
     if ($removeAllBtn.length === 0) {
         $removeAllBtn = $(`
@@ -608,7 +572,6 @@ function actualizarContadorImagenesAgrupado() {
     return total;
 }
 
-// Configurar eventos de imágenes para agrupado
 function setupEventosImagenesAgrupado() {
     $('#agrupado_imagenes').off('change').on('change', function(e) {
         const files = e.target.files;
@@ -648,7 +611,6 @@ function setupEventosImagenesAgrupado() {
         $(this).val('');
     });
 
-    // Eliminar imagen
     $(document).off('click', '#agrupado_previewContainer .remove-image-agrupado').on('click', '#agrupado_previewContainer .remove-image-agrupado', function() {
         const index = parseInt($(this).data('index'));
         const type = $(this).data('type');
@@ -676,7 +638,6 @@ function setupEventosImagenesAgrupado() {
         });
     });
 
-    // Eliminar todas las imágenes
     $('#agrupado_removeAllImages').off('click').on('click', function() {
         const totalImagenes = editStateAgrupado.imagenes.length + editStateAgrupado.imagenesNuevas.length;
         if (totalImagenes === 0) return;
@@ -721,7 +682,6 @@ function setupEventosImagenesAgrupado() {
     });
 }
 
-// Configurar miniatura para agrupado
 function setupMiniaturaEventsAgrupado() {
     const $miniPreview = $('#agrupado_miniPreview');
     const $miniInput = $('#agrupado_miniatura');
@@ -770,7 +730,6 @@ function setupMiniaturaEventsAgrupado() {
     });
 }
 
-// Configurar búsqueda de productos relacionados para agrupado
 function setupProductoRelacionadoSearchAgrupado(selector, type) {
     const $input = $(selector);
     if (!$input.length) return;
@@ -855,7 +814,6 @@ function setupProductoRelacionadoSearchAgrupado(selector, type) {
                     positionDropdown($input, $dropdown);
                 }
             } catch (err) {
-                console.error('Error buscando productos:', err);
                 $dropdown.html(`
                     <div class="dropdown-item text-danger py-2">
                         <i class="bi bi-exclamation-triangle me-2"></i>
@@ -1040,7 +998,6 @@ function loadExistingTagsAgrupado(type) {
     });
 }
 
-// Evento para eliminar tags de relacionados
 $(document).off('click.remove-tag-agrupado').on('click.remove-tag-agrupado', '.remove-tag-agrupado-btn', function() {
     const productId = parseInt($(this).data('id'));
     const type = $(this).data('type');
@@ -1075,7 +1032,6 @@ $(document).off('click.remove-tag-agrupado').on('click.remove-tag-agrupado', '.r
     }
 });
 
-// Función helper para posicionar dropdown
 function positionDropdown($input, $dropdown) {
     const inputHeight = $input.outerHeight();
     $dropdown.css({
@@ -1088,15 +1044,12 @@ function positionDropdown($input, $dropdown) {
     });
 }
 
-// Función helper para truncar texto
 function truncateTagText(text, maxLength = 25) {
     if (!text || text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
 }
 
-// Guardar producto agrupado
 async function guardarProductoAgrupado() {
-    // Validar campos obligatorios
     if (!validarProductoAgrupado()) {
         return;
     }
@@ -1130,22 +1083,15 @@ async function guardarProductoAgrupado() {
     const subcategoriaId = $('input[name="agrupado_subcategoria_id"]:checked').val();
     formData.append('subcategoria_id', subcategoriaId);
     
-    // SKU
     formData.append('sku', $('#agrupado_sku').val() || '');
-    
-    // Avanzado
     formData.append('nota_interna', $('#agrupado_nota_interna').val() || '');
     formData.append('permite_valoraciones', $('#agrupado_valoraciones').is(':checked') ? '1' : '0');
-    
-    // Miniatura
     if (editStateAgrupado.eliminarMiniatura) {
         formData.append('eliminar_miniatura', 'true');
     }
     if (editStateAgrupado.nuevaMiniatura) {
         formData.append('imagen_miniatura', editStateAgrupado.nuevaMiniatura);
     }
-    
-    // Imágenes principales
     if (editStateAgrupado.imagenesAEliminar && editStateAgrupado.imagenesAEliminar.length > 0) {
         formData.append('imagenes_eliminar', JSON.stringify(editStateAgrupado.imagenesAEliminar));
     }
@@ -1154,16 +1100,12 @@ async function guardarProductoAgrupado() {
             formData.append('imagenes[]', imgData.file);
         });
     }
-    
-    // Etiquetas
     if (editStateAgrupado.productoActual?.etiquetas && editStateAgrupado.productoActual.etiquetas.length > 0) {
         const etiquetasIds = editStateAgrupado.productoActual.etiquetas.map(e => e.id);
         formData.append('etiquetas', JSON.stringify(etiquetasIds));
     } else {
         formData.append('etiquetas', JSON.stringify([]));
     }
-    
-    // Atributos
     if (editStateAgrupado.productoActual?.atributos && editStateAgrupado.productoActual.atributos.length > 0) {
         const atributosParaEnviar = editStateAgrupado.productoActual.atributos.map(attr => ({
             atributo_id: attr.id,
@@ -1175,8 +1117,6 @@ async function guardarProductoAgrupado() {
     } else {
         formData.append('atributos', JSON.stringify([]));
     }
-    
-    // Productos hijos (agrupados)
     if (editStateAgrupado.hijos && editStateAgrupado.hijos.length > 0) {
         const hijosIds = editStateAgrupado.hijos.map(h => h.id);
         formData.append('relacionados', JSON.stringify(hijosIds));
@@ -1189,13 +1129,6 @@ async function guardarProductoAgrupado() {
     );
 
     formData.append('crosssells', JSON.stringify(editStateAgrupado.crosssells.map(p => p.id)));
-
-    // Debug - Verificar datos
-    console.log('Datos a enviar:');
-    console.log('subcategoria_id:', subcategoriaId);
-    console.log('hijos:', editStateAgrupado.hijos);
-    console.log('upsells:', editStateAgrupado.upsells);
-    console.log('crosssells:', editStateAgrupado.crosssells);
 
     try {
         const response = await fetch('productos', {
@@ -1227,11 +1160,9 @@ async function guardarProductoAgrupado() {
             limpiarEstadoAgrupado();
             
         } else {
-            console.error('Error del servidor:', data);
             Swal.fire('Error', data.mensaje || 'Error al actualizar', 'error');
         }
     } catch (err) {
-        console.error('Error:', err);
         Swal.close();
         Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
     }
@@ -1271,35 +1202,27 @@ function limpiarEstadoAgrupado() {
     $('#agrupado_miniPlaceholder').show();
     $('#agrupado_removeMini').addClass('d-none');
     $('#agrupado_hijos_container').empty();
-    
-    // Limpiar contenedores de tags
     $('#agrupado-upsells-tags-container, #agrupado-crosssells-tags-container').empty();
-    
-    // LIMPIAR CONTENEDOR DE ATRIBUTOS
     $('#agrupado_atributosContainer').empty();
 }
 
-// Evento submit del formulario
 $(document).on('submit', '#formProductoAgrupado', function(e) {
     e.preventDefault();
     guardarProductoAgrupado();
 });
 
-// Inicializar tooltips cuando se abre el modal
 $('#modalProductoAgrupado').on('shown.bs.modal', function() {
     if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
         $('[data-bs-toggle="tooltip"]').tooltip();
     }
 });
 
-// Renderizar atributos para agrupado (igual que simple)
 function renderAtributosAgrupado() {
     const container = document.getElementById('agrupado_atributosContainer');
     if (!container) return;
 
     container.innerHTML = '';
 
-    // --- Selector de atributos existentes ---
     let selectWrap = document.createElement('div');
     selectWrap.className = 'atributos-select-wrap mb-3';
     selectWrap.innerHTML = `
@@ -1316,8 +1239,6 @@ function renderAtributosAgrupado() {
         <div id="agrupado_atributosBlocks" class="mt-3"></div>
     `;
     container.appendChild(selectWrap);
-
-    // --- Listener para añadir atributos existentes ---
     selectWrap.querySelector('#agrupado_select_atributo').addEventListener('change', function() {
         const id = this.value;
         if (!id) return;
@@ -1329,7 +1250,6 @@ function renderAtributosAgrupado() {
     renderAtributoBlocksAgrupado();
 }
 
-// Renderizar bloques de atributos para agrupado
 function renderAtributoBlocksAgrupado() {
     const blocks = document.getElementById('agrupado_atributosBlocks');
     if (!blocks) return;
@@ -1342,7 +1262,6 @@ function renderAtributoBlocksAgrupado() {
     });
 }
 
-// Crear bloque de atributo para agrupado
 function createAtributoBlockAgrupado(attr) {
     const attrFull = _ATRIBUTOS.find(x => String(x.id) === String(attr.id));
 
@@ -1383,7 +1302,6 @@ function createAtributoBlockAgrupado(attr) {
         </div>
     `;
 
-    // --- Render valores disponibles ---
     const availDiv = wrapper.querySelector('.valores-available');
     if (availDiv && attrFull?.terminos) {
         attrFull.terminos.forEach(term => {
@@ -1407,7 +1325,6 @@ function createAtributoBlockAgrupado(attr) {
         });
     }
 
-    // --- Render chips (valores seleccionados) ---
     const chipsDiv = wrapper.querySelector('.valores-chips');
     (attr.terminos || []).forEach(v => {
         const chip = document.createElement('span');
@@ -1423,7 +1340,6 @@ function createAtributoBlockAgrupado(attr) {
         chipsDiv.appendChild(chip);
     });
 
-    // --- Botones ---
     wrapper.querySelector('.btnEliminarAtributoAgrupado').addEventListener('click', () => {
         Swal.fire({
             title: '¿Quitar atributo?',
@@ -1452,7 +1368,6 @@ function createAtributoBlockAgrupado(attr) {
         abrirModalCrearValorAgrupado(attr.id);
     });
 
-    // Checkbox de visible
     const chkVisible = wrapper.querySelector('.chk-visible');
     chkVisible.addEventListener('change', (e) => {
         attr.visible = e.target.checked;
@@ -1461,30 +1376,18 @@ function createAtributoBlockAgrupado(attr) {
     return wrapper;
 }
 
-// Variable global para controlar si estamos en proceso de crear atributo/valor
 let isCreatingAttribute = false;
 let isCreatingValue = false;
 
-// Función para abrir modal de crear atributo (CORREGIDA)
 async function abrirModalCrearAtributoAgrupado() {
-    // Marcar que estamos creando un atributo
     isCreatingAttribute = true;
-    
-    // Guardar referencia al estado actual ANTES de ocultar el modal
     const estadoActual = editStateAgrupado;
-    
-    // Verificar que tenemos un producto actual
     if (!estadoActual.productoActual) {
-        console.error('Error: No hay producto actual en el estado');
         Swal.fire('Error', 'No se pudo identificar el producto actual', 'error');
         isCreatingAttribute = false;
         return;
     }
-    
-    // Guardar una copia de seguridad del producto actual
     const productoBackup = JSON.parse(JSON.stringify(estadoActual.productoActual));
-    
-    // Ocultar temporalmente el modal de Bootstrap
     const modalAgrupado = bootstrap.Modal.getInstance(document.getElementById('modalProductoAgrupado'));
     if (modalAgrupado) {
         modalAgrupado.hide();
@@ -1524,7 +1427,6 @@ async function abrirModalCrearAtributoAgrupado() {
         }
     });
 
-    // Si se canceló, mostrar nuevamente el modal de Bootstrap
     if (!formValues) {
         if (modalAgrupado) {
             setTimeout(() => {
@@ -1545,31 +1447,23 @@ async function abrirModalCrearAtributoAgrupado() {
         if (data.respuesta === 'ok') {
             const nuevoAtributo = data.atributo;
             
-            // Actualizar lista global
             _ATRIBUTOS.push(nuevoAtributo);
             
-            // RESTAURAR el producto actual desde el backup si se perdió
             if (!editStateAgrupado.productoActual) {
-                console.log('Restaurando producto actual desde backup');
                 editStateAgrupado.productoActual = productoBackup;
             }
             
-            // Verificar nuevamente que tenemos productoActual
             if (!editStateAgrupado.productoActual) {
-                console.error('Error: No se pudo restaurar el producto actual');
                 throw new Error('No se pudo restaurar el producto');
             }
             
-            // Inicializar array de atributos si no existe
             if (!editStateAgrupado.productoActual.atributos) {
                 editStateAgrupado.productoActual.atributos = [];
             }
             
-            // Verificar si ya existe
             const yaExiste = editStateAgrupado.productoActual.atributos.some(a => a.id === nuevoAtributo.id);
             
             if (!yaExiste) {
-                // Agregar el nuevo atributo al producto
                 editStateAgrupado.productoActual.atributos.push({
                     id: nuevoAtributo.id,
                     nombre: nuevoAtributo.nombre,
@@ -1579,10 +1473,7 @@ async function abrirModalCrearAtributoAgrupado() {
                 });
             }
             
-            // Re-renderizar atributos
             renderAtributosAgrupado();
-            
-            // Seleccionar automáticamente en el dropdown
             setTimeout(() => {
                 $('#agrupado_select_atributo').val(nuevoAtributo.id);
             }, 100);
@@ -1598,10 +1489,8 @@ async function abrirModalCrearAtributoAgrupado() {
             Swal.fire('Error', data.mensaje, 'error');
         }
     } catch (err) {
-        console.error('Error al crear atributo:', err);
         Swal.fire('Error', err.message || 'No se pudo crear el atributo', 'error');
     } finally {
-        // Mostrar nuevamente el modal de Bootstrap
         if (modalAgrupado) {
             setTimeout(() => {
                 modalAgrupado.show();
@@ -1611,23 +1500,16 @@ async function abrirModalCrearAtributoAgrupado() {
     }
 }
 
-// También corregir la función de crear valor
 async function abrirModalCrearValorAgrupado(atributoId) {
-    // Marcar que estamos creando un valor
     isCreatingValue = true;
-    
-    // Guardar referencia al estado actual
     const estadoActual = editStateAgrupado;
     
-    // Verificar que tenemos un producto actual
     if (!estadoActual.productoActual) {
-        console.error('Error: No hay producto actual en el estado');
         Swal.fire('Error', 'No se pudo identificar el producto actual', 'error');
         isCreatingValue = false;
         return;
     }
     
-    // Guardar una copia de seguridad del producto actual
     const productoBackup = JSON.parse(JSON.stringify(estadoActual.productoActual));
     
     const atributo = _ATRIBUTOS.find(a => a.id == atributoId);
@@ -1637,7 +1519,6 @@ async function abrirModalCrearValorAgrupado(atributoId) {
         return;
     }
 
-    // Ocultar modal de Bootstrap
     const modalAgrupado = bootstrap.Modal.getInstance(document.getElementById('modalProductoAgrupado'));
     if (modalAgrupado) {
         modalAgrupado.hide();
@@ -1686,7 +1567,6 @@ async function abrirModalCrearValorAgrupado(atributoId) {
         }
     });
 
-    // Si se canceló, mostrar nuevamente el modal
     if (!formValues) {
         if (modalAgrupado) {
             setTimeout(() => {
@@ -1706,30 +1586,24 @@ async function abrirModalCrearValorAgrupado(atributoId) {
         if (data.respuesta === 'ok') {
             const nuevoValor = data.termino;
             
-            // Actualizar atributo global
             const attrGlobal = _ATRIBUTOS.find(a => a.id == formValues.atributo_id);
             if (attrGlobal) {
                 if (!attrGlobal.terminos) attrGlobal.terminos = [];
                 attrGlobal.terminos.push(nuevoValor);
             }
             
-            // RESTAURAR el producto actual desde el backup si se perdió
             if (!editStateAgrupado.productoActual) {
-                console.log('Restaurando producto actual desde backup');
                 editStateAgrupado.productoActual = productoBackup;
             }
             
-            // Verificar nuevamente el productoActual
             if (!editStateAgrupado.productoActual) {
                 throw new Error('No se pudo restaurar el producto');
             }
             
-            // Inicializar atributos si no existen
             if (!editStateAgrupado.productoActual.atributos) {
                 editStateAgrupado.productoActual.atributos = [];
             }
             
-            // Buscar o crear el atributo en el producto
             let atributoEnProducto = editStateAgrupado.productoActual.atributos.find(a => a.id == formValues.atributo_id);
             
             if (!atributoEnProducto) {
@@ -1743,12 +1617,10 @@ async function abrirModalCrearValorAgrupado(atributoId) {
                 editStateAgrupado.productoActual.atributos.push(atributoEnProducto);
             }
             
-            // Inicializar terminos si no existen
             if (!atributoEnProducto.terminos) {
                 atributoEnProducto.terminos = [];
             }
             
-            // Agregar el nuevo valor si no existe
             const yaSeleccionado = atributoEnProducto.terminos.some(t => t.id === nuevoValor.id);
             if (!yaSeleccionado) {
                 atributoEnProducto.terminos.push({
@@ -1758,7 +1630,6 @@ async function abrirModalCrearValorAgrupado(atributoId) {
                 });
             }
             
-            // Re-renderizar
             renderAtributoBlocksAgrupado();
             
             Swal.fire({
@@ -1772,10 +1643,8 @@ async function abrirModalCrearValorAgrupado(atributoId) {
             Swal.fire('Error', data.mensaje, 'error');
         }
     } catch (err) {
-        console.error('Error al crear valor:', err);
         Swal.fire('Error', err.message || 'No se pudo crear el valor', 'error');
     } finally {
-        // Mostrar nuevamente el modal
         if (modalAgrupado) {
             setTimeout(() => {
                 modalAgrupado.show();
@@ -1785,9 +1654,7 @@ async function abrirModalCrearValorAgrupado(atributoId) {
     }
 }
 
-// MODIFICAR el evento hidden.bs.modal para NO limpiar si estamos creando atributo/valor
 $('#modalProductoAgrupado').on('hidden.bs.modal', function() {
-    // Solo limpiar si NO estamos en medio de crear un atributo o valor
     if (!isCreatingAttribute && !isCreatingValue) {
         limpiarEstadoAgrupado();
         $(document).off('click.hijos');
@@ -1797,10 +1664,9 @@ $('#modalProductoAgrupado').on('hidden.bs.modal', function() {
         $(window).off('resize.agrupado-upsells');
         $(window).off('resize.agrupado-crosssells');
     } else {
-        console.log('Modal oculto pero NO se limpia el estado porque estamos creando atributo/valor');
     }
 });
-// Función para agregar atributo existente
+
 function addAtributoBlockAgrupado(atributoObj) {
     if (!editStateAgrupado.productoActual.atributos) {
         editStateAgrupado.productoActual.atributos = [];

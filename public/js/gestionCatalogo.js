@@ -8,7 +8,6 @@ $(document).ready(function() {
 });
 
 function inicializarTablas() {
-    // Inicializar DataTable de Categorías
     tablaCategorias = $('#tablaCategorias').DataTable({
         processing: true,
         serverSide: false,
@@ -26,8 +25,6 @@ function inicializarTablas() {
                 hidePreloader(mensajesGlobalLoader);
                 if (json.respuesta === 'ok') {
                     window.permisosVista = json.permisosVista || {};
-                    
-                    // Cargar categorías para el filtro de subcategorías
                     cargarFiltroCategorias(json.categorias);
                     
                     return json.categorias || [];
@@ -112,7 +109,6 @@ function inicializarTablas() {
         }
     });
 
-    // Inicializar DataTable de Subcategorías
     tablaSubcategorias = $('#tablaSubcategorias').DataTable({
         processing: true,
         serverSide: false,
@@ -221,7 +217,6 @@ function cargarFiltroCategorias(categorias) {
 function inicializarIconos() {
     iconosFiltrados = window.iconosDisponibles || [];
     
-    // Renderizar iconos iniciales
     if (window.iconosDisponibles && window.iconosDisponibles.length > 0) {
         renderizarIconos('categoria', '');
         renderizarIconos('subcategoria', '');
@@ -229,7 +224,6 @@ function inicializarIconos() {
         console.warn('No hay iconos disponibles');
     }
     
-    // Eventos de búsqueda de iconos
     $('#iconoBuscarCategoria').on('input', function() {
         filtrarIconos($(this).val(), 'categoria');
     });
@@ -238,7 +232,6 @@ function inicializarIconos() {
         filtrarIconos($(this).val(), 'subcategoria');
     });
     
-    // Botones para limpiar icono seleccionado
     $('#btnLimpiarIconoCategoria').on('click', function() {
         $('#iconoCategoria').val('');
         $('#iconoPreviewCategoria i').attr('class', 'bi bi-question-circle');
@@ -258,7 +251,6 @@ function filtrarIconos(busqueda, tipo) {
         return;
     }
     
-    // Filtrar iconos por nombre o por icono
     let termino = busqueda.toLowerCase();
     let filtrados = window.iconosDisponibles.filter(icono => 
         icono.nombre.toLowerCase().includes(termino) || 
@@ -284,11 +276,9 @@ function renderizarIconos(tipo, seleccionado = '', iconos = null) {
     let html = '';
     
     iconosList.forEach(function(icono) {
-        // Extraer el nombre del icono (sin el prefijo)
         let iconName = icono.icono;
         let iconClass = icono.prefijo + ' ' + icono.prefijo + '-' + iconName;
         
-        // Determinar si está seleccionado
         let isSelected = '';
         if (seleccionado) {
             if (seleccionado === iconName || seleccionado === iconClass || seleccionado.includes(iconName)) {
@@ -303,7 +293,6 @@ function renderizarIconos(tipo, seleccionado = '', iconos = null) {
     
     $(container).html(html);
     
-    // Eventos de selección de iconos (usando jQuery para mantener consistencia)
     $(`.${btnClass}`).on('click', function() {
         let iconoNombre = $(this).data('icono');
         let iconoCompleto = $(this).data('icono-completo');
@@ -316,19 +305,16 @@ function renderizarIconos(tipo, seleccionado = '', iconos = null) {
     });
 }
 
-// Filtrar subcategorías al cambiar el filtro
 $('#filtroCategoria').on('change', function() {
     tablaSubcategorias.ajax.reload();
 });
 
-// Cambiar de tab y recargar datos si es necesario
 $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
     if ($(e.target).attr('id') === 'subcategorias-tab') {
         tablaSubcategorias.ajax.reload();
     }
 });
 
-// Botón Nueva Categoría
 $('#btnNuevaCategoria').on('click', function() {
     tipoActual = 'categoria';
     $('#tituloModal').text('Nueva Categoría');
@@ -348,7 +334,6 @@ $('#btnNuevaCategoria').on('click', function() {
     $('#modalCategoria').modal('show');
 });
 
-// Botón Nueva Subcategoría
 $('#btnNuevaSubcategoria').on('click', function() {
     tipoActual = 'subcategoria';
     $('#tituloModal').text('Nueva Subcategoría');
@@ -368,7 +353,6 @@ $('#btnNuevaSubcategoria').on('click', function() {
     $('#modalCategoria').modal('show');
 });
 
-// Guardar (Crear o Actualizar)
 $('#btnGuardar').on('click', function() {
     let formData = new FormData();
     formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
@@ -409,7 +393,7 @@ $('#btnGuardar').on('click', function() {
                     tablaCategorias.ajax.reload();
                 } else {
                     tablaSubcategorias.ajax.reload();
-                    tablaCategorias.ajax.reload(); // Para actualizar el contador de subcategorías
+                    tablaCategorias.ajax.reload(); 
                 }
             } else {
                 Swal.fire('Error', response.mensaje, 'error');
@@ -421,7 +405,6 @@ $('#btnGuardar').on('click', function() {
     });
 });
 
-// Editar Categoría
 $(document).on('click', '.btn-editar-categoria', function() {
     let id = $(this).data('id');
     tipoActual = 'categoria';
@@ -443,7 +426,6 @@ $(document).on('click', '.btn-editar-categoria', function() {
                 $('#idRegistro').val(categoria.id);
                 $('#nombreCategoria').val(categoria.nombre);
                 
-                // Extraer nombre del icono
                 let iconoNombre = '';
                 if (categoria.icono) {
                     if (categoria.icono.includes('bi-')) {
@@ -470,7 +452,6 @@ $(document).on('click', '.btn-editar-categoria', function() {
     });
 });
 
-// Editar Subcategoría
 $(document).on('click', '.btn-editar-subcategoria', function() {
     let id = $(this).data('id');
     tipoActual = 'subcategoria';
@@ -493,7 +474,6 @@ $(document).on('click', '.btn-editar-subcategoria', function() {
                 $('#nombreSubcategoria').val(subcategoria.nombre);
                 $('#categoriaSubcategoria').val(subcategoria.id_categoria);
                 
-                // Extraer nombre del icono
                 let iconoNombre = '';
                 if (subcategoria.icono) {
                     if (subcategoria.icono.includes('bi-')) {
@@ -520,7 +500,6 @@ $(document).on('click', '.btn-editar-subcategoria', function() {
     });
 });
 
-// Eliminar Categoría
 $(document).on('click', '.btn-eliminar-categoria', function() {
     let id = $(this).data('id');
     let nombre = $(this).data('nombre');
@@ -575,7 +554,6 @@ $(document).on('click', '.btn-eliminar-categoria', function() {
     });
 });
 
-// Eliminar Subcategoría
 $(document).on('click', '.btn-eliminar-subcategoria', function() {
     let id = $(this).data('id');
     let nombre = $(this).data('nombre');
@@ -609,7 +587,7 @@ $(document).on('click', '.btn-eliminar-subcategoria', function() {
                         });
                         
                         tablaSubcategorias.ajax.reload();
-                        tablaCategorias.ajax.reload(); // Actualizar contador de subcategorías
+                        tablaCategorias.ajax.reload(); 
                     } else {
                         Swal.fire('Error', response.mensaje, 'error');
                     }
@@ -619,7 +597,6 @@ $(document).on('click', '.btn-eliminar-subcategoria', function() {
     });
 });
 
-// Estilos adicionales para los iconos
 $('<style>')
     .prop('type', 'text/css')
     .html(`

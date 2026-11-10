@@ -602,4 +602,15 @@ class Producto extends Model
                 ];
             });
     }
+    
+    /**
+     * Relación con los ítems de pedido
+     */
+    public function ventas()
+    {
+        return $this->hasMany(\App\Models\PedidoItem::class, 'producto_id')
+            ->whereHas('pedido', function ($q) {
+                $q->whereNotIn('estado', ['cancelado', 'reembolsado']);
+            });
+    }
 }

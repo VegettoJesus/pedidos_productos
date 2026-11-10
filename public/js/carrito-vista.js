@@ -140,7 +140,6 @@ async function renderCrossSells() {
         if (typeof initCardVariations === 'function') initCardVariations();
         if (typeof initProductRating === 'function') initProductRating();
     } catch (e) {
-        console.error('Error cargando cross-sells:', e);
         section.style.display = 'none';
     }
 }
@@ -160,13 +159,11 @@ function crearItem(item, template) {
         placeholder.style.display = 'none';
     }
 
-    // Título + link
     const titulo = item.producto?.nombre || 'Producto';
     const linkEl = root.querySelector('.js-link');
     linkEl.textContent = titulo;
     linkEl.href = `/producto/${item.producto_id}`;
 
-    // Atributos de variación
     const atributosEl = root.querySelector('.js-atributos');
     if (item.variacion && Array.isArray(item.variacion.atributos) && item.variacion.atributos.length) {
         atributosEl.innerHTML = item.variacion.atributos
@@ -174,7 +171,6 @@ function crearItem(item, template) {
             .join('');
     }
 
-    // SKU
     const sku = item.variacion?.sku || item.producto?.sku;
     if (sku) {
         const skuEl = root.querySelector('.js-sku');
@@ -182,17 +178,14 @@ function crearItem(item, template) {
         skuEl.style.display = 'block';
     }
 
-    // Bundle tag
     if (item.producto_padre_id) {
         root.querySelector('.js-bundle').style.display = 'inline-flex';
     }
 
-    // Precio
     root.querySelector('.js-precio').innerHTML =
         `${formatPrecio(item.precio_unitario)}` +
         (item.variacion_id ? '<small>Variación</small>' : '');
 
-    // Cantidad
     const qtyInput = root.querySelector('.js-qty-input');
     const minusBtn = root.querySelector('.js-qty-minus');
     const plusBtn = root.querySelector('.js-qty-plus');
@@ -215,10 +208,7 @@ function crearItem(item, template) {
         await cambiarCantidad(item.id, n);
     });
 
-    // Subtotal
     root.querySelector('.js-subtotal').textContent = formatPrecio(item.cantidad * item.precio_unitario);
-
-    // Eliminar
     root.querySelector('.js-remove').addEventListener('click', async () => {
         const r = await Swal.fire({
             icon: 'question',

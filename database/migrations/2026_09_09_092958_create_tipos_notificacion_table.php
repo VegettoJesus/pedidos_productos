@@ -89,7 +89,17 @@ return new class extends Migration
                 'activo' => true,
                 'created_at' => now(),
                 'updated_at' => now()
-            ]
+            ],
+            [
+                'nombre' => 'Contacto',
+                'slug' => 'contacto',
+                'descripcion' => 'Mensajes recibidos del formulario de contacto',
+                'icono' => 'bi-envelope-paper',
+                'color' => '#0d6efd',
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
         ]);
     }
 

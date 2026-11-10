@@ -122,7 +122,6 @@
 
             inicializarUpload(form, 'qr');
             inicializarUpload(form, 'icono');
-            console.log(config)
             if (config.imagen_qr) {
                 const preview = form.querySelector('#previewQR');
                 const uploadArea = form.querySelector('#uploadQR');

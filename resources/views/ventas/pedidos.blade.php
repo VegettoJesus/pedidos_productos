@@ -1,7 +1,7 @@
 <div class="container-fluid py-3">
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="bi bi-receipt"></i> Gestión de Pedidos</h5>
+            <h5 class="mb-0 text-white"><i class="bi bi-receipt"></i> Gestión de Pedidos</h5>
             <span class="badge bg-black" id="badgeTotal">0 pedidos</span>
         </div>
         <div class="card-body">

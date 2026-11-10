@@ -11,6 +11,7 @@ use App\Models\FooterColumn;
 use App\Models\FooterLink;
 use App\Models\FooterContact;
 use App\Models\FooterSocial;
+use App\Models\Producto;
 use App\Data\Icons;
 use App\Models\Departamento;
 use Illuminate\Http\Request;
@@ -473,23 +474,28 @@ class Empresa extends Controller
                 $excluirIds = $request->input('excluir_ids', []);
                 $limite = $request->input('limite', 10);
 
-                $query = DB::table('productos')
+                // ✅ Usamos el MODELO, no DB::table → accessors disponibles
+                $query = Producto::with(['variaciones' => function ($q) {
+                        $q->where('activo', true);
+                    }])
                     ->where('estado', 'publicado')
                     ->select(
                         'id',
                         'nombre',
                         'sku',
                         'imagen_miniatura',
+                        'tipo_producto',          // ✅ necesario para saber qué precio mostrar
                         'precio_regular',
                         'precio_rebajado',
+                        'fecha_fin_rebaja',
                         'estado'
                     );
 
                 if (!empty($busqueda)) {
-                    $query->where(function($q) use ($busqueda) {
+                    $query->where(function ($q) use ($busqueda) {
                         $q->where('nombre', 'LIKE', "%{$busqueda}%")
                         ->orWhere('sku', 'LIKE', "%{$busqueda}%");
-                
+
                         if (is_numeric($busqueda)) {
                             $q->orWhere('id', '=', (int) $busqueda);
                         }
@@ -503,16 +509,60 @@ class Empresa extends Controller
                 $productos = $query->orderBy('nombre', 'asc')
                     ->limit($limite)
                     ->get()
-                    ->map(function($producto) {
+                    ->map(function ($producto) {
+                        // ✅ Usamos los accessors del modelo (ya existen y funcionan)
+                        $rango            = $producto->rango_precios;
+                        $tieneOferta      = $rango->tiene_rebaja;
+                        $precioMostrar    = $producto->precio_formateado;   // string formateado
+                        $precioRegularStr = $producto->precio_regular_original; // string o null
+                        $descuentoPct     = $producto->descuento_porcentaje; // int o null
+
+                        // Para el JS que ya tienes: necesitamos dos números
+                        // precio_regular y precio_rebajado como strings formateados
+                        $precioRegularNum = 0;
+                        $precioRebajadoNum = null;
+
+                        if ($producto->tipo_producto === 'simple') {
+                            $precioRegularNum = (float) $producto->precio_regular;
+                            if ($tieneOferta) {
+                                $precioRebajadoNum = (float) $producto->precio_rebajado;
+                            }
+                        } elseif ($producto->tipo_producto === 'variable') {
+                            // Para variable usamos el min/max del rango
+                            $precioRegularNum = (float) ($rango->precio_regular_min ?? $rango->precio_actual_min ?? 0);
+                            if ($tieneOferta) {
+                                $precioRebajadoNum = (float) ($rango->precio_actual_min ?? 0);
+                            }
+                        } elseif ($producto->tipo_producto === 'agrupado') {
+                            $precioRegularNum = (float) ($rango->precio_regular_min ?? $rango->precio_actual_min ?? 0);
+                            if ($tieneOferta) {
+                                $precioRebajadoNum = (float) ($rango->precio_actual_min ?? 0);
+                            }
+                        }
+
+                        // Imagen con fallback
+                        $imagen = $producto->imagen_miniatura
+                            ? asset($producto->imagen_miniatura)
+                            : asset('img/default-product.png');
+
                         return [
-                            'id' => $producto->id,
-                            'nombre' => $producto->nombre,
-                            'sku' => $producto->sku ?? 'null',
-                            'imagen' => $producto->imagen_miniatura ? asset($producto->imagen_miniatura) : asset('img/default-product.png'),
-                            'precio_regular' => number_format($producto->precio_regular, 2),
-                            'precio_rebajado' => $producto->precio_rebajado ? number_format($producto->precio_rebajado, 2) : null,
-                            'tiene_oferta' => !is_null($producto->precio_rebajado),
-                            'estado' => $producto->estado
+                            'id'              => $producto->id,
+                            'nombre'          => $producto->nombre,
+                            'sku'             => $producto->sku ?? 'null',
+                            'imagen'          => $imagen,
+                            'tipo_producto'   => $producto->tipo_producto,
+                            'precio_regular'  => $precioRegularNum > 0
+                                                    ? number_format($precioRegularNum, 2)
+                                                    : '0.00',
+                            'precio_rebajado' => $precioRebajadoNum !== null
+                                                    ? number_format($precioRebajadoNum, 2)
+                                                    : null,
+                            // 👇 datos nuevos para el badge y para el texto correcto
+                            'precio_mostrar'  => $precioMostrar,          // "S/.100.00" o "S/.80.00 - S/.120.00"
+                            'precio_regular_original' => $precioRegularStr, // tachado o null
+                            'descuento_porcentaje'    => $descuentoPct,     // int o null
+                            'tiene_oferta'    => $tieneOferta,
+                            'estado'          => $producto->estado,
                         ];
                     });
 

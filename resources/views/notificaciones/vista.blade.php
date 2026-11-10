@@ -1,11 +1,13 @@
 <div class="container-fluid px-2 pb-4">
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
+        <div class="card-header d-lg-flex d-md-flex d-xl-flex justify-content-between align-items-center">
+            <div>
+            <h5 class="d-flex mb-0 text-white">
                 <i class="bi bi-bell-fill me-2"></i>
                 Centro de Notificaciones
             </h5>
-            <div>
+            </div>
+            <div class="d-flex gap-2 p-2">
                 <button type="button" class="btn btn-sm btn-outline-primary" id="btnRefrescarNotificaciones">
                     <i class="bi bi-arrow-clockwise me-1"></i> Refrescar
                 </button>

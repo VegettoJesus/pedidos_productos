@@ -75,7 +75,7 @@
 <div class="container-fluid px-2 pb-4" style="display: inline-grid">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Gestión de Categorías y Subcategorías</h5>
+            <h5 class="mb-0 text-white">Gestión de Categorías y Subcategorías</h5>
         </div>
         <div class="card-body">
             <ul class="nav nav-tabs mb-3" id="categoriasTabs" role="tablist">
@@ -92,7 +92,6 @@
             </ul>
 
             <div class="tab-content" id="categoriasTabContent">
-                <!-- TAB DE CATEGORÍAS -->
                 <div class="tab-pane fade show active" id="categorias" role="tabpanel">
                     <div class="row mb-3">
                         <div class="col-lg-3 col-md-6 col-sm-12 d-flex align-items-end mt-2">
@@ -119,8 +118,6 @@
                         </table>
                     </div>
                 </div>
-
-                <!-- TAB DE SUBCATEGORÍAS -->
                 <div class="tab-pane fade" id="subcategorias" role="tabpanel">
                     <div class="row mb-3">
                         <div class="col-lg-4 col-md-6 col-sm-12">
@@ -158,7 +155,6 @@
     </div>
 </div>
 
-<!-- Modal para Categorías y Subcategorías -->
 <div class="modal fade" id="modalCategoria" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -170,8 +166,6 @@
                 <form id="formCategoria">
                     <input type="hidden" id="tipoEntidad" name="tipo_entidad">
                     <input type="hidden" id="idRegistro" name="id">
-                    
-                    <!-- Campos para Categoría -->
                     <div id="camposCategoria">
                         <div class="mb-3">
                             <label for="nombreCategoria" class="form-label">Nombre de la Categoría</label>
@@ -189,13 +183,11 @@
                                 </button>
                             </div>
                             <div id="iconPickerCategoria" class="icon-picker-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px; display: flex; flex-wrap: wrap; gap: 5px;">
-                                <!-- Los iconos se cargarán aquí dinámicamente -->
                             </div>
                             <input type="hidden" id="iconoCategoria" name="icono" value="">
                         </div>
                     </div>
                     
-                    <!-- Campos para Subcategoría -->
                     <div id="camposSubcategoria" style="display: none;">
                         <div class="mb-3">
                             <label for="nombreSubcategoria" class="form-label">Nombre de la Subcategoría</label>
@@ -219,7 +211,6 @@
                                 </button>
                             </div>
                             <div id="iconPickerSubcategoria" class="icon-picker-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px; display: flex; flex-wrap: wrap; gap: 5px;">
-                                <!-- Los iconos se cargarán aquí dinámicamente -->
                             </div>
                             <input type="hidden" id="iconoSubcategoria" name="icono" value="">
                         </div>

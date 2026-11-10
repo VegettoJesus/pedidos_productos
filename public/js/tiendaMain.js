@@ -1,5 +1,5 @@
 const menuToggle = document.getElementById('menuToggle');
-const mobileMenu = document.getElementById('mobileMenu'); // Cambiado
+const mobileMenu = document.getElementById('mobileMenu');
 const mobileOverlay = document.getElementById('mobileOverlay');
 const searchBtn = document.querySelector('.search-btn');
 const searchInput = document.querySelector('.search-input');
@@ -11,7 +11,7 @@ let loaderInicializado = false;
 
 function mostrarLoaderInicial() {
     if (loaderInicializado) return;
-    
+
     const cartLoader = window.cartLoader;
     if (cartLoader) {
         cartLoader.show({
@@ -29,21 +29,18 @@ function ocultarLoader() {
     }
 }
 
-// Alternar menú móvil (solo para móvil/tablet)
 menuToggle.addEventListener('click', () => {
     mobileMenu.classList.add('active');
     mobileOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
 });
 
-// Cerrar menú al hacer clic en overlay
 mobileOverlay.addEventListener('click', () => {
     mobileMenu.classList.remove('active');
     mobileOverlay.classList.remove('active');
     document.body.style.overflow = '';
 });
 
-// Cerrar menú con botón X
 const mobileClose = document.getElementById('mobileClose');
 mobileClose.addEventListener('click', () => {
     mobileMenu.classList.remove('active');
@@ -51,7 +48,6 @@ mobileClose.addEventListener('click', () => {
     document.body.style.overflow = '';
 });
 
-// Navegación entre pantallas móviles
 document.querySelectorAll('.mobile-link.has-children').forEach(btn => {
     btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -61,7 +57,6 @@ document.querySelectorAll('.mobile-link.has-children').forEach(btn => {
     });
 });
 
-// Botones de retroceso
 document.querySelectorAll('.back-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const backTarget = btn.dataset.back;
@@ -72,7 +67,6 @@ document.querySelectorAll('.back-btn').forEach(btn => {
     });
 });
 
-// Sticky header (compartido)
 const bottomBar = document.querySelector('.bottom-bar');
 const header = document.querySelector('.header');
 
@@ -87,7 +81,6 @@ window.addEventListener('scroll', () => {
     }
 });
 
-// Cerrar menú al presionar ESC
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && mobileMenu.classList.contains('active')) {
         mobileMenu.classList.remove('active');
@@ -96,15 +89,11 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Ajustar sticky en resize
 window.addEventListener('resize', () => {
     if (window.innerWidth > 991) {
-        // Cerrar menú móvil si se cambia a desktop
         mobileMenu.classList.remove('active');
         mobileOverlay.classList.remove('active');
         document.body.style.overflow = '';
-        
-        // Resetear pantallas móviles
         document.querySelectorAll('.mobile-screen').forEach(screen => {
             screen.classList.remove('active');
         });
@@ -112,7 +101,7 @@ window.addEventListener('resize', () => {
     }
 });
 
-searchInputTienda.addEventListener('input', function() {
+searchInputTienda.addEventListener('input', function () {
     clearTimeout(debounceTimer);
     const query = this.value.trim();
     if (query.length < 2) {
@@ -120,7 +109,7 @@ searchInputTienda.addEventListener('input', function() {
         suggestionsDiv.style.display = 'none';
         return;
     }
-    
+
     debounceTimer = setTimeout(() => {
         fetch(`/buscar/sugerencias?q=${encodeURIComponent(query)}`)
             .then(response => response.json())
@@ -131,21 +120,19 @@ searchInputTienda.addEventListener('input', function() {
     }, 300);
 });
 
-searchInputTienda.addEventListener('keydown', function(e) {
+searchInputTienda.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
         e.preventDefault();
         const query = this.value.trim();
         if (query.length >= 2) {
-            // Redirigir a la página de resultados
             window.location.href = `/buscar?q=${encodeURIComponent(query)}`;
         }
     }
 });
 
-// También en el botón de búsqueda (si existe)
 const searchSubmitBtn = document.querySelector('.search-submit-btn');
 if (searchSubmitBtn) {
-    searchSubmitBtn.addEventListener('click', function(e) {
+    searchSubmitBtn.addEventListener('click', function (e) {
         e.preventDefault();
         const query = searchInputTienda.value.trim();
         if (query.length >= 2) {
@@ -156,21 +143,19 @@ if (searchSubmitBtn) {
 
 function renderSuggestions(data) {
     let html = '';
-    
+
     if (data.productos?.length) {
         html += '<div class="suggestion-group"><strong>Productos</strong>';
         data.productos.forEach(p => {
-            // Mostrar el precio formateado
             let precioDisplay = p.precio_formateado || '';
             if (!precioDisplay) {
-                // Fallback si no viene formateado
                 if (typeof p.precio === 'number') {
                     precioDisplay = 'S/.' + p.precio.toFixed(2);
                 } else {
                     precioDisplay = p.precio || '';
                 }
             }
-            
+
             html += `<a href="${p.url}" class="suggestion-item">
                         <img src="${p.imagen}" width="30" height="30" style="object-fit:cover; border-radius:4px;"> 
                         ${escapeHtml(p.nombre)}
@@ -179,7 +164,7 @@ function renderSuggestions(data) {
         });
         html += '</div>';
     }
-    
+
     if (data.categorias?.length) {
         html += '<div class="suggestion-group"><strong>Categorías</strong>';
         data.categorias.forEach(c => {
@@ -189,7 +174,7 @@ function renderSuggestions(data) {
         });
         html += '</div>';
     }
-    
+
     if (data.subcategorias?.length) {
         html += '<div class="suggestion-group"><strong>Subcategorías</strong>';
         data.subcategorias.forEach(s => {
@@ -199,90 +184,98 @@ function renderSuggestions(data) {
         });
         html += '</div>';
     }
-    
+
     if (html === '') {
         html = '<div class="suggestion-empty">No se encontraron resultados</div>';
     }
-    
+
     suggestionsDiv.innerHTML = html;
     suggestionsDiv.style.display = 'block';
 }
 
-// Ocultar sugerencias al hacer clic fuera
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     if (!searchInputTienda.contains(e.target) && !suggestionsDiv.contains(e.target)) {
         suggestionsDiv.style.display = 'none';
     }
 });
 
 function escapeHtml(str) {
-    return str.replace(/[&<>]/g, function(m) {
+    return str.replace(/[&<>]/g, function (m) {
         if (m === '&') return '&amp;';
         if (m === '<') return '&lt;';
         if (m === '>') return '&gt;';
         return m;
     });
 }
-    function initProductSliders() {
-        document.querySelectorAll('.product-image-slider').forEach(slider => {
-            const container = slider.querySelector('.slider-images');
-            const slides = slider.querySelectorAll('.slide');
-            const prevBtn = slider.querySelector('.slider-prev');
-            const nextBtn = slider.querySelector('.slider-next');
-            const dots = slider.querySelectorAll('.dot');
-            if (!slides.length || slides.length <= 1) return;
 
-            let current = 0;
-            const total = slides.length;
+function initProductSliders() {
+    document.querySelectorAll('.product-image-slider').forEach(slider => {
+        const container = slider.querySelector('.slider-images');
+        const slides = slider.querySelectorAll('.slide');
+        const prevBtn = slider.querySelector('.slider-prev');
+        const nextBtn = slider.querySelector('.slider-next');
+        const dots = slider.querySelectorAll('.dot');
+        if (!slides.length || slides.length <= 1) return;
 
-            function showSlide(index) {
-                slides.forEach((slide, i) => {
-                    slide.classList.toggle('active', i === index);
-                });
-                dots.forEach((dot, i) => {
-                    dot.classList.toggle('active', i === index);
-                });
-            }
+        let current = 0;
+        const total = slides.length;
 
-            function next() {
-                current = (current + 1) % total;
+        function showSlide(index) {
+            slides.forEach((slide, i) => {
+                slide.classList.toggle('active', i === index);
+            });
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+        }
+
+        function next() {
+            current = (current + 1) % total;
+            showSlide(current);
+        }
+
+        function prev() {
+            current = (current - 1 + total) % total;
+            showSlide(current);
+        }
+
+        if (prevBtn) prevBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            prev();
+        });
+        if (nextBtn) nextBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            next();
+        });
+        dots.forEach((dot, idx) => {
+            dot.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                current = idx;
                 showSlide(current);
-            }
-            function prev() {
-                current = (current - 1 + total) % total;
-                showSlide(current);
-            }
-
-            if (prevBtn) prevBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); prev(); });
-            if (nextBtn) nextBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); next(); });
-            dots.forEach((dot, idx) => {
-                dot.addEventListener('click', (e) => {
-                    e.preventDefault(); e.stopPropagation();
-                    current = idx;
-                    showSlide(current);
-                });
             });
         });
-    }
-// =============================================
-// MANEJO DE VARIACIONES EN TARJETA
-// =============================================
+    });
+}
+
 function initCardVariations() {
     document.querySelectorAll('.variation-options-card').forEach(container => {
         const productId = container.dataset.productId;
-        
+
         const card = container.closest('.product-card-enhanced');
         if (!card) return;
-        
+
         const slider = card.querySelector('.product-image-slider');
         if (!slider) return;
-        
+
         let sliderContainer = slider.querySelector('.slider-container');
         const sliderImages = slider?.querySelector('.slider-images');
         const slides = sliderImages?.querySelectorAll('.slide');
-        
+
         if (!sliderContainer || !sliderImages || !slides || slides.length === 0) return;
-        
+
         const imagenesOriginales = [];
         slides.forEach(slide => {
             const img = slide.querySelector('img');
@@ -290,49 +283,49 @@ function initCardVariations() {
                 imagenesOriginales.push(img.src);
             }
         });
-        
+
         const discountBadge = slider.querySelector('.discount-badge');
         const discountHtml = discountBadge ? discountBadge.outerHTML : '';
-        
+
         function reconstruirSlider(imagenes) {
             if (!imagenes || imagenes.length === 0) {
                 imagenes = imagenesOriginales;
             }
-            
+
             const sliderActual = card.querySelector('.product-image-slider');
             if (!sliderActual) return;
-            
+
             const containerActual = sliderActual.querySelector('.slider-container');
             if (!containerActual) return;
-            
+
             const nuevoSliderContainer = document.createElement('div');
             nuevoSliderContainer.className = 'slider-container';
-            
+
             const nuevoSliderImages = document.createElement('div');
             nuevoSliderImages.className = 'slider-images';
-            
+
             imagenes.forEach((imgUrl, index) => {
                 const slide = document.createElement('div');
                 slide.className = `slide ${index === 0 ? 'active' : ''}`;
                 slide.innerHTML = `<img src="${imgUrl}" alt="Producto" loading="lazy">`;
                 nuevoSliderImages.appendChild(slide);
             });
-            
+
             nuevoSliderContainer.appendChild(nuevoSliderImages);
-            
+
             if (imagenes.length > 1) {
                 const prevBtn = document.createElement('button');
                 prevBtn.className = 'slider-prev';
                 prevBtn.setAttribute('aria-label', 'Anterior');
                 prevBtn.innerHTML = '<i class="bi bi-chevron-left"></i>';
                 nuevoSliderContainer.appendChild(prevBtn);
-                
+
                 const nextBtn = document.createElement('button');
                 nextBtn.className = 'slider-next';
                 nextBtn.setAttribute('aria-label', 'Siguiente');
                 nextBtn.innerHTML = '<i class="bi bi-chevron-right"></i>';
                 nuevoSliderContainer.appendChild(nextBtn);
-                
+
                 const dotsContainer = document.createElement('div');
                 dotsContainer.className = 'slider-dots';
                 imagenes.forEach((_, index) => {
@@ -343,7 +336,7 @@ function initCardVariations() {
                 });
                 nuevoSliderContainer.appendChild(dotsContainer);
             }
-            
+
             try {
                 sliderActual.replaceChild(nuevoSliderContainer, containerActual);
             } catch (e) {
@@ -352,7 +345,7 @@ function initCardVariations() {
                     const nuevoSlider = sliderActual.cloneNode(false);
                     nuevoSlider.innerHTML = '';
                     nuevoSlider.appendChild(nuevoSliderContainer);
-                    
+
                     if (discountHtml) {
                         const tempDiv = document.createElement('div');
                         tempDiv.innerHTML = discountHtml;
@@ -361,40 +354,40 @@ function initCardVariations() {
                             nuevoSlider.appendChild(newBadge);
                         }
                     }
-                    
+
                     sliderPadre.replaceChild(nuevoSlider, sliderActual);
                 }
             }
-            
+
             setTimeout(() => {
                 initSliderForCard(card);
             }, 100);
         }
-        
+
         function restaurarSliderOriginal() {
             reconstruirSlider(imagenesOriginales);
         }
-        
+
         container.querySelectorAll('.variation-option-card:not(.disabled)').forEach(option => {
-            option.addEventListener('click', async function(e) {
+            option.addEventListener('click', async function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 container.querySelectorAll('.variation-option-card').forEach(opt => {
                     opt.classList.remove('active');
                 });
-                
+
                 this.classList.add('active');
-                
+
                 const variacionId = this.dataset.variacionId;
-                
+
                 if (!variacionId) {
                     restaurarSliderOriginal();
                     return;
                 }
-                
+
                 let imagenes = [];
-                
+
                 const cardLocal = container.closest('.product-card-enhanced');
                 if (cardLocal) {
                     const imagenesData = cardLocal.dataset.variacionImagenes;
@@ -409,12 +402,10 @@ function initCardVariations() {
                                     return img;
                                 });
                             }
-                        } catch (e) {
-                            console.error('Error parseando imagenes:', e);
-                        }
+                        } catch (e) { }
                     }
                 }
-                
+
                 if (imagenes.length === 0) {
                     try {
                         const response = await fetch(`/api/productos/${productId}/variacion/${variacionId}/imagenes`);
@@ -427,16 +418,14 @@ function initCardVariations() {
                                 return img;
                             });
                         }
-                    } catch (error) {
-                        console.error('Error al obtener imágenes de variación:', error);
-                    }
+                    } catch (error) { }
                 }
-                
+
                 if (imagenes.length === 0) {
                     restaurarSliderOriginal();
                     return;
                 }
-                
+
                 reconstruirSlider(imagenes);
             });
         });
@@ -448,101 +437,102 @@ function initCardVariations() {
 function initSliderForCard(card) {
     const slider = card.querySelector('.product-image-slider');
     if (!slider) return;
-    
+
     const container = slider.querySelector('.slider-images');
     const slides = container?.querySelectorAll('.slide');
     const prevBtn = slider.querySelector('.slider-prev');
     const nextBtn = slider.querySelector('.slider-next');
-    
+
     if (!slides || slides.length <= 1) {
         if (prevBtn) prevBtn.style.display = 'none';
         if (nextBtn) nextBtn.style.display = 'none';
         return;
     }
-    
+
     if (prevBtn) prevBtn.style.display = 'flex';
     if (nextBtn) nextBtn.style.display = 'flex';
-    
+
     let dots = slider.querySelectorAll('.dot');
     let current = 0;
     const total = slides.length;
-    
+
     function showSlide(index) {
         if (index < 0) index = total - 1;
         if (index >= total) index = 0;
         current = index;
-        
+
         slides.forEach((slide, i) => {
             slide.classList.toggle('active', i === index);
         });
-        
+
         dots = slider.querySelectorAll('.dot');
         dots.forEach((dot, i) => {
             dot.classList.toggle('active', i === index);
         });
     }
-    
+
     function nextSlide() {
         showSlide((current + 1) % total);
     }
-    
+
     function prevSlide() {
         showSlide((current - 1 + total) % total);
     }
-    
+
     if (prevBtn) {
         const newPrev = prevBtn.cloneNode(true);
         prevBtn.parentNode.replaceChild(newPrev, prevBtn);
-        newPrev.addEventListener('click', function(e) {
+        newPrev.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             prevSlide();
         });
     }
-    
+
     if (nextBtn) {
         const newNext = nextBtn.cloneNode(true);
         nextBtn.parentNode.replaceChild(newNext, nextBtn);
-        newNext.addEventListener('click', function(e) {
+        newNext.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             nextSlide();
         });
     }
-    
+
     dots = slider.querySelectorAll('.dot');
     dots.forEach((dot, idx) => {
         const newDot = dot.cloneNode(true);
         dot.parentNode.replaceChild(newDot, dot);
-        newDot.addEventListener('click', function(e) {
+        newDot.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             showSlide(idx);
         });
     });
-    
+
     showSlide(0);
 }
-
- // =============================================
-// SISTEMA DE VALORACIÓN CON ESTRELLAS Y COMENTARIO
-// =============================================
 
 let pendingRatingData = null;
 
 async function initProductRating() {
-    // 🔥 Obtener authCheck UNA SOLA VEZ al inicio
     let authCheck = null;
     try {
-        authCheck = await axios.get('/api/auth/check').catch(() => ({ data: { authenticated: false } }));
+        authCheck = await axios.get('/api/auth/check').catch(() => ({
+            data: {
+                authenticated: false
+            }
+        }));
     } catch (e) {
-        authCheck = { data: { authenticated: false } };
+        authCheck = {
+            data: {
+                authenticated: false
+            }
+        };
     }
-    
+
     document.querySelectorAll('.stars-wrapper').forEach(async wrapper => {
         const stars = wrapper.querySelectorAll('.star');
-        
-        // OBTENER PRODUCT ID
         let productId = null;
         const card = wrapper.closest('.product-card-enhanced');
         if (card) {
@@ -563,20 +553,17 @@ async function initProductRating() {
                 productId = parentWithId.dataset.productId;
             }
         }
-        
+
         if (!productId) {
-            console.warn('⚠️ No se encontró productId');
             return;
         }
-        
+
         let currentRating = parseFloat(wrapper.dataset.rating) || 0;
-        
-        // 🔥 Usar authCheck que ya tenemos
+
         if (authCheck.data.authenticated && authCheck.data.user?.rol_id === 2) {
             await cargarValoracionUsuario(productId, wrapper);
         }
-        
-        // 🔥 Si el usuario ya calificó, usar su rating como currentRating
+
         const userRating = parseInt(wrapper.dataset.userRating) || 0;
         if (userRating > 0) {
             currentRating = userRating;
@@ -605,21 +592,24 @@ async function initProductRating() {
             star.addEventListener('click', async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 const rating = parseInt(star.dataset.value);
-                
+
                 try {
-                    // 🔥 Reutilizar authCheck o verificamos nuevamente
                     let currentAuth = authCheck;
                     if (!currentAuth) {
-                        currentAuth = await axios.get('/api/auth/check').catch(() => ({ data: { authenticated: false } }));
+                        currentAuth = await axios.get('/api/auth/check').catch(() => ({
+                            data: {
+                                authenticated: false
+                            }
+                        }));
                     }
-                    
+
                     if (!currentAuth.data.authenticated) {
                         showRatingAuthModal(rating, productId, wrapper, stars, setStars);
                         return;
                     }
-                    
+
                     if (currentAuth.data.user?.rol_id !== 2) {
                         Swal.fire({
                             icon: 'warning',
@@ -629,15 +619,13 @@ async function initProductRating() {
                         });
                         return;
                     }
-                    
-                    // 🔥 Mostrar modal de comentario
+
                     showRatingCommentModal(rating, productId, wrapper, stars, setStars);
-                    
+
                 } catch (error) {
                     if (error.response?.status === 401 || error.response?.status === 403) {
                         showRatingAuthModal(rating, productId, wrapper, stars, setStars);
                     } else {
-                        console.error('Error:', error);
                         Swal.fire({
                             icon: 'error',
                             title: 'Error',
@@ -648,7 +636,7 @@ async function initProductRating() {
                 }
             });
 
-            star.addEventListener('mouseenter', function() {
+            star.addEventListener('mouseenter', function () {
                 const rating = parseInt(this.dataset.value);
                 stars.forEach((s, idx) => {
                     if (idx < rating) {
@@ -663,17 +651,15 @@ async function initProductRating() {
                 });
             });
 
-            star.addEventListener('mouseleave', function() {
+            star.addEventListener('mouseleave', function () {
                 setStars(currentRating);
             });
         });
     });
 }
 
-// 🔥 Mostrar modal de comentario
 function showRatingCommentModal(rating, productId, wrapper, stars, setStars) {
     if (!productId) {
-        console.error(' productId es requerido para valorar');
         Swal.fire({
             icon: 'error',
             title: 'Error',
@@ -682,23 +668,27 @@ function showRatingCommentModal(rating, productId, wrapper, stars, setStars) {
         });
         return;
     }
-    
-    pendingRatingData = { rating, productId, wrapper, stars, setStars };
+
+    pendingRatingData = {
+        rating,
+        productId,
+        wrapper,
+        stars,
+        setStars
+    };
     document.getElementById('commentRatingDisplay').textContent = rating;
     document.getElementById('ratingCommentText').value = '';
     document.getElementById('ratingCommentMessage').innerHTML = '';
-    
+
     const modal = new bootstrap.Modal(document.getElementById('ratingCommentModal'));
     modal.show();
 }
 
-// 🔥 Enviar valoración con comentario (ÚNICA FUNCIÓN)
 async function enviarValoracion(rating, productId, comentario, wrapper, stars, setStars) {
     if (!productId) {
-        console.error(' productId es requerido');
         return;
     }
-    
+
     try {
         const response = await axios.post('/producto/valorar', {
             producto_id: parseInt(productId),
@@ -710,26 +700,23 @@ async function enviarValoracion(rating, productId, comentario, wrapper, stars, s
             const newRating = response.data.rating;
             const newCount = response.data.count;
             const userRating = response.data.user_rating || rating;
-            
-            // 🔥 Actualizar el rating del usuario en el wrapper
+
             wrapper.dataset.userRating = userRating;
             wrapper.dataset.rating = newRating;
-            
-            // 🔥 Mostrar estrellas según el rating del usuario (no el promedio)
+
             setStars(userRating);
-            
-            // Actualizar contador de reseñas
+
             const countSpan = wrapper.closest('.product-rating')?.querySelector('.rating-count');
             if (countSpan) countSpan.textContent = `(${newCount} reseñas)`;
-            
+
             const detailRatingCount = document.querySelector('.product-rating .rating-count');
             if (detailRatingCount && detailRatingCount !== countSpan) {
                 detailRatingCount.textContent = `(${newCount} reseñas)`;
             }
-            
+
             const commentModal = bootstrap.Modal.getInstance(document.getElementById('ratingCommentModal'));
             if (commentModal) commentModal.hide();
-            
+
             Swal.fire({
                 icon: 'success',
                 title: '¡Valoración guardada!',
@@ -742,10 +729,9 @@ async function enviarValoracion(rating, productId, comentario, wrapper, stars, s
             return true;
         }
     } catch (error) {
-        console.error('Error:', error);
         const msg = error.response?.data?.message || 'No se pudo guardar la valoración.';
         if (document.getElementById('ratingCommentMessage')) {
-            document.getElementById('ratingCommentMessage').innerHTML = 
+            document.getElementById('ratingCommentMessage').innerHTML =
                 `<span class="text-danger"> ${msg}</span>`;
         }
         return false;
@@ -754,7 +740,7 @@ async function enviarValoracion(rating, productId, comentario, wrapper, stars, s
 
 function actualizarContadorValoraciones() {
     if (!document.getElementById('valoracionesCount')) return;
-    
+
     fetch('/api/mis-valoraciones/count')
         .then(response => response.json())
         .then(data => {
@@ -770,56 +756,62 @@ function actualizarContadorValoraciones() {
                 }
             }
         })
-        .catch(() => {});
+        .catch(() => { });
 }
 
-// 🔥 Inicializar handlers de modales
 function initRatingModals() {
-    // Modal de comentario - Enviar
-    document.getElementById('ratingCommentSubmitBtn')?.addEventListener('click', async function() {
+    document.getElementById('ratingCommentSubmitBtn')?.addEventListener('click', async function () {
         if (!pendingRatingData) return;
-        
+
         const comentario = document.getElementById('ratingCommentText').value.trim();
-        const { rating, productId, wrapper, stars, setStars } = pendingRatingData;
-        
+        const {
+            rating,
+            productId,
+            wrapper,
+            stars,
+            setStars
+        } = pendingRatingData;
+
         this.disabled = true;
         this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Enviando...';
-        
+
         await enviarValoracion(rating, productId, comentario, wrapper, stars, setStars);
-        
+
         this.disabled = false;
         this.innerHTML = '<i class="bi bi-check-circle me-2"></i> Enviar valoración';
         pendingRatingData = null;
     });
 
-    // Modal de comentario - Omitir
-    document.getElementById('ratingCommentSkipBtn')?.addEventListener('click', async function() {
+    document.getElementById('ratingCommentSkipBtn')?.addEventListener('click', async function () {
         if (!pendingRatingData) return;
-        
-        const { rating, productId, wrapper, stars, setStars } = pendingRatingData;
-        
+
+        const {
+            rating,
+            productId,
+            wrapper,
+            stars,
+            setStars
+        } = pendingRatingData;
+
         this.disabled = true;
         this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Enviando...';
-        
+
         await enviarValoracion(rating, productId, null, wrapper, stars, setStars);
-        
+
         this.disabled = false;
         this.innerHTML = '<i class="bi bi-x-circle me-2"></i> Omitir comentario';
         pendingRatingData = null;
     });
 }
 
-// =============================================
-// CARGAR VALORACIÓN DEL USUARIO AL INICIAR SESIÓN
-// =============================================
 async function cargarValoracionUsuario(productId, wrapper) {
     try {
         const response = await axios.get(`/api/producto/${productId}/valoracion-usuario`);
-        
+
         if (response.data.success && response.data.user_rating > 0) {
             const stars = wrapper.querySelectorAll('.star');
             const userRating = response.data.user_rating;
-            
+
             stars.forEach((star, idx) => {
                 if (idx < userRating) {
                     star.classList.add('bi-star-fill');
@@ -831,18 +823,16 @@ async function cargarValoracionUsuario(productId, wrapper) {
                     star.style.color = '#ddd';
                 }
             });
-            
+
             wrapper.dataset.userRating = userRating;
         }
-    } catch (error) {
-    }
+    } catch (error) { }
 }
 
-// 🔥 Mostrar modal de autenticación
 function showRatingAuthModal(selectedRating, productId, wrapper, stars, setStars) {
     const modal = new bootstrap.Modal(document.getElementById('ratingAuthModal'));
     modal.show();
-    
+
     window._pendingRating = {
         rating: selectedRating,
         productId: productId,
@@ -852,55 +842,58 @@ function showRatingAuthModal(selectedRating, productId, wrapper, stars, setStars
     };
 }
 
-// =============================================
-// HANDLERS DEL MODAL DE AUTENTICACIÓN
-// =============================================
 function initRatingAuthModal() {
-    // Cargar departamentos para el registro
     cargarDepartamentosRegistro();
-
-    // Login desde el modal - SOLO CLIENTES
-    document.getElementById('ratingLoginBtn')?.addEventListener('click', async function() {
+    document.getElementById('ratingLoginBtn')?.addEventListener('click', async function () {
         const email = document.getElementById('ratingLoginEmail').value.trim();
         const password = document.getElementById('ratingLoginPassword').value;
         const messageDiv = document.getElementById('ratingLoginMessage');
-        
+
         if (!email || !password) {
             messageDiv.innerHTML = '<span class="text-danger">Por favor, completa todos los campos.</span>';
             return;
         }
-        
+
         try {
             this.disabled = true;
             this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Iniciando...';
             messageDiv.innerHTML = '';
-            
-            const response = await axios.post('/login-cliente', { email, password });
-            
+
+            const response = await axios.post('/login-cliente', {
+                email,
+                password
+            });
+
             if (response.data.success) {
                 if (response.data.user.rol_id !== 2) {
                     messageDiv.innerHTML = '<span class="text-danger">Este usuario no tiene los permisos para acceder.</span>';
                     await axios.post('/logout-cliente');
                     return;
                 }
-                
+
                 messageDiv.innerHTML = '<span class="text-success">Inicio de sesión exitoso</span>';
                 updateAuthUI(response.data.user);
-                
+
                 setTimeout(() => {
                     const modal = bootstrap.Modal.getInstance(document.getElementById('ratingAuthModal'));
                     if (modal) modal.hide();
-                    
+
                     if (window._pendingRating) {
-                        const { rating, productId, wrapper, stars, setStars } = window._pendingRating;
+                        const {
+                            rating,
+                            productId,
+                            wrapper,
+                            stars,
+                            setStars
+                        } = window._pendingRating;
                         showRatingCommentModal(rating, productId, wrapper, stars, setStars);
                         window._pendingRating = null;
-                    }else{
+                    } else {
                         location.reload();
                     }
                 }, 800);
             }
-            
+
         } catch (error) {
             messageDiv.innerHTML = `<span class="text-danger"> ${error.response?.data?.message || 'Error al iniciar sesión'}</span>`;
         } finally {
@@ -909,24 +902,23 @@ function initRatingAuthModal() {
         }
     });
 
-    // Registro desde el modal
-    document.getElementById('ratingRegisterBtn')?.addEventListener('click', async function() {
+    document.getElementById('ratingRegisterBtn')?.addEventListener('click', async function () {
         const nombres = document.getElementById('ratingRegisterNombres').value.trim();
         const apellidos = document.getElementById('ratingRegisterApellidos').value.trim();
         const email = document.getElementById('ratingRegisterEmail').value.trim();
         const password = document.getElementById('ratingRegisterPassword').value;
         const messageDiv = document.getElementById('ratingRegisterMessage');
-        
+
         if (!nombres || !apellidos || !email || !password) {
             messageDiv.innerHTML = '<span class="text-danger">Por favor, completa todos los campos obligatorios (*).</span>';
             return;
         }
-        
+
         if (password.length < 6) {
             messageDiv.innerHTML = '<span class="text-danger">La contraseña debe tener al menos 6 caracteres.</span>';
             return;
         }
-        
+
         try {
             const checkEmail = await axios.get(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
             if (checkEmail.data.exists) {
@@ -934,14 +926,14 @@ function initRatingAuthModal() {
                 messageDiv.innerHTML = '';
                 return;
             }
-        } catch (e) {}
-        
+        } catch (e) { }
+
         try {
             this.disabled = true;
             this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Creando cuenta...';
             messageDiv.innerHTML = '';
             document.getElementById('ratingRegisterEmailError').classList.add('d-none');
-            
+
             const data = {
                 nombres: nombres,
                 apellidos: apellidos,
@@ -961,31 +953,37 @@ function initRatingAuthModal() {
                 dir_otros: document.getElementById('ratingRegisterDirOtros')?.value.trim(),
                 cod_postal: document.getElementById('ratingRegisterCodPostal')?.value.trim(),
             };
-            
+
             const response = await axios.post('/registro-cliente', data);
-            
+
             if (response.data.success) {
                 messageDiv.innerHTML = '<span class="text-success">Cuenta creada exitosamente</span>';
                 updateAuthUI(response.data.user);
-                
+
                 setTimeout(() => {
                     const modal = bootstrap.Modal.getInstance(document.getElementById('ratingAuthModal'));
                     if (modal) modal.hide();
-                    
+
                     if (window._pendingRating) {
-                        const { rating, productId, wrapper, stars, setStars } = window._pendingRating;
+                        const {
+                            rating,
+                            productId,
+                            wrapper,
+                            stars,
+                            setStars
+                        } = window._pendingRating;
                         showRatingCommentModal(rating, productId, wrapper, stars, setStars);
                         window._pendingRating = null;
-                    }else{
+                    } else {
                         location.reload();
                     }
                 }, 800);
             }
-            
+
         } catch (error) {
             const msg = error.response?.data?.message || 'Error al crear la cuenta';
             messageDiv.innerHTML = `<span class="text-danger"> ${msg}</span>`;
-            
+
             if (error.response?.status === 422 && msg.includes('email')) {
                 document.getElementById('ratingRegisterEmailError').classList.remove('d-none');
             }
@@ -995,38 +993,36 @@ function initRatingAuthModal() {
         }
     });
 
-    // Enter en los formularios
-    document.getElementById('ratingLoginForm')?.addEventListener('keypress', function(e) {
+    document.getElementById('ratingLoginForm')?.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             document.getElementById('ratingLoginBtn').click();
         }
     });
-    
-    document.getElementById('ratingRegisterForm')?.addEventListener('keypress', function(e) {
+
+    document.getElementById('ratingRegisterForm')?.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             document.getElementById('ratingRegisterBtn').click();
         }
     });
 
-    // Carga dinámica de provincias y distritos
-    document.getElementById('ratingRegisterDepartamento')?.addEventListener('change', function() {
+    document.getElementById('ratingRegisterDepartamento')?.addEventListener('change', function () {
         const deptoId = this.value;
         const provinciaSelect = document.getElementById('ratingRegisterProvincia');
         const distritoSelect = document.getElementById('ratingRegisterDistrito');
-        
+
         provinciaSelect.innerHTML = '<option value="">Seleccione</option>';
         distritoSelect.innerHTML = '<option value="">Seleccione</option>';
         distritoSelect.disabled = true;
-        
+
         if (!deptoId) {
             provinciaSelect.disabled = true;
             return;
         }
-        
+
         provinciaSelect.disabled = false;
-        
+
         axios.get(`/get-provincias/${deptoId}`)
             .then(response => {
                 response.data.forEach(p => {
@@ -1036,19 +1032,19 @@ function initRatingAuthModal() {
             .catch(err => console.error('Error al cargar provincias:', err));
     });
 
-    document.getElementById('ratingRegisterProvincia')?.addEventListener('change', function() {
+    document.getElementById('ratingRegisterProvincia')?.addEventListener('change', function () {
         const provinciaId = this.value;
         const distritoSelect = document.getElementById('ratingRegisterDistrito');
-        
+
         distritoSelect.innerHTML = '<option value="">Seleccione</option>';
-        
+
         if (!provinciaId) {
             distritoSelect.disabled = true;
             return;
         }
-        
+
         distritoSelect.disabled = false;
-        
+
         axios.get(`/get-distritos/${provinciaId}`)
             .then(response => {
                 response.data.forEach(d => {
@@ -1059,7 +1055,6 @@ function initRatingAuthModal() {
     });
 }
 
-// Cargar departamentos para el registro
 function cargarDepartamentosRegistro() {
     axios.get('/get-departamentos')
         .then(response => {
@@ -1073,51 +1068,46 @@ function cargarDepartamentosRegistro() {
         .catch(err => console.error('Error al cargar departamentos:', err));
 }
 
-// =============================================
-// MANEJO DEL MENÚ MI CUENTA
-// =============================================
 function openAuthModal(tab = 'login') {
     const modal = new bootstrap.Modal(document.getElementById('ratingAuthModal'));
     modal.show();
-    
+
+    if (typeof resetRecoverFlow === 'function') resetRecoverFlow();
+
     if (tab === 'register') {
         const registerTab = document.getElementById('ratingRegisterTab');
         if (registerTab) {
-            const tabInstance = new bootstrap.Tab(registerTab);
-            tabInstance.show();
+            new bootstrap.Tab(registerTab).show();
         }
     } else {
         const loginTab = document.getElementById('ratingLoginTab');
         if (loginTab) {
-            const tabInstance = new bootstrap.Tab(loginTab);
-            tabInstance.show();
+            new bootstrap.Tab(loginTab).show();
         }
     }
 }
 
-// Usar la función genérica en todos los lugares
-document.getElementById('openLoginModalBtn')?.addEventListener('click', function() {
+document.getElementById('openLoginModalBtn')?.addEventListener('click', function () {
     openAuthModal('login');
 });
 
-document.getElementById('openRegisterModalBtn')?.addEventListener('click', function() {
+document.getElementById('openRegisterModalBtn')?.addEventListener('click', function () {
     openAuthModal('register');
 });
 
-document.getElementById('mobileOpenLoginModalBtn')?.addEventListener('click', function() {
+document.getElementById('mobileOpenLoginModalBtn')?.addEventListener('click', function () {
     openAuthModal('login');
 });
 
-document.getElementById('mobileOpenRegisterModalBtn')?.addEventListener('click', function() {
+document.getElementById('mobileOpenRegisterModalBtn')?.addEventListener('click', function () {
     openAuthModal('register');
 });
 
-document.getElementById('openAuthFromValoraciones')?.addEventListener('click', function() {
+document.getElementById('openAuthFromValoraciones')?.addEventListener('click', function () {
     openAuthModal('login');
 });
 
-// Cerrar sesión
-document.getElementById('logoutBtnHeader')?.addEventListener('click', function(e) {
+document.getElementById('logoutBtnHeader')?.addEventListener('click', function (e) {
     e.preventDefault();
     Swal.fire({
         title: '¿Cerrar sesión?',
@@ -1135,13 +1125,14 @@ document.getElementById('logoutBtnHeader')?.addEventListener('click', function(e
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 }
-            }).then(() => {
-                location.reload();
+            }).finally(() => {
+                window.location.href = '/';
             });
         }
     });
 });
-document.getElementById('mobileLogoutBtn')?.addEventListener('click', function(e) {
+
+document.getElementById('mobileLogoutBtn')?.addEventListener('click', function (e) {
     e.preventDefault();
     Swal.fire({
         title: '¿Cerrar sesión?',
@@ -1159,92 +1150,87 @@ document.getElementById('mobileLogoutBtn')?.addEventListener('click', function(e
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 }
-            }).then(() => {
-                location.reload();
+            }).finally(() => {
+                window.location.href = '{{ route("tienda.home") }}';
             });
         }
     });
 });
-// =============================================
-// INICIALIZACIÓN
-// =============================================
 document.addEventListener('DOMContentLoaded', () => {
     initProductSliders();
     initProductRating();
     initRatingAuthModal();
     initRatingModals();
     initCardVariations();
+    initRecoverFlow();
 });
 
-// Exportar funciones
 window.initProductRating = initProductRating;
 window.enviarValoracion = enviarValoracion;
 window.showRatingAuthModal = showRatingAuthModal;
 window.updateAuthUI = updateAuthUI;
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const carousel = document.querySelector('.product-carousel');
-        const prevBtn = document.querySelector('.carousel-prev');
-        const nextBtn = document.querySelector('.carousel-next');
+document.addEventListener('DOMContentLoaded', function () {
+    const carousel = document.querySelector('.product-carousel');
+    const prevBtn = document.querySelector('.carousel-prev');
+    const nextBtn = document.querySelector('.carousel-next');
 
-        if (carousel && prevBtn && nextBtn) {
-            // Obtener el ancho de un slide dinámicamente
-            let slideWidth = 300; // valor por defecto
-            const slide = document.querySelector('.carousel-slide');
-            if (slide) {
-                slideWidth = slide.offsetWidth + 24; // 24 es el gap
-            }
-            
-            prevBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                carousel.scrollBy({ left: -slideWidth, behavior: 'smooth' });
-            });
+    if (carousel && prevBtn && nextBtn) {
+        let slideWidth = 300;
+        const slide = document.querySelector('.carousel-slide');
+        if (slide) {
+            slideWidth = slide.offsetWidth + 24;
+        }
 
-            nextBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                carousel.scrollBy({ left: slideWidth, behavior: 'smooth' });
+        prevBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            carousel.scrollBy({
+                left: -slideWidth,
+                behavior: 'smooth'
             });
+        });
+
+        nextBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            carousel.scrollBy({
+                left: slideWidth,
+                behavior: 'smooth'
+            });
+        });
+    }
+});
+document.addEventListener('DOMContentLoaded', function () {
+    const accordionItems = document.querySelectorAll('.filter-accordion-item');
+
+    accordionItems.forEach(item => {
+        const key = item.dataset.accordion;
+        const isOpen = localStorage.getItem('accordion_' + key) === 'true';
+        if (isOpen) {
+            item.classList.add('open');
         }
     });
-    document.addEventListener('DOMContentLoaded', function() {
-        const accordionItems = document.querySelectorAll('.filter-accordion-item');
-        
-        accordionItems.forEach(item => {
+
+    accordionItems.forEach(item => {
+        const header = item.querySelector('.filter-accordion-header');
+        header.addEventListener('click', (e) => {
+            e.preventDefault();
+            item.classList.toggle('open');
             const key = item.dataset.accordion;
-            const isOpen = localStorage.getItem('accordion_' + key) === 'true';
-            if (isOpen) {
-                item.classList.add('open');
-            }
-        });
-        
-        accordionItems.forEach(item => {
-            const header = item.querySelector('.filter-accordion-header');
-            header.addEventListener('click', (e) => {
-                e.preventDefault();
-                item.classList.toggle('open');
-                const key = item.dataset.accordion;
-                localStorage.setItem('accordion_' + key, item.classList.contains('open'));
-            });
+            localStorage.setItem('accordion_' + key, item.classList.contains('open'));
         });
     });
+});
 
-    // =============================================
-    // ACTUALIZAR UI DESPUÉS DE LOGIN/REGISTRO
-    // =============================================
+function updateAuthUI(user) {
+    const accountName = document.getElementById('accountName');
+    const accountMenu = document.getElementById('accountMenu');
 
-    function updateAuthUI(user) {
+    if (accountName) {
+        accountName.textContent = user.nombres;
+    }
 
-        // Actualizar el botón de cuenta
-        const accountName = document.getElementById('accountName');
-        const accountMenu = document.getElementById('accountMenu');
-        
-        if (accountName) {
-            accountName.textContent = user.nombres;
-        }
-        
-        if (accountMenu) {
-            // Reconstruir el menú para usuario logueado
-            accountMenu.innerHTML = `
+    if (accountMenu) {
+        accountMenu.innerHTML = `
                 <li class="dropdown-item-text text-muted small">
                     <i class="bi bi-envelope me-1"></i> ${user.email}
                 </li>
@@ -1259,11 +1245,6 @@ window.updateAuthUI = updateAuthUI;
                         <i class="bi bi-box-seam me-2"></i> Mis pedidos
                     </a>
                 </li>
-                <li>
-                    <a class="dropdown-item" href="#">
-                        <i class="bi bi-geo-alt me-2"></i> Dirección de entrega
-                    </a>
-                </li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
                     <button class="dropdown-item text-danger" id="logoutBtnHeader">
@@ -1271,28 +1252,28 @@ window.updateAuthUI = updateAuthUI;
                     </button>
                 </li>
             `;
-            
-            document.getElementById('logoutBtnHeader')?.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                Swal.fire({
-                    title: '¿Cerrar sesión?',
-                    text: '¿Estás seguro que deseas cerrar sesión?',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#e74c3c',
-                    cancelButtonColor: '#95a5a6',
-                    confirmButtonText: 'Sí, cerrar sesión',
-                    cancelButtonText: 'Cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        fetch('/logout-cliente', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            }
-                        })
+
+        document.getElementById('logoutBtnHeader')?.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            Swal.fire({
+                title: '¿Cerrar sesión?',
+                text: '¿Estás seguro que deseas cerrar sesión?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#e74c3c',
+                cancelButtonColor: '#95a5a6',
+                confirmButtonText: 'Sí, cerrar sesión',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch('/logout-cliente', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        }
+                    })
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
@@ -1303,41 +1284,34 @@ window.updateAuthUI = updateAuthUI;
                             console.error('Error al cerrar sesión:', error);
                             location.reload();
                         });
-                    }
-                });
+                }
             });
-        }
-        
-        // Actualizar el botón de login en el menú móvil si existe
-        const mobileLoginBtn = document.querySelector('.mobile-footer .login-btn');
-        if (mobileLoginBtn) {
-            mobileLoginBtn.innerHTML = `
+        });
+    }
+
+    const mobileLoginBtn = document.querySelector('.mobile-footer .login-btn');
+    if (mobileLoginBtn) {
+        mobileLoginBtn.innerHTML = `
                 <i class="bi bi-person-circle me-1"></i>
                 ${user.nombres}
             `;
-        }
-        
-        if (window.actualizarContadorCarrito) {
-            window.actualizarContadorCarrito();
-        }
     }
-    
-// =============================================
-// SISTEMA DE NOTIFICACIONES - SOLO CARGA INICIAL
-// =============================================
+
+    if (window.actualizarContadorCarrito) {
+        window.actualizarContadorCarrito();
+    }
+}
+
 
 let isNotificationsOpen = false;
 
-/**
- * Cargar notificaciones del usuario (solo una vez)
- */
 async function loadNotifications() {
     const list = document.getElementById('notificationsList');
     const count = document.getElementById('notificationsCount');
     const wrapper = document.querySelector('.notification-btn-wrapper');
-    
+
     if (!list) return;
-    
+
     try {
         const response = await fetch('/notificaciones/usuario', {
             headers: {
@@ -1345,14 +1319,13 @@ async function loadNotifications() {
                 'Accept': 'application/json'
             }
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             const notificaciones = data.data || [];
             const noLeidas = data.no_leidas || 0;
-            
-            // Actualizar contador
+
             if (count) {
                 count.textContent = noLeidas;
                 if (noLeidas > 0) {
@@ -1363,8 +1336,7 @@ async function loadNotifications() {
                     if (wrapper) wrapper.classList.remove('has-notifications');
                 }
             }
-            
-            // Renderizar lista
+
             if (notificaciones.length === 0) {
                 list.innerHTML = `
                     <div id="notificationsEmpty">
@@ -1374,14 +1346,14 @@ async function loadNotifications() {
                 `;
                 return;
             }
-            
+
             list.innerHTML = notificaciones.map(notif => {
                 const isUnread = !notif.leida;
                 const icon = notif.tipo?.icono || 'bi-bell';
                 const color = notif.tipo?.color || '#3498db';
                 const time = notif.created_at ? new Date(notif.created_at) : null;
                 const timeStr = time ? formatTimeAgo(time) : '';
-                
+
                 return `
                     <a href="${notif.url || '#'}" 
                        class="notification-item ${isUnread ? 'unread' : 'read'}" 
@@ -1401,7 +1373,6 @@ async function loadNotifications() {
             }).join('');
         }
     } catch (error) {
-        console.error('Error al cargar notificaciones:', error);
         list.innerHTML = `
             <div id="notificationsEmpty">
                 <i class="bi bi-exclamation-triangle" style="color: #e74c3c;"></i>
@@ -1411,15 +1382,12 @@ async function loadNotifications() {
     }
 }
 
-/**
- * Marcar notificación como leída
- */
 async function markAsRead(notificacionId, event) {
     if (event) {
         event.preventDefault();
         event.stopPropagation();
     }
-    
+
     try {
         const response = await fetch(`/notificaciones/${notificacionId}/leer`, {
             method: 'POST',
@@ -1429,13 +1397,12 @@ async function markAsRead(notificacionId, event) {
                 'Accept': 'application/json'
             }
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
-            // Recargar notificaciones para actualizar la lista
             await loadNotifications();
-            
+
             const item = document.querySelector(`.notification-item[data-id="${notificacionId}"]`);
             if (item) {
                 const url = item.getAttribute('href');
@@ -1451,9 +1418,6 @@ async function markAsRead(notificacionId, event) {
     }
 }
 
-/**
- * Marcar todas como leídas
- */
 async function markAllAsRead() {
     try {
         const response = await fetch('/notificaciones/marcar-todas-leidas', {
@@ -1464,9 +1428,9 @@ async function markAllAsRead() {
                 'Accept': 'application/json'
             }
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             await loadNotifications();
             closeNotificationsDropdown();
@@ -1476,27 +1440,21 @@ async function markAllAsRead() {
     }
 }
 
-/**
- * Formatear tiempo
- */
 function formatTimeAgo(date) {
     const now = new Date();
     const diff = Math.floor((now - date) / 1000);
-    
+
     if (diff < 60) return 'Hace unos segundos';
     if (diff < 3600) return `Hace ${Math.floor(diff / 60)} min`;
     if (diff < 86400) return `Hace ${Math.floor(diff / 3600)} h`;
     if (diff < 604800) return `Hace ${Math.floor(diff / 86400)} d`;
-    
-    return date.toLocaleDateString('es-ES', { 
-        day: '2-digit', 
-        month: 'short' 
+
+    return date.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short'
     });
 }
 
-/**
- * Escapar HTML
- */
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -1504,38 +1462,26 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-/**
- * Abrir dropdown de notificaciones
- */
 function openNotificationsDropdown() {
     const dropdown = document.getElementById('notificationsDropdown');
     if (!dropdown) {
-        console.warn('Dropdown no encontrado');
         return;
     }
-    
+
     dropdown.classList.add('show');
     isNotificationsOpen = true;
-    // No recargamos notificaciones al abrir, ya se cargaron al inicio
 }
 
-/**
- * Cerrar dropdown de notificaciones
- */
 function closeNotificationsDropdown() {
     const dropdown = document.getElementById('notificationsDropdown');
     if (!dropdown) {
-        console.warn('Dropdown no encontrado');
         return;
     }
-    
+
     dropdown.classList.remove('show');
     isNotificationsOpen = false;
 }
 
-/**
- * Toggle dropdown de notificaciones
- */
 function toggleNotificationsDropdown() {
     if (isNotificationsOpen) {
         closeNotificationsDropdown();
@@ -1544,82 +1490,331 @@ function toggleNotificationsDropdown() {
     }
 }
 
-// =============================================
-// INICIALIZACIÓN
-// =============================================
+document.addEventListener('DOMContentLoaded', function () {
 
-document.addEventListener('DOMContentLoaded', function() {
-    
     loadNotifications();
-    
-    // ===== EVENTOS =====
-    
-    // Botón de notificaciones - Toggle
     const notifBtn = document.getElementById('notificationsBtn');
     if (notifBtn) {
-        notifBtn.addEventListener('click', function(e) {
+        notifBtn.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             toggleNotificationsDropdown();
         });
     }
-    
-    // Marcar todas como leídas
+
     const markAllBtn = document.getElementById('markAllReadBtn');
     if (markAllBtn) {
-        markAllBtn.addEventListener('click', function(e) {
+        markAllBtn.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             markAllAsRead();
         });
     }
-    
-    // Ver todas las notificaciones
+
     const viewAllBtn = document.getElementById('viewAllNotificationsBtn');
     if (viewAllBtn) {
-        viewAllBtn.addEventListener('click', function(e) {
+        viewAllBtn.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             closeNotificationsDropdown();
             window.location.href = '/notificaciones';
         });
     }
-    
-    // Cerrar en móvil
+
     const closeMobileBtn = document.getElementById('closeNotificationsMobile');
     if (closeMobileBtn) {
-        closeMobileBtn.addEventListener('click', function(e) {
+        closeMobileBtn.addEventListener('click', function (e) {
             e.preventDefault();
             closeNotificationsDropdown();
         });
     }
-    
-    // Cerrar al hacer clic fuera
-    document.addEventListener('click', function(e) {
+
+    document.addEventListener('click', function (e) {
         const dropdown = document.getElementById('notificationsDropdown');
         const btn = document.getElementById('notificationsBtn');
         const wrapper = document.querySelector('.notification-btn-wrapper');
-        
+
         if (!dropdown || !btn || !wrapper) return;
-        
+
         if (!wrapper.contains(e.target) && dropdown.classList.contains('show')) {
             closeNotificationsDropdown();
         }
     });
-    
-    // Cerrar con tecla ESC
-    document.addEventListener('keydown', function(e) {
+
+    document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && isNotificationsOpen) {
             closeNotificationsDropdown();
         }
     });
-    
-    // Prevenir cierre al hacer clic dentro del dropdown
+
     const dropdown = document.getElementById('notificationsDropdown');
     if (dropdown) {
-        dropdown.addEventListener('click', function(e) {
+        dropdown.addEventListener('click', function (e) {
             e.stopPropagation();
         });
     }
-    
+
 });
+
+let recoverState = {
+    email: null,
+    codigo: null,
+    countdownInterval: null,
+    secondsLeft: 0
+};
+
+function showRecoverStep(step) {
+    ['recoverStep1', 'recoverStep2', 'recoverStep3', 'recoverStep4'].forEach((id, idx) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('d-none', idx + 1 !== step);
+    });
+}
+
+function resetRecoverFlow() {
+    recoverState.email = null;
+    recoverState.codigo = null;
+    if (recoverState.countdownInterval) {
+        clearInterval(recoverState.countdownInterval);
+        recoverState.countdownInterval = null;
+    }
+    ['recoverEmail', 'recoverCode', 'recoverNewPassword', 'recoverConfirmPassword'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    ['recoverEmailMessage', 'recoverCodeMessage', 'recoverPasswordMessage'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
+    showRecoverStep(1);
+}
+
+function goToRecoverTab() {
+    const tab = document.getElementById('ratingRecoverTab');
+    if (tab) {
+        const tabInstance = new bootstrap.Tab(tab);
+        tabInstance.show();
+    }
+}
+
+function startCountdown(seconds) {
+    if (recoverState.countdownInterval) clearInterval(recoverState.countdownInterval);
+    recoverState.secondsLeft = seconds;
+    const el = document.getElementById('recoverCountdown');
+
+    const render = () => {
+        if (!el) return;
+        const m = Math.floor(recoverState.secondsLeft / 60);
+        const s = recoverState.secondsLeft % 60;
+        el.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+
+    render();
+    recoverState.countdownInterval = setInterval(() => {
+        recoverState.secondsLeft -= 1;
+        if (recoverState.secondsLeft <= 0) {
+            clearInterval(recoverState.countdownInterval);
+            recoverState.countdownInterval = null;
+            if (el) el.textContent = '00:00';
+            const msg = document.getElementById('recoverCodeMessage');
+            if (msg) msg.innerHTML = '<span class="text-danger">El código ha expirado. Reenvía uno nuevo.</span>';
+        } else {
+            render();
+        }
+    }, 1000);
+}
+
+function initRecoverFlow() {
+    document.getElementById('btnOlvidastePassword')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        resetRecoverFlow();
+        goToRecoverTab();
+    });
+
+    document.getElementById('recoverBackToLogin')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        resetRecoverFlow();
+        const tab = document.getElementById('ratingLoginTab');
+        if (tab) new bootstrap.Tab(tab).show();
+    });
+
+    document.getElementById('recoverBackToStep1')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (recoverState.countdownInterval) {
+            clearInterval(recoverState.countdownInterval);
+            recoverState.countdownInterval = null;
+        }
+        showRecoverStep(1);
+    });
+
+    document.getElementById('recoverSendCodeBtn')?.addEventListener('click', async function () {
+        const emailInput = document.getElementById('recoverEmail');
+        const messageDiv = document.getElementById('recoverEmailMessage');
+        const email = emailInput.value.trim();
+
+        if (!email) {
+            messageDiv.innerHTML = '<span class="text-danger">Ingresa tu correo electrónico.</span>';
+            return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            messageDiv.innerHTML = '<span class="text-danger">Ingresa un correo válido.</span>';
+            return;
+        }
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Enviando...';
+        messageDiv.innerHTML = '';
+
+        try {
+            const response = await axios.post('/password-cliente/solicitar-codigo', {
+                email
+            });
+            const data = response.data;
+
+            if (data.success) {
+                recoverState.email = email;
+                document.getElementById('recoverEmailDisplay').textContent = email;
+
+                const segundos = data.segundos_restantes || (15 * 60);
+                startCountdown(segundos);
+                showRecoverStep(2);
+
+                if (data.reutilizado) {
+                    messageDiv.innerHTML = '<span class="text-info">Ya tenías un código activo. Revisa tu correo.</span>';
+                }
+            } else {
+                messageDiv.innerHTML = `<span class="text-danger">${data.message || 'Error al enviar el código.'}</span>`;
+            }
+        } catch (error) {
+            const msg = error.response?.data?.message || 'Error al enviar el código. Intenta más tarde.';
+            messageDiv.innerHTML = `<span class="text-danger">${msg}</span>`;
+        } finally {
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-envelope-paper me-2"></i> Enviar código';
+        }
+    });
+
+    document.getElementById('recoverResendCode')?.addEventListener('click', async function (e) {
+        e.preventDefault();
+        if (!recoverState.email) return;
+
+        const messageDiv = document.getElementById('recoverCodeMessage');
+        messageDiv.innerHTML = '<span class="text-muted">Reenviando...</span>';
+
+        try {
+            const response = await axios.post('/password-cliente/solicitar-codigo', {
+                email: recoverState.email
+            });
+            const data = response.data;
+            if (data.success) {
+                startCountdown(data.segundos_restantes || (15 * 60));
+                messageDiv.innerHTML = '<span class="text-success">Código reenviado. Revisa tu correo.</span>';
+            } else {
+                messageDiv.innerHTML = `<span class="text-danger">${data.message || 'No se pudo reenviar.'}</span>`;
+            }
+        } catch (error) {
+            const msg = error.response?.data?.message || 'Error al reenviar el código.';
+            messageDiv.innerHTML = `<span class="text-danger">${msg}</span>`;
+        }
+    });
+
+    document.getElementById('recoverValidateCodeBtn')?.addEventListener('click', async function () {
+        const codeInput = document.getElementById('recoverCode');
+        const messageDiv = document.getElementById('recoverCodeMessage');
+        const codigo = codeInput.value.trim();
+
+        if (!/^\d{6}$/.test(codigo)) {
+            messageDiv.innerHTML = '<span class="text-danger">El código debe tener 6 dígitos.</span>';
+            return;
+        }
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Validando...';
+        messageDiv.innerHTML = '';
+
+        try {
+            const response = await axios.post('/password-cliente/validar-codigo', {
+                email: recoverState.email,
+                codigo
+            });
+            if (response.data.success) {
+                recoverState.codigo = codigo;
+                if (recoverState.countdownInterval) {
+                    clearInterval(recoverState.countdownInterval);
+                    recoverState.countdownInterval = null;
+                }
+                showRecoverStep(3);
+            }
+        } catch (error) {
+            const msg = error.response?.data?.message || 'Código incorrecto.';
+            messageDiv.innerHTML = `<span class="text-danger">${msg}</span>`;
+            if (error.response?.data?.expirado) {
+                if (recoverState.countdownInterval) {
+                    clearInterval(recoverState.countdownInterval);
+                    recoverState.countdownInterval = null;
+                }
+            }
+        } finally {
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-shield-check me-2"></i> Validar código';
+        }
+    });
+
+    document.getElementById('recoverCode')?.addEventListener('input', function () {
+        this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    });
+    document.getElementById('recoverCode')?.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('recoverValidateCodeBtn')?.click();
+        }
+    });
+
+    document.getElementById('recoverChangePasswordBtn')?.addEventListener('click', async function () {
+        const passInput = document.getElementById('recoverNewPassword');
+        const confirmInput = document.getElementById('recoverConfirmPassword');
+        const messageDiv = document.getElementById('recoverPasswordMessage');
+        const password = passInput.value;
+        const confirm = confirmInput.value;
+
+        if (password.length < 6) {
+            messageDiv.innerHTML = '<span class="text-danger">La contraseña debe tener al menos 6 caracteres.</span>';
+            return;
+        }
+        if (password !== confirm) {
+            messageDiv.innerHTML = '<span class="text-danger">Las contraseñas no coinciden.</span>';
+            return;
+        }
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Guardando...';
+        messageDiv.innerHTML = '';
+
+        try {
+            const response = await axios.post('/password-cliente/cambiar-password', {
+                email: recoverState.email,
+                codigo: recoverState.codigo,
+                password,
+                password_confirmation: confirm
+            });
+            if (response.data.success) {
+                showRecoverStep(4);
+            }
+        } catch (error) {
+            const msg = error.response?.data?.message || 'No se pudo cambiar la contraseña.';
+            messageDiv.innerHTML = `<span class="text-danger">${msg}</span>`;
+            if (error.response?.data?.expirado) {
+                showRecoverStep(2);
+            }
+        } finally {
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-check-circle me-2"></i> Cambiar contraseña';
+        }
+    });
+
+    document.getElementById('recoverGoToLogin')?.addEventListener('click', function () {
+        resetRecoverFlow();
+        const tab = document.getElementById('ratingLoginTab');
+        if (tab) new bootstrap.Tab(tab).show();
+    });
+}

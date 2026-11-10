@@ -6,8 +6,6 @@ const main = document.getElementById('main');
 sidebar.classList.add('menu-toggle');
 main.classList.add('menu-toggle');
 document.addEventListener('DOMContentLoaded', function() {
-    const sidebar = document.getElementById('sidebar');
-    const main = document.getElementById('main');
     const toggleBtn = document.getElementById('toggleSidebar');
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const overlay = document.getElementById('sidebarOverlay');
@@ -194,6 +192,38 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     actualizarContador()
+
+    const timers = document.querySelectorAll('.oferta-timer');
+    if (!timers.length) return;
+
+    function formatNumber(n) { return String(n).padStart(2, '0'); }
+
+    function updateTimers() {
+        const now = new Date().getTime();
+
+        timers.forEach(timer => {
+            const fin = timer.dataset.fin;
+            if (!fin) return;
+
+            const finTime = new Date(fin).getTime();
+            const diff = finTime - now;
+
+            if (diff <= 0) {
+                timer.querySelector('.timer-text').textContent = '¡Finalizó!';
+                return;
+            }
+
+            const horas  = Math.floor(diff / (1000 * 60 * 60));
+            const min    = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seg    = Math.floor((diff % (1000 * 60)) / 1000);
+
+            timer.querySelector('.timer-text').textContent =
+                `${formatNumber(horas)}:${formatNumber(min)}:${formatNumber(seg)}`;
+        });
+    }
+
+    updateTimers();
+    setInterval(updateTimers, 1000);
 });
 
 
@@ -369,23 +399,6 @@ function generarGridIconos(iconoSeleccionado = '', filtro = '') {
             </button>
         `;
     }).join('');
-}
-
-function bindBotones(container, hiddenInput) {
-    container.querySelectorAll('.icon-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-
-            container.querySelectorAll('.icon-btn').forEach(b =>
-                b.classList.remove('selected')
-            );
-
-            this.classList.add('selected');
-
-            const iconName = this.getAttribute('data-icon');
-            hiddenInput.value = iconName;
-        });
-    });
 }
 
 function bindBotones(contenedor, inputHidden) {

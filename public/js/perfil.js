@@ -3,7 +3,6 @@ let provinciaEditar = window.datosUsuario?.provincia || '';
 let departamentoEditar = window.datosUsuario?.departamento || '';
 
 $(document).ready(function() {
-    // Mostrar preview de imagen al seleccionar
     $('#imagen').on('change', function() {
         const file = this.files[0];
         if (file) {
@@ -26,7 +25,6 @@ $(document).ready(function() {
         }
     });
 
-    // Toggle contraseña
     $('#togglePassword').on('click', function() {
         const password = $('#password');
         const type = password.attr('type') === 'password' ? 'text' : 'password';
@@ -34,7 +32,6 @@ $(document).ready(function() {
         $(this).find('i').toggleClass('bi-eye bi-eye-slash');
     });
 
-    // Medidor de fuerza de contraseña
     $('#password').on('input', function() {
         const password = $(this).val();
         const strengthBar = $('#passwordStrength');
@@ -63,7 +60,6 @@ $(document).ready(function() {
         }
     });
 
-    // Función para cargar provincias
     function cargarProvincias(departamentoId, seleccionarProvincia = null) {
         if (!departamentoId) {
             $('#provincia_id').html('<option value="">Seleccione</option>').prop('disabled', true);
@@ -71,7 +67,6 @@ $(document).ready(function() {
             return;
         }
 
-        // Usar el preloader global
         let loader = showPreloader("Cargando provincias...", "cargar");
 
         $.ajax({
@@ -87,11 +82,9 @@ $(document).ready(function() {
                 
                 $('#provincia_id').html(options).prop('disabled', false);
                 
-                // Si hay provincia para seleccionar
                 if (seleccionarProvincia) {
                     $('#provincia_id').val(seleccionarProvincia);
                     
-                    // Cargar distritos inmediatamente
                     cargarDistritos(seleccionarProvincia, distritoEditar);
                 } else {
                     $('#distrito_id').html('<option value="">Primero seleccione provincia</option>').prop('disabled', true);
@@ -99,8 +92,6 @@ $(document).ready(function() {
             },
             error: function(xhr, status, error) {
                 hidePreloader(loader);
-                console.error('Error cargando provincias:', error);
-                
                 $('#provincia_id').html('<option value="">Error al cargar</option>').prop('disabled', true);
                 
                 Swal.fire({
@@ -113,7 +104,6 @@ $(document).ready(function() {
         });
     }
 
-    // Función para cargar distritos
     function cargarDistritos(provinciaId, seleccionarDistrito = null) {
         if (!provinciaId) {
             $('#distrito_id').html('<option value="">Seleccione</option>').prop('disabled', true);
@@ -135,14 +125,12 @@ $(document).ready(function() {
                 
                 $('#distrito_id').html(options).prop('disabled', false);
 
-                // Si hay distrito para seleccionar
                 if (seleccionarDistrito) {
                     $('#distrito_id').val(seleccionarDistrito);
                 }
             },
             error: function(xhr, status, error) {
                 hidePreloader(loader);
-                console.error('Error cargando distritos:', error);
                 
                 $('#distrito_id').html('<option value="">Error al cargar</option>').prop('disabled', true);
                 
@@ -156,13 +144,11 @@ $(document).ready(function() {
         });
     }
 
-    // Evento change de departamento
     $('#departamento_id').on('change', function() {
         let departamentoId = $(this).val();
         cargarProvincias(departamentoId);
     });
 
-    // Evento change de provincia
     $('#provincia_id').on('change', function() {
         let provinciaId = $(this).val();
         cargarDistritos(provinciaId);
@@ -182,18 +168,15 @@ $(document).ready(function() {
         window.addEventListener('load', cargarDatosIniciales);
     }
 
-    // Enviar formulario
     $('#formPerfil').on('submit', function(e) {
         e.preventDefault();
         
         let formData = new FormData(this);
         let isValid = true;
         
-        // Limpiar mensajes de error anteriores
         $('.is-invalid').removeClass('is-invalid');
         $('.invalid-feedback').remove();
         
-        // Validar campos obligatorios
         $(this).find('[required]').each(function() {
             if (!$(this).val()) {
                 isValid = false;
@@ -215,7 +198,6 @@ $(document).ready(function() {
             return false;
         }
 
-        // Validar contraseña si se ingresa
         let password = $('#password').val();
         if (password) {
             let regexPassword = /^(?=.*[A-Z])(?=.*[a-zA-Z])(?=.*\d).{6,}$/;

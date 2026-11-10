@@ -80,18 +80,14 @@
 }
 </style>
 <div class="container-fluid pb-4">
-    <!-- Encabezado -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0">
                 <div class="card-header d-flex justify-content-between align-items-center py-3">
-                    <h3 class="mb-0">
+                    <h3 class="mb-0 text-white">
                         <i class="bi bi-building me-2"></i>Datos Legales y de Contacto
                     </h3>
                     <div class="d-flex gap-2">
-                        <!-- <button type="button" class="btn btn-info" id="btnVerificarRUC">
-                            <i class="bi bi-search me-1"></i>Verificar RUC
-                        </button> -->
                         <button type="button" class="btn btn-success" id="btnGuardar">
                             <i class="bi bi-save me-1"></i>Guardar Cambios
                         </button>
@@ -101,7 +97,6 @@
         </div>
     </div>
 
-    <!-- Formulario Principal -->
     <div class="row">
         <div class="col-12">
             <div class="card shadow-sm border-0">
@@ -109,7 +104,6 @@
                     <form id="formDatosEmpresa" novalidate>
                         @csrf
                         
-                        <!-- Sección 1: Información Fiscal -->
                         <div class="row mb-5">
                             <div class="col-12">
                                 <h4 class="border-bottom pb-2 mb-4">
@@ -117,7 +111,6 @@
                                 </h4>
                             </div>
                             
-                            <!-- RUC -->
                             <div class="col-md-6 mb-3">
                                 <label for="ruc" class="form-label fw-bold">
                                     <i class="bi bi-card-checklist me-1"></i>RUC
@@ -142,7 +135,6 @@
                                 <div id="rucFeedback" class="mt-1" style="display: none;"></div>
                             </div>
 
-                            <!-- Razón Social -->
                             <div class="col-md-6 mb-3">
                                 <label for="razon_social" class="form-label fw-bold">
                                     <i class="bi bi-building me-1"></i>Razón Social
@@ -165,7 +157,6 @@
                                 <small class="text-muted">Nombre legal completo de la empresa.</small>
                             </div>
 
-                            <!-- Nombre Comercial -->
                             <div class="col-md-6 mb-3">
                                 <label for="nombre_comercial" class="form-label fw-bold">
                                     <i class="bi bi-shop me-1"></i>Nombre Comercial
@@ -184,7 +175,6 @@
                                 <small class="text-muted">Nombre público/marca comercial (opcional).</small>
                             </div>
 
-                            <!-- Propietario -->
                             <div class="col-md-3 mb-3">
                                 <label for="propietario_nombre" class="form-label fw-bold">
                                     <i class="bi bi-person me-1"></i>Nombre Propietario
@@ -218,7 +208,6 @@
                             </div>
                         </div>
 
-                        <!-- Sección 2: Ubicación -->
                         <div class="row mb-5">
                             <div class="col-12">
                                 <h4 class="border-bottom pb-2 mb-4">
@@ -226,7 +215,6 @@
                                 </h4>
                             </div>
                             
-                            <!-- Dirección -->
                             <div class="col-md-8 mb-3">
                                 <label for="direccion" class="form-label fw-bold">
                                     <i class="bi bi-geo me-1"></i>Dirección Completa
@@ -243,7 +231,6 @@
                                 <small class="text-muted">Calle, número, piso, oficina, referencia.</small>
                             </div>
 
-                            <!-- UBIGEO -->
                             <div class="col-md-4 mb-3">
                                 <label for="ubigeo" class="form-label fw-bold">
                                     <i class="bi bi-pin-map me-1"></i>Código UBIGEO
@@ -267,7 +254,6 @@
                                 <small class="text-muted">Código de ubicación geográfica (6 dígitos).</small>
                             </div>
 
-                            <!-- Departamento -->
                             <div class="col-md-4 mb-3">
                                 <label for="departamento" class="form-label fw-bold">
                                     <i class="bi bi-building me-1"></i>Departamento
@@ -283,7 +269,6 @@
                                 </div>
                             </div>
 
-                            <!-- Provincia -->
                             <div class="col-md-4 mb-3">
                                 <label for="provincia" class="form-label fw-bold">
                                     <i class="bi bi-geo me-1"></i>Provincia
@@ -293,7 +278,6 @@
                                 </select>
                             </div>
 
-                            <!-- Distrito -->
                             <div class="col-md-4 mb-3">
                                 <label for="distrito" class="form-label fw-bold">
                                     <i class="bi bi-signpost me-1"></i>Distrito
@@ -303,7 +287,6 @@
                                 </select>
                             </div>
 
-                            <!-- Google Maps URL -->
                             <div class="col-md-12 mb-3">
                                 <label for="maps_url" class="form-label fw-bold">
                                     <i class="bi bi-google me-1"></i>Google Maps
@@ -326,7 +309,6 @@
                             </div>
                         </div>
 
-                        <!-- Sección 3: Contacto -->
                         <div class="row mb-5">
                             <div class="col-12">
                                 <h4 class="border-bottom pb-2 mb-4">
@@ -334,7 +316,6 @@
                                 </h4>
                             </div>
                             
-                            <!-- Teléfono -->
                             <div class="col-md-6 mb-3">
                                 <label for="telefono" class="form-label fw-bold">
                                     <i class="bi bi-telephone-fill me-1"></i>Teléfono Fijo
@@ -353,7 +334,6 @@
                                 <small class="text-muted">Teléfono fijo para contacto formal.</small>
                             </div>
 
-                            <!-- Celular/WhatsApp -->
                             <div class="col-md-6 mb-3">
                                 <label for="celular" class="form-label fw-bold">
                                     <i class="bi bi-whatsapp me-1"></i>Celular (WhatsApp)
@@ -376,7 +356,6 @@
                             </div>
                         </div>
 
-                        <!-- Sección 4: Vista Previa -->
                         <div class="row">
                             <div class="col-12">
                                 <div class="card border-primary">
@@ -423,7 +402,6 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Timestamps -->
                                         <div class="mt-3">
                                             <div class="d-flex justify-content-between small text-muted">
                                                 <div>
@@ -447,9 +425,6 @@
                         <i class="bi bi-arrow-clockwise me-1"></i>Restablecer
                     </button>
                     <div class="d-flex gap-2">
-                        <!-- <button type="button" class="btn btn-warning" id="btnExportarPDF">
-                            <i class="bi bi-file-pdf me-1"></i>Exportar PDF
-                        </button> -->
                         <button type="button" class="btn btn-success" id="btnGuardarFooter">
                             <i class="bi bi-save me-1"></i>Guardar Cambios
                         </button>
@@ -460,7 +435,6 @@
     </div>
 </div>
 
-<!-- Modal ayuda UBIGEO -->
 <div class="modal fade" id="modalAyudaUbigeo" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">

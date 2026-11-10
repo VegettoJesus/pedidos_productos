@@ -1,13 +1,14 @@
 <div class="container-fluid pb-4">
-    <!-- Encabezado -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0">
-                <div class="card-header d-flex justify-content-between align-items-center py-3">
-                    <h3 class="mb-0">
+                <div class="card-header d-lg-flex d-md-flex d-xl-flex justify-content-between align-items-center py-3">
+                    <div>
+                    <h3 class="d-flex mb-0 text-white">
                         <i class="bi bi-envelope me-2"></i>Configuración del Servidor de Correo
                     </h3>
-                    <div class="d-flex gap-2">
+                    </div>
+                    <div class="d-flex gap-2 p-2">
                         <button type="button" class="btn btn-info" id="btnProbarConexion">
                             <i class="bi bi-plug me-1"></i>Probar Conexión
                         </button>
@@ -20,7 +21,6 @@
         </div>
     </div>
 
-    <!-- Formulario Principal -->
     <div class="row">
         <div class="col-12">
             <div class="card shadow-sm border-0">
@@ -28,7 +28,6 @@
                     <form id="formServidorCorreo" novalidate>
                         @csrf
                         
-                        <!-- Sección 1: Configuraciones Predefinidas -->
                         <div class="row mb-5">
                             <div class="col-12">
                                 <h4 class="border-bottom pb-2 mb-4">
@@ -37,12 +36,10 @@
                                 <p class="text-muted mb-3">Seleccione una configuración predefinida para llenar automáticamente los campos.</p>
                                 
                                 <div class="row g-3" id="configuracionesRapidas">
-                                    <!-- Se llenará dinámicamente con JavaScript -->
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Sección 2: Configuración SMTP -->
                         <div class="row mb-5">
                             <div class="col-12">
                                 <h4 class="border-bottom pb-2 mb-4">
@@ -50,7 +47,6 @@
                                 </h4>
                             </div>
                             
-                            <!-- Servidor de Correo -->
                             <div class="col-md-6 mb-3">
                                 <label for="servidor_correo" class="form-label fw-bold">
                                     <i class="bi bi-server me-1"></i>Servidor SMTP
@@ -76,7 +72,6 @@
                                 <small class="text-muted">Dirección del servidor de correo saliente (SMTP).</small>
                             </div>
 
-                            <!-- Puerto -->
                             <div class="col-md-6 mb-3">
                                 <label for="puerto" class="form-label fw-bold">
                                     <i class="bi bi-signpost me-1"></i>Puerto
@@ -100,7 +95,6 @@
                                 <small class="text-muted">Puerto de conexión SMTP (587-TLS, 465-SSL, 25-Sin encriptar).</small>
                             </div>
 
-                            <!-- Seguridad -->
                             <div class="col-md-6 mb-3">
                                 <label for="seguridad" class="form-label fw-bold">
                                     <i class="bi bi-shield-check me-1"></i>Seguridad
@@ -120,7 +114,6 @@
                                 </small>
                             </div>
 
-                            <!-- Activo -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">
                                     <i class="bi bi-power me-1"></i>Estado
@@ -136,7 +129,6 @@
                             </div>
                         </div>
 
-                        <!-- Sección 3: Credenciales de Acceso -->
                         <div class="row mb-5">
                             <div class="col-12">
                                 <h4 class="border-bottom pb-2 mb-4">
@@ -148,7 +140,6 @@
                                 </div>
                             </div>
                             
-                            <!-- Nombre de Acceso -->
                             <div class="col-md-6 mb-3">
                                 <label for="nombre_acceso" class="form-label fw-bold">
                                     <i class="bi bi-person-badge me-1"></i>Nombre de Acceso / Email
@@ -171,7 +162,6 @@
                                 <small class="text-muted">Usuario o email para autenticación SMTP.</small>
                             </div>
 
-                            <!-- Contraseña -->
                             <div class="col-md-6 mb-3">
                                 <label for="contraseña" class="form-label fw-bold">
                                     <i class="bi bi-key-fill me-1"></i>Contraseña
@@ -199,7 +189,6 @@
                                 </small>
                             </div>
 
-                            <!-- Confirmar Contraseña -->
                             <div class="col-md-6 mb-3" id="confirmarContraseñaContainer" style="display: none;">
                                 <label for="confirmar_contraseña" class="form-label fw-bold">
                                     <i class="bi bi-key me-1"></i>Confirmar Contraseña
@@ -220,7 +209,6 @@
                                 </div>
                             </div>
 
-                            <!-- Tipo de Contraseña -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">
                                     <i class="bi bi-info-circle me-1"></i>Nota sobre Contraseñas
@@ -234,7 +222,6 @@
                             </div>
                         </div>
 
-                        <!-- Sección 4: Información de Conexión -->
                         <div class="row">
                             <div class="col-12">
                                 <div class="card border-primary">
@@ -277,7 +264,6 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Detalles Técnicos -->
                                         <div class="mt-3">
                                             <button class="btn btn-sm btn-outline-secondary" type="button" 
                                                     data-bs-toggle="collapse" data-bs-target="#detallesTecnicos">
@@ -314,7 +300,6 @@
     </div>
 </div>
 
-<!-- Modal para probar conexión -->
 <div class="modal fade" id="modalProbarConexion" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -335,7 +320,6 @@
                     Se enviará un email de prueba para verificar la configuración.
                 </div>
                 <div id="resultadoPrueba" class="mt-3" style="display: none;">
-                    <!-- Resultado se mostrará aquí -->
                 </div>
             </div>
             <div class="modal-footer">
@@ -350,7 +334,6 @@
     </div>
 </div>
 
-<!-- Modal ayuda servidores -->
 <div class="modal fade" id="modalAyudaServidores" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
