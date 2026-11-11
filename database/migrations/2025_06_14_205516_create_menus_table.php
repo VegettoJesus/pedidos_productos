@@ -165,6 +165,14 @@ return new class extends Migration
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'id' => 17,
+                'nombre' => 'Contacto',
+                'url' => 'AdministracionDelSistema/contactoMensajes',
+                'padre' => 1,
+                'orden' => 4,
+                'icono' => 'bi bi-envelope-paper-fill',
+            ],
         ];
 
         foreach ($menus as $menu) {
